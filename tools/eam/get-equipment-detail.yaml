@@ -1,0 +1,24 @@
+name: get_equipment_detail
+description: 获取单台设备的完整详情，包括基本信息和KPI指标（故障次数、维修时长、保养执行率等）。
+version: "1.0"
+system: eam
+domains: [equipment]
+operation: detail
+supports_filters: [equipmentId]
+returns: [equipmentId, name, code, status, category, location, productionLine, kpi]
+feeds_into: [query_fault_reports, query_repair_orders, query_maintenance_tasks, get_equipment_spare_bom]
+depends_on: [query_equipment]
+quality: 5
+cost: low
+input_schema:
+  type: object
+  properties:
+    equipmentId:
+      type: integer
+      description: 设备ID
+  required: [equipmentId]
+examples:
+  - query: CNC-001 这台设备的详细信息
+    arguments: { equipmentId: 101 }
+when_to_use: 需要查看单台设备完整信息和 KPI 指标时
+when_not_to_use: 需要批量查设备列表时用 query_equipment

@@ -1,0 +1,28 @@
+name: get_repair_detail
+description: 获取维修工单完整详情，包括工单基本信息、使用的备件清单、工时记录、关联的知识引用。
+version: "1.0"
+system: eam
+domains: [fault-repair, spare, knowledge]
+operation: detail
+supports_filters: [repairOrderId, faultReportId]
+returns: [repairOrder, sparesUsed, laborRecords, knowledgeRefs]
+feeds_into: [get_equipment_spare_bom, query_spare_transactions]
+depends_on: [query_repair_orders, query_fault_reports]
+quality: 5
+cost: low
+input_schema:
+  type: object
+  properties:
+    repairOrderId:
+      type: integer
+      description: 维修工单ID
+    faultReportId:
+      type: integer
+      description: 故障报修ID（二选一，通过报修单找工单）
+examples:
+  - query: 工单 WO-001 用了哪些备件？
+    arguments: { repairOrderId: 201 }
+  - query: 这次报修的维修详情
+    arguments: { faultReportId: 301 }
+when_to_use: 需要查看维修工单完整信息（备件+工时+知识）时
+when_not_to_use: 只需要工单列表时用 query_repair_orders

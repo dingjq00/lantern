@@ -1,0 +1,40 @@
+name: query_repair_orders
+description: 查询维修工单列表。支持按设备、状态、时间范围筛选。状态包括从待分配到已关闭的全流程。
+version: "1.0"
+system: eam
+domains: [fault-repair]
+operation: list
+supports_filters: [equipmentId, status, dateRange]
+returns: [repairOrderId, equipmentName, status, createTime, finishTime]
+feeds_into: [get_repair_detail]
+depends_on: []
+quality: 5
+cost: low
+input_schema:
+  type: object
+  properties:
+    equipmentId:
+      type: integer
+      description: 设备ID
+    status:
+      type: integer
+      enum: [0, 1, 2, 3, 4, 5, 6]
+      description: "工单状态：0=待分配 1=待接单 2=待维修 3=维修中 4=待验收 5=已验收 6=已关闭"
+    dateRange:
+      type: object
+      properties:
+        start:
+          type: string
+          format: date
+          description: 开始日期
+        end:
+          type: string
+          format: date
+          description: 结束日期
+examples:
+  - query: 目前有多少未完成的维修工单？
+    arguments: { status: 3 }
+  - query: 上月所有维修工单
+    arguments: { dateRange: { start: "2026-02-01", end: "2026-02-28" } }
+when_to_use: 需要查询维修工单列表、统计工单数量时
+when_not_to_use: 需要单个工单完整详情（备件+工时）用 get_repair_detail

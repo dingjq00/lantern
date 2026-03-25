@@ -1,0 +1,22 @@
+name: get_dashboard_summary
+description: 获取系统总览统计，包括设备总数、运行中/故障/报废数、待处理报修数、待处理工单数、待执行保养任务数。
+version: "1.0"
+system: eam
+domains: [equipment, fault-repair, maintenance]
+operation: statistics
+supports_filters: []
+returns: [totalEquipment, runningCount, faultCount, scrappedCount, pendingFaults, pendingOrders, pendingMaintenance]
+feeds_into: []
+depends_on: []
+quality: 5
+cost: low
+input_schema:
+  type: object
+  properties: {}
+examples:
+  - query: 系统里有多少台设备？
+    arguments: {}
+  - query: 给我一个全局概览
+    arguments: {}
+when_to_use: 需要系统整体概览、全局统计数字时
+when_not_to_use: 仅查设备状态分布用 get_equipment_status_distribution；仅查治理指标用 get_governance_dashboard

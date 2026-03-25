@@ -1,0 +1,45 @@
+name: query_equipment
+description: 按条件查询设备列表。支持按分类、位置、产线、状态、关键字等条件筛选设备。
+version: "1.0"
+system: eam
+domains: [equipment]
+operation: list
+supports_filters: [keyword, status, categoryId, locationId, productionLineId, deptId, isKey]
+returns: [equipmentId, name, code, status, category, location, productionLine]
+feeds_into: [get_equipment_detail, get_equipment_lifecycle, query_fault_reports, query_repair_orders, query_maintenance_tasks]
+depends_on: []
+quality: 5
+cost: low
+input_schema:
+  type: object
+  properties:
+    keyword:
+      type: string
+      description: 设备编号或名称关键字
+    status:
+      type: integer
+      enum: [0, 1, 2, 3, 4, 5, 6, 7]
+      description: "设备状态：0=待验收 1=运行中 2=维修中 3=停机 4=封存 5=待整改 6=闲置 7=报废"
+    categoryId:
+      type: integer
+      description: 设备分类ID
+    locationId:
+      type: integer
+      description: 位置ID
+    productionLineId:
+      type: integer
+      description: 产线ID
+    deptId:
+      type: integer
+      description: 所属部门ID
+    isKey:
+      type: integer
+      enum: [0, 1]
+      description: "是否重点设备：0=否 1=是"
+examples:
+  - query: 查看A线上所有设备
+    arguments: { productionLineId: 1 }
+  - query: 系统里有多少台设备在运行？
+    arguments: { status: 1 }
+when_to_use: 需要按条件筛选设备列表时；需要获取某产线/位置/分类下的设备时
+when_not_to_use: 只需要单台设备详情时用 get_equipment_detail

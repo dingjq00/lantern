@@ -1,0 +1,43 @@
+name: query_maintenance_tasks
+description: 查询保养任务列表。支持按设备、状态、保养计划、时间范围筛选。
+version: "1.0"
+system: eam
+domains: [maintenance]
+operation: list
+supports_filters: [equipmentId, status, planId, dateRange]
+returns: [taskId, equipmentName, planName, status, scheduledDate, completedDate]
+feeds_into: [get_maintenance_detail]
+depends_on: []
+quality: 5
+cost: low
+input_schema:
+  type: object
+  properties:
+    equipmentId:
+      type: integer
+      description: 设备ID
+    status:
+      type: integer
+      enum: [0, 1, 2, 3]
+      description: "任务状态：0=待执行 1=执行中 2=已完成 3=已跳过"
+    planId:
+      type: integer
+      description: 保养计划ID
+    dateRange:
+      type: object
+      properties:
+        start:
+          type: string
+          format: date
+          description: 开始日期
+        end:
+          type: string
+          format: date
+          description: 结束日期
+examples:
+  - query: 本周有哪些保养任务？
+    arguments: { dateRange: { start: "2026-03-23", end: "2026-03-29" } }
+  - query: CNC-001 的保养执行情况
+    arguments: { equipmentId: 101 }
+when_to_use: 需要查询保养任务列表、统计保养执行情况时
+when_not_to_use: 需要单个任务的执行记录用 get_maintenance_detail

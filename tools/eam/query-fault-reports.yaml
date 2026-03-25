@@ -1,0 +1,43 @@
+name: query_fault_reports
+description: 查询故障报修记录列表。支持按设备、状态、时间范围、故障类型筛选。
+version: "1.0"
+system: eam
+domains: [fault-repair]
+operation: list
+supports_filters: [equipmentId, status, faultTypeId, dateRange]
+returns: [faultReportId, equipmentName, faultType, status, reportTime, description]
+feeds_into: [get_repair_detail]
+depends_on: []
+quality: 5
+cost: low
+input_schema:
+  type: object
+  properties:
+    equipmentId:
+      type: integer
+      description: 设备ID
+    status:
+      type: integer
+      enum: [0, 1, 2, 3]
+      description: "报修状态：0=待审核 1=已通过 2=已拒绝 3=已撤回"
+    faultTypeId:
+      type: integer
+      description: 故障分类ID
+    dateRange:
+      type: object
+      properties:
+        start:
+          type: string
+          format: date
+          description: 开始日期
+        end:
+          type: string
+          format: date
+          description: 结束日期
+examples:
+  - query: 上个月有哪些故障报修？
+    arguments: { dateRange: { start: "2026-02-01", end: "2026-02-28" } }
+  - query: CNC-001 最近的故障记录
+    arguments: { equipmentId: 101 }
+when_to_use: 需要查询故障报修列表、按条件筛选故障记录时
+when_not_to_use: 需要故障趋势分析用 get_fault_trend

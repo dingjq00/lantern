@@ -1,0 +1,32 @@
+name: get_fault_trend
+description: 获取故障趋势分析。按日统计故障报修数量，支持自定义时间范围。默认近30天。
+version: "1.0"
+system: eam
+domains: [fault-repair]
+operation: trend
+supports_filters: [days, equipmentId, productionLineId]
+returns: [trendData, totalFaults, avgPerDay]
+feeds_into: []
+depends_on: []
+quality: 5
+cost: low
+input_schema:
+  type: object
+  properties:
+    days:
+      type: integer
+      default: 30
+      description: 统计天数
+    equipmentId:
+      type: integer
+      description: 指定设备ID（可选，不传则全局统计）
+    productionLineId:
+      type: integer
+      description: 指定产线ID（可选）
+examples:
+  - query: 最近一个月的故障趋势
+    arguments: { days: 30 }
+  - query: A线近两周故障趋势
+    arguments: { days: 14, productionLineId: 1 }
+when_to_use: 需要分析故障趋势、对比不同时间段故障数量时
+when_not_to_use: 需要具体故障记录列表用 query_fault_reports

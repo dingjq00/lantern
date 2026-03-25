@@ -1,0 +1,29 @@
+name: query_spare_parts
+description: 查询备件列表。支持按名称、类型、状态筛选。
+version: "1.0"
+system: eam
+domains: [spare]
+operation: list
+supports_filters: [keyword, typeId, status]
+returns: [spareId, name, code, type, specification, unit]
+feeds_into: [get_spare_stock, get_equipment_spare_bom, query_spare_transactions]
+depends_on: []
+quality: 3
+cost: low
+input_schema:
+  type: object
+  properties:
+    keyword:
+      type: string
+      description: 备件名称或编号关键字
+    typeId:
+      type: integer
+      description: 备件类型ID
+    status:
+      type: integer
+      description: 备件状态
+examples:
+  - query: 查找轴承类备件
+    arguments: { keyword: "轴承" }
+when_to_use: 需要查找备件基本信息时
+when_not_to_use: 需要查库存用 get_spare_stock；需要查设备关联用 get_equipment_spare_bom

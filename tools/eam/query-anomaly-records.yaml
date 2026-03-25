@@ -1,0 +1,38 @@
+name: query_anomaly_records
+description: 查询异常记录。支持按设备、来源、严重程度、状态筛选，支持分组聚合模式。
+version: "1.0"
+system: eam
+domains: [patrol, maintenance]
+operation: list
+supports_filters: [keyword, source, severity, status, grouped]
+returns: [anomalyId, equipmentName, source, severity, status, description, createdAt]
+feeds_into: []
+depends_on: []
+quality: 5
+cost: low
+input_schema:
+  type: object
+  properties:
+    keyword:
+      type: string
+      description: 关键字搜索（设备名/异常描述）
+    source:
+      type: string
+      description: 异常来源（巡检/保养/其他）
+    severity:
+      type: integer
+      description: 严重程度
+    status:
+      type: integer
+      description: 处理状态
+    grouped:
+      type: boolean
+      default: false
+      description: 是否按设备+来源+日期分组聚合
+examples:
+  - query: 有哪些未处理的异常？
+    arguments: { status: 0 }
+  - query: 巡检发现的异常按设备汇总
+    arguments: { source: "巡检", grouped: true }
+when_to_use: 需要查询异常记录列表、按条件筛选异常时
+when_not_to_use: 仅需要异常统计指标用 get_anomaly_statistics
