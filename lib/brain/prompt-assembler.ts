@@ -59,7 +59,7 @@ export function assemblePrompt(
   const guide = getToolSelectionGuide()
 
   // 4. Few-shot 示例
-  const examples = getFewShotExamples()
+  const examples = getFewShotExamples()!
   const exampleText = examples.map((ex, i) =>
     `**示例 ${i + 1}**: "${ex.query}"\n思路: ${ex.reasoning}\n\`\`\`json\n${JSON.stringify({ calls: ex.calls }, null, 2)}\n\`\`\``
   ).join('\n\n')
