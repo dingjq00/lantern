@@ -33,8 +33,8 @@ export function ChatMessage({ message, onFollowUp }: ChatMessageProps) {
           {message.content}
         </div>
 
-        {/* 表格展示 */}
-        {!isUser && message.display === 'table' && message.data && message.data.length > 0 && (
+        {/* 表格展示 — 有数据就尝试展示，不完全依赖 LLM 的 display 判断 */}
+        {!isUser && message.data && message.data.length > 0 && (
           <ResultTable columns={message.columns} data={message.data} />
         )}
 

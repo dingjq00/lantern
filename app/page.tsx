@@ -14,14 +14,18 @@ export default function Home() {
 
   const handleSend = async (query: string) => {
     const userMsg: Message = { id: Date.now().toString(), role: 'user', content: query }
-    setMessages(prev => [...prev, userMsg])
+    const allMessages = [...messages, userMsg]
+    setMessages(allMessages)
     setLoading(true)
+
+    // 取最近 3 轮对话作为上下文
+    const recent = allMessages.slice(-6).map(m => ({ role: m.role, content: m.content }))
 
     try {
       const res = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ query }),
+        body: JSON.stringify({ query, history: recent }),
       })
 
       if (!res.ok) throw new Error(`HTTP ${res.status}`)

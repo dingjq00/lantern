@@ -39,7 +39,10 @@ async function callTool(name: string, args: Record<string, unknown>): Promise<To
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { query, userId } = body as { query?: string; userId?: string }
+    const { query, history } = body as {
+      query?: string
+      history?: Array<{ role: string; content: string }>
+    }
 
     if (!query || typeof query !== 'string' || query.trim().length === 0) {
       return NextResponse.json({ error: '请输入查询内容' }, { status: 400 })
@@ -49,6 +52,7 @@ export async function POST(request: NextRequest) {
       registry: getRegistry(),
       llm: getLLM(),
       callTool,
+      history,
     })
 
     return NextResponse.json(result)

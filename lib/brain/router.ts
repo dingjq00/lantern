@@ -10,6 +10,7 @@ interface RouterDeps {
   registry: ToolRegistry
   llm: LLMProvider
   callTool: (name: string, args: Record<string, unknown>) => Promise<ToolResult>
+  history?: Array<{ role: string; content: string }>
 }
 
 /**
@@ -20,15 +21,19 @@ export async function processQuery(
   query: string,
   deps: RouterDeps,
 ): Promise<StructuredResult> {
-  const { registry, llm, callTool } = deps
+  const { registry, llm, callTool, history } = deps
 
   // Step 1: 意图提取 (P0: 跳过，由 LLM 内部理解)
   // Step 2: 工具匹配 (P0: 返回全部工具)
   const allTools = registry.getAllTools()
 
-  // Step 3: 记忆注入 (P0: 无记忆)
+  // Step 3: 记忆注入 — 将对话历史作为上下文
+  const historyContext = history && history.length > 1
+    ? history.slice(0, -1).map(m => `${m.role === 'user' ? '用户' : '系统'}: ${m.content}`).join('\n')
+    : undefined
+
   // Step 4: Prompt 动态组装
-  const { systemPrompt, userMessage } = assemblePrompt(query, allTools)
+  const { systemPrompt, userMessage } = assemblePrompt(query, allTools, historyContext)
 
   // Step 5: LLM 路由
   const routeResult = await llm.route(
@@ -41,7 +46,7 @@ export async function processQuery(
 
   if (confidence === 'low' || routeResult.calls.length === 0) {
     return buildStructuredResult(
-      '我不太确定您的问题。您是想查询以下哪方面？\n1. 设备信息\n2. 维修工单\n3. 保养任务\n4. 备件库存',
+      '请问您想了解哪方面的信息？\n1. 设备运行状况\n2. 维修工单进度\n3. 保养任务执行\n4. 备件库存情况',
       [],
       'text',
       'low',

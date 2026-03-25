@@ -86,7 +86,8 @@ ${toolDescriptions}
       messages: [
         { role: 'system', content: `你是数据解读助手。根据查询结果生成简洁的中文回答。
 返回 JSON: {"answer": "自然语言回答", "display": "text|table|chart", "columns": ["列名"], "followUp": ["追问建议"]}
-数据展示类型参考: ${formatHint}` },
+数据展示类型参考: ${formatHint}
+followUp 要求：用祈使句写成可直接执行的指令，如"按优先级排序待办"、"查看CNC-001详情"。不要用问句（不要"要不要""是否"）。` },
         { role: 'user', content: `问题: ${question}\n数据: ${JSON.stringify(data)}` },
       ],
       response_format: { type: 'json_object' },

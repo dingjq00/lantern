@@ -8,14 +8,14 @@ export function ConfidenceHint({ confidence }: ConfidenceHintProps) {
   if (confidence === 'medium') {
     return (
       <div className="mt-2 px-3 py-1.5 bg-blue-50 text-blue-600 text-xs rounded-md">
-        这是我的理解，如果不对请换个方式描述
+        以上是根据您的描述匹配的结果，如需调整请补充细节
       </div>
     )
   }
 
   return (
     <div className="mt-2 px-3 py-1.5 bg-amber-50 text-amber-700 text-xs rounded-md">
-      我不太确定您的问题，请选择或重新描述
+      请补充更多细节，帮助我为您精确定位信息
     </div>
   )
 }
