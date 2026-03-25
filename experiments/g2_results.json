@@ -1,0 +1,905 @@
+{
+  "experiment": "G2_MCP_Tool",
+  "model": "gpt-5.4-mini",
+  "timestamp": "2026-03-25T17:06:50.546053",
+  "results": [
+    {
+      "id": "T01",
+      "level": "L1",
+      "question": "现在系统里一共有多少台设备？",
+      "llm_tools": [
+        "get_dashboard_summary"
+      ],
+      "gt_tools": [
+        "get_dashboard_summary"
+      ],
+      "d1": 1.0,
+      "d2": 1.0,
+      "output": {
+        "calls": [
+          {
+            "tool": "get_dashboard_summary",
+            "arguments": {}
+          }
+        ]
+      },
+      "status": "OK"
+    },
+    {
+      "id": "T02",
+      "level": "L1",
+      "question": "当前有几个待审核的故障报修？",
+      "llm_tools": [
+        "query_fault_reports"
+      ],
+      "gt_tools": [
+        "get_dashboard_summary"
+      ],
+      "d1": 0.0,
+      "d2": 0.0,
+      "output": {
+        "calls": [
+          {
+            "tool": "query_fault_reports",
+            "arguments": {
+              "status": 0
+            }
+          }
+        ]
+      },
+      "status": "MISS"
+    },
+    {
+      "id": "T03",
+      "level": "L1",
+      "question": "设备 EQ-001 的详细信息是什么？",
+      "llm_tools": [
+        "query_equipment",
+        "get_equipment_detail"
+      ],
+      "gt_tools": [
+        "get_equipment_detail"
+      ],
+      "d1": 1.0,
+      "d2": 0.5,
+      "output": {
+        "calls": [
+          {
+            "tool": "query_equipment",
+            "arguments": {
+              "keyword": "EQ-001"
+            }
+          },
+          {
+            "tool": "get_equipment_detail",
+            "arguments": {
+              "equipmentId": ""
+            }
+          }
+        ]
+      },
+      "status": "PARTIAL"
+    },
+    {
+      "id": "T04",
+      "level": "L1",
+      "question": "各状态的设备数量分布是怎样的？",
+      "llm_tools": [
+        "get_equipment_status_distribution"
+      ],
+      "gt_tools": [
+        "get_equipment_status_distribution"
+      ],
+      "d1": 1.0,
+      "d2": 1.0,
+      "output": {
+        "calls": [
+          {
+            "tool": "get_equipment_status_distribution",
+            "arguments": {}
+          }
+        ]
+      },
+      "status": "OK"
+    },
+    {
+      "id": "T05",
+      "level": "L1",
+      "question": "最近 30 天的故障趋势怎么样？",
+      "llm_tools": [
+        "get_fault_trend"
+      ],
+      "gt_tools": [
+        "get_fault_trend"
+      ],
+      "d1": 1.0,
+      "d2": 1.0,
+      "output": {
+        "calls": [
+          {
+            "tool": "get_fault_trend",
+            "arguments": {
+              "days": 30
+            }
+          }
+        ]
+      },
+      "status": "OK"
+    },
+    {
+      "id": "T06",
+      "level": "L1",
+      "question": "巡检异常的整体统计指标是什么？",
+      "llm_tools": [
+        "get_anomaly_statistics"
+      ],
+      "gt_tools": [
+        "get_anomaly_statistics"
+      ],
+      "d1": 1.0,
+      "d2": 1.0,
+      "output": {
+        "calls": [
+          {
+            "tool": "get_anomaly_statistics",
+            "arguments": {}
+          }
+        ]
+      },
+      "status": "OK"
+    },
+    {
+      "id": "T07",
+      "level": "L1",
+      "question": "当前有哪些库存预警？",
+      "llm_tools": [
+        "get_spare_alerts"
+      ],
+      "gt_tools": [
+        "get_spare_alerts"
+      ],
+      "d1": 1.0,
+      "d2": 1.0,
+      "output": {
+        "calls": [
+          {
+            "tool": "get_spare_alerts",
+            "arguments": {}
+          }
+        ]
+      },
+      "status": "OK"
+    },
+    {
+      "id": "T08",
+      "level": "L1",
+      "question": "我有哪些待办事项？",
+      "llm_tools": [
+        "get_todo_list"
+      ],
+      "gt_tools": [
+        "get_todo_list"
+      ],
+      "d1": 1.0,
+      "d2": 1.0,
+      "output": {
+        "calls": [
+          {
+            "tool": "get_todo_list",
+            "arguments": {}
+          }
+        ]
+      },
+      "status": "OK"
+    },
+    {
+      "id": "T09",
+      "level": "L1",
+      "question": "维修工单目前各状态有多少个？",
+      "llm_tools": [],
+      "gt_tools": [
+        "query_repair_orders"
+      ],
+      "d1": 0.0,
+      "d2": 0.0,
+      "output": {
+        "unsupported": true,
+        "reason": "当前工具集中没有“维修工单按状态分布统计”的接口，无法直接查询各状态数量。"
+      },
+      "status": "MISS"
+    },
+    {
+      "id": "T10",
+      "level": "L1",
+      "question": "设备分类中哪类设备最多？",
+      "llm_tools": [],
+      "gt_tools": [
+        "get_dashboard_summary"
+      ],
+      "d1": 0.0,
+      "d2": 0.0,
+      "output": {
+        "unsupported": true,
+        "reason": "当前可用工具不支持按设备分类统计各类别数量，无法直接判断哪类设备最多。"
+      },
+      "status": "MISS"
+    },
+    {
+      "id": "T11",
+      "level": "L2",
+      "question": "上月故障最多的设备是哪台？",
+      "llm_tools": [
+        "query_fault_reports"
+      ],
+      "gt_tools": [
+        "query_fault_reports"
+      ],
+      "d1": 1.0,
+      "d2": 1.0,
+      "output": {
+        "calls": [
+          {
+            "tool": "query_fault_reports",
+            "arguments": {
+              "dateRange": {
+                "start": "上月初",
+                "end": "上月末"
+              }
+            }
+          }
+        ]
+      },
+      "status": "OK"
+    },
+    {
+      "id": "T12",
+      "level": "L2",
+      "question": "维修工单 WO-001 用了哪些备件？",
+      "llm_tools": [],
+      "gt_tools": [
+        "get_repair_detail"
+      ],
+      "d1": 0.0,
+      "d2": 0.0,
+      "output": {
+        "unsupported": true,
+        "reason": "当前工具无法按维修工单编号 WO-001 直接检索工单；需要 repairOrderId 数字ID 才能查询备件明细。"
+      },
+      "status": "MISS"
+    },
+    {
+      "id": "T13",
+      "level": "L2",
+      "question": "设备 EQ-002 的保养任务执行情况怎样？",
+      "llm_tools": [
+        "query_equipment",
+        "query_maintenance_tasks"
+      ],
+      "gt_tools": [
+        "query_maintenance_tasks"
+      ],
+      "d1": 1.0,
+      "d2": 0.5,
+      "output": {
+        "calls": [
+          {
+            "tool": "query_equipment",
+            "arguments": {
+              "keyword": "EQ-002"
+            }
+          },
+          {
+            "tool": "query_maintenance_tasks",
+            "arguments": {
+              "equipmentId": 2
+            }
+          }
+        ]
+      },
+      "status": "PARTIAL"
+    },
+    {
+      "id": "T14",
+      "level": "L2",
+      "question": "近 7 天完成了几个巡检任务？",
+      "llm_tools": [
+        "get_patrol_analytics"
+      ],
+      "gt_tools": [
+        "query_patrol_tasks"
+      ],
+      "d1": 0.0,
+      "d2": 0.0,
+      "output": {
+        "calls": [
+          {
+            "tool": "get_patrol_analytics",
+            "arguments": {
+              "days": 7,
+              "dimension": "overview"
+            }
+          }
+        ]
+      },
+      "status": "MISS"
+    },
+    {
+      "id": "T15",
+      "level": "L2",
+      "question": "当前维修中的设备都是哪些？",
+      "llm_tools": [
+        "query_equipment"
+      ],
+      "gt_tools": [
+        "query_equipment"
+      ],
+      "d1": 1.0,
+      "d2": 1.0,
+      "output": {
+        "calls": [
+          {
+            "tool": "query_equipment",
+            "arguments": {
+              "status": 2
+            }
+          }
+        ]
+      },
+      "status": "OK"
+    },
+    {
+      "id": "T16",
+      "level": "L2",
+      "question": "备件 SP-001 都用在哪些设备上？",
+      "llm_tools": [
+        "query_spare_parts",
+        "get_equipment_spare_bom"
+      ],
+      "gt_tools": [
+        "get_equipment_spare_bom"
+      ],
+      "d1": 1.0,
+      "d2": 0.5,
+      "output": {
+        "calls": [
+          {
+            "tool": "query_spare_parts",
+            "arguments": {
+              "keyword": "SP-001"
+            }
+          },
+          {
+            "tool": "get_equipment_spare_bom",
+            "arguments": {
+              "spareId": 1
+            }
+          }
+        ]
+      },
+      "status": "PARTIAL"
+    },
+    {
+      "id": "T17",
+      "level": "L2",
+      "question": "设备 EQ-001 最近一次保养是什么时候？",
+      "llm_tools": [
+        "query_equipment",
+        "get_equipment_lifecycle"
+      ],
+      "gt_tools": [
+        "query_maintenance_tasks"
+      ],
+      "d1": 0.0,
+      "d2": 0.0,
+      "output": {
+        "calls": [
+          {
+            "tool": "query_equipment",
+            "arguments": {
+              "keyword": "EQ-001"
+            }
+          },
+          {
+            "tool": "get_equipment_lifecycle",
+            "arguments": {
+              "equipmentId": "{{query_equipment.result[0].equipmentId}}"
+            }
+          }
+        ]
+      },
+      "status": "MISS"
+    },
+    {
+      "id": "T18",
+      "level": "L2",
+      "question": "本月新增了多少故障报修？",
+      "llm_tools": [],
+      "gt_tools": [
+        "query_fault_reports"
+      ],
+      "d1": 0.0,
+      "d2": 0.0,
+      "output": {
+        "unsupported": true,
+        "reason": "无法确定“本月”的具体起止日期，且当前工具没有按自然月直接统计故障报修数量的接口。"
+      },
+      "status": "MISS"
+    },
+    {
+      "id": "T19",
+      "level": "L2",
+      "question": "设备 EQ-003 的全生命周期事件有哪些？",
+      "llm_tools": [
+        "query_equipment",
+        "get_equipment_lifecycle"
+      ],
+      "gt_tools": [
+        "get_equipment_lifecycle"
+      ],
+      "d1": 1.0,
+      "d2": 0.5,
+      "output": {
+        "calls": [
+          {
+            "tool": "query_equipment",
+            "arguments": {
+              "keyword": "EQ-003"
+            }
+          },
+          {
+            "tool": "get_equipment_lifecycle",
+            "arguments": {
+              "equipmentId": 3
+            }
+          }
+        ]
+      },
+      "status": "PARTIAL"
+    },
+    {
+      "id": "T20",
+      "level": "L2",
+      "question": "近 30 天巡检发现最多异常的设备是哪台？",
+      "llm_tools": [
+        "get_patrol_analytics"
+      ],
+      "gt_tools": [
+        "get_patrol_analytics"
+      ],
+      "d1": 1.0,
+      "d2": 1.0,
+      "output": {
+        "calls": [
+          {
+            "tool": "get_patrol_analytics",
+            "arguments": {
+              "days": 30,
+              "dimension": "by_equipment"
+            }
+          }
+        ]
+      },
+      "status": "OK"
+    },
+    {
+      "id": "T21",
+      "level": "L3",
+      "question": "A 线上月维修用了哪些备件？",
+      "llm_tools": [],
+      "gt_tools": [
+        "query_equipment",
+        "query_repair_orders",
+        "get_repair_detail"
+      ],
+      "d1": 0.0,
+      "d2": 0.0,
+      "output": {
+        "unsupported": true,
+        "reason": "现有工具无法直接按生产线“A线”统计上月维修使用的备件；缺少维修工单按生产线筛选或按生产线汇总备件消耗的接口。"
+      },
+      "status": "MISS"
+    },
+    {
+      "id": "T22",
+      "level": "L3",
+      "question": "设备 EQ-003 的 BOM 里哪些备件库存不足？",
+      "llm_tools": [
+        "query_equipment",
+        "get_equipment_spare_bom",
+        "get_spare_stock"
+      ],
+      "gt_tools": [
+        "get_equipment_spare_bom",
+        "get_spare_stock"
+      ],
+      "d1": 1.0,
+      "d2": 0.67,
+      "output": {
+        "calls": [
+          {
+            "tool": "query_equipment",
+            "arguments": {
+              "keyword": "EQ-003"
+            }
+          },
+          {
+            "tool": "get_equipment_spare_bom",
+            "arguments": {
+              "equipmentId": 0
+            }
+          },
+          {
+            "tool": "get_spare_stock",
+            "arguments": {
+              "spareId": 0
+            }
+          }
+        ]
+      },
+      "status": "PARTIAL"
+    },
+    {
+      "id": "T23",
+      "level": "L3",
+      "question": "上月维修时参考了哪些知识文档？",
+      "llm_tools": [],
+      "gt_tools": [
+        "query_repair_orders",
+        "get_repair_detail"
+      ],
+      "d1": 0.0,
+      "d2": 0.0,
+      "output": {
+        "unsupported": true,
+        "reason": "缺少可直接汇总“上月维修所引用知识文档”的工具；需要先查询上月维修工单列表并逐单获取详情后才能归纳，而当前无法在一次调用中自动枚举工单并汇总知识引用。"
+      },
+      "status": "MISS"
+    },
+    {
+      "id": "T24",
+      "level": "L3",
+      "question": "B 线上个月巡检发现了几次异常？",
+      "llm_tools": [],
+      "gt_tools": [
+        "query_equipment",
+        "query_anomaly_records"
+      ],
+      "d1": 0.0,
+      "d2": 0.0,
+      "output": {
+        "unsupported": true,
+        "reason": "现有工具无法按“生产线B + 上个月 + 巡检异常次数”进行精确查询，缺少按生产线和时间范围筛选巡检异常的接口。"
+      },
+      "status": "MISS"
+    },
+    {
+      "id": "T25",
+      "level": "L3",
+      "question": "最近维修用量最大的备件，关联了哪些设备？",
+      "llm_tools": [],
+      "gt_tools": [
+        "query_repair_orders",
+        "get_repair_detail",
+        "get_equipment_spare_bom"
+      ],
+      "d1": 0.0,
+      "d2": 0.0,
+      "output": {
+        "unsupported": true,
+        "reason": "现有工具无法直接按“最近维修用量最大”对备件做全量排行；缺少备件用量汇总/排行接口，无法可靠确定目标备件后再查关联设备。"
+      },
+      "status": "MISS"
+    },
+    {
+      "id": "T26",
+      "level": "L3",
+      "question": "A 线设备的保养计划执行率是多少？",
+      "llm_tools": [],
+      "gt_tools": [
+        "query_equipment",
+        "query_maintenance_tasks"
+      ],
+      "d1": 0.0,
+      "d2": 0.0,
+      "output": {
+        "unsupported": true,
+        "reason": "当前工具中没有直接提供按产线统计保养计划执行率的接口，也无法仅凭‘A线’自动获取对应产线ID并汇总计算。"
+      },
+      "status": "MISS"
+    },
+    {
+      "id": "T27",
+      "level": "L3",
+      "question": "维修工单 WO-005 的出库单涉及了哪些仓库？",
+      "llm_tools": [],
+      "gt_tools": [
+        "get_repair_detail",
+        "query_spare_transactions"
+      ],
+      "d1": 0.0,
+      "d2": 0.0,
+      "output": {
+        "unsupported": true,
+        "reason": "现有工具只能按维修工单ID（int）查询，无法直接按工单编号 WO-005 检索，也没有按出库单/仓库维度反查的工具。"
+      },
+      "status": "MISS"
+    },
+    {
+      "id": "T28",
+      "level": "L3",
+      "question": "设备 EQ-001 最近一次故障的维修花了多少工时？",
+      "llm_tools": [],
+      "gt_tools": [
+        "query_fault_reports",
+        "get_repair_detail"
+      ],
+      "d1": 0.0,
+      "d2": 0.0,
+      "output": {
+        "unsupported": true,
+        "reason": "需要先确认 EQ-001 对应的设备ID，并进一步定位最近一次维修工单及其工时记录；当前无法在一次静态调用中完成这类依赖查询。"
+      },
+      "status": "MISS"
+    },
+    {
+      "id": "T29",
+      "level": "L4",
+      "question": "故障率最高的设备，保养是否按计划执行？",
+      "llm_tools": [],
+      "gt_tools": [
+        "query_fault_reports",
+        "query_maintenance_tasks"
+      ],
+      "d1": 0.0,
+      "d2": 0.0,
+      "output": {
+        "unsupported": true,
+        "reason": "当前工具无法直接按故障率筛选或排序全量设备，因此无法确定故障率最高的设备；也就无法进一步判断其保养是否按计划执行。"
+      },
+      "status": "MISS"
+    },
+    {
+      "id": "T30",
+      "level": "L4",
+      "question": "上月维修成本最高的设备，它的巡检有没有发现过异常？",
+      "llm_tools": [],
+      "gt_tools": [
+        "query_repair_orders",
+        "get_repair_detail",
+        "query_anomaly_records"
+      ],
+      "d1": 0.0,
+      "d2": 0.0,
+      "output": {
+        "unsupported": true,
+        "reason": "现有工具中没有按时间汇总维修成本并找出最高设备的能力，无法直接回答“上月维修成本最高的设备”这一部分。"
+      },
+      "status": "MISS"
+    },
+    {
+      "id": "T31",
+      "level": "L4",
+      "question": "备件库存预警涉及的设备中，有哪些正在维修？",
+      "llm_tools": [
+        "get_spare_alerts"
+      ],
+      "gt_tools": [
+        "get_spare_alerts",
+        "get_equipment_spare_bom",
+        "query_equipment"
+      ],
+      "d1": 0.33,
+      "d2": 1.0,
+      "output": {
+        "calls": [
+          {
+            "tool": "get_spare_alerts",
+            "arguments": {}
+          }
+        ]
+      },
+      "status": "MISS"
+    },
+    {
+      "id": "T32",
+      "level": "L4",
+      "question": "A 线设备的故障、保养、巡检三项指标概览",
+      "llm_tools": [],
+      "gt_tools": [
+        "query_equipment",
+        "query_fault_reports",
+        "query_maintenance_tasks",
+        "get_patrol_analytics"
+      ],
+      "d1": 0.0,
+      "d2": 0.0,
+      "output": {
+        "unsupported": true,
+        "reason": "缺少可直接按产线'A线'汇总故障/保养/巡检指标的工具参数或产线ID映射；且可用的治理看板工具需要起止时间，当前无法确定时间范围。"
+      },
+      "status": "MISS"
+    },
+    {
+      "id": "T33",
+      "level": "L4",
+      "question": "近 3 个月有故障但没安排保养的设备有哪些？",
+      "llm_tools": [
+        "query_fault_reports",
+        "query_maintenance_tasks"
+      ],
+      "gt_tools": [
+        "query_fault_reports",
+        "query_maintenance_tasks"
+      ],
+      "d1": 1.0,
+      "d2": 1.0,
+      "output": {
+        "calls": [
+          {
+            "tool": "query_fault_reports",
+            "arguments": {
+              "dateRange": {
+                "start": "3个月前",
+                "end": "现在"
+              }
+            }
+          },
+          {
+            "tool": "query_maintenance_tasks",
+            "arguments": {
+              "dateRange": {
+                "start": "3个月前",
+                "end": "现在"
+              }
+            }
+          }
+        ]
+      },
+      "status": "OK"
+    },
+    {
+      "id": "T34",
+      "level": "L4",
+      "question": "外协维修的设备中，有没有重点设备？",
+      "llm_tools": [],
+      "gt_tools": [
+        "query_repair_orders",
+        "get_equipment_detail"
+      ],
+      "d1": 0.0,
+      "d2": 0.0,
+      "output": {
+        "unsupported": true,
+        "reason": "现有工具中没有“外协维修/外协工单”筛选条件，无法直接判断外协维修的设备里是否包含重点设备。"
+      },
+      "status": "MISS"
+    },
+    {
+      "id": "T35",
+      "level": "L5",
+      "question": "哪条产线近 3 个月故障呈上升趋势，且备件库存不足？",
+      "llm_tools": [],
+      "gt_tools": [
+        "get_fault_trend",
+        "query_equipment",
+        "get_spare_alerts"
+      ],
+      "d1": 0.0,
+      "d2": 0.0,
+      "output": {
+        "unsupported": true,
+        "reason": "当前工具无法直接按产线维度获取近 3 个月故障趋势并识别具体产线，也没有产线列表查询工具可用于逐条比对。"
+      },
+      "status": "MISS"
+    },
+    {
+      "id": "T36",
+      "level": "L5",
+      "question": "上季度各产线的保养完成率排名？",
+      "llm_tools": [],
+      "gt_tools": [
+        "query_equipment",
+        "query_maintenance_tasks"
+      ],
+      "d1": 0.0,
+      "d2": 0.0,
+      "output": {
+        "unsupported": true,
+        "reason": "当前可用工具中没有按产线统计“上季度保养完成率排名”的分析接口，无法直接获取该结果。"
+      },
+      "status": "MISS"
+    },
+    {
+      "id": "T37",
+      "level": "L5",
+      "question": "同比去年同期，今年 Q1 的故障报修数是增还是减？",
+      "llm_tools": [],
+      "gt_tools": [
+        "query_fault_reports"
+      ],
+      "d1": 0.0,
+      "d2": 0.0,
+      "output": {
+        "unsupported": true,
+        "reason": "缺少当前日期/年份上下文，无法确定“今年Q1”和“去年同期”的具体时间范围，因此无法准确比较故障报修数。"
+      },
+      "status": "MISS"
+    },
+    {
+      "id": "T38",
+      "level": "L5",
+      "question": "近半年维修频次最高的 3 台设备，各自的平均维修周期是多少？",
+      "llm_tools": [
+        "query_repair_orders"
+      ],
+      "gt_tools": [
+        "query_repair_orders",
+        "get_equipment_detail"
+      ],
+      "d1": 0.5,
+      "d2": 1.0,
+      "output": {
+        "calls": [
+          {
+            "tool": "query_repair_orders",
+            "arguments": {
+              "dateRange": {
+                "start": "now-6M",
+                "end": "now"
+              }
+            }
+          }
+        ]
+      },
+      "status": "PARTIAL"
+    },
+    {
+      "id": "T39",
+      "level": "L5",
+      "question": "备件月消耗量环比分析，哪些备件用量在持续上升？",
+      "llm_tools": [
+        "query_spare_transactions"
+      ],
+      "gt_tools": [
+        "query_repair_orders",
+        "get_repair_detail"
+      ],
+      "d1": 0.0,
+      "d2": 0.0,
+      "output": {
+        "calls": [
+          {
+            "tool": "query_spare_transactions",
+            "arguments": {
+              "type": "stock_out"
+            }
+          }
+        ]
+      },
+      "status": "MISS"
+    },
+    {
+      "id": "T40",
+      "level": "L5",
+      "question": "近 6 个月巡检异常率变化趋势，有没有季节性规律？",
+      "llm_tools": [],
+      "gt_tools": [
+        "get_patrol_analytics",
+        "query_anomaly_records"
+      ],
+      "d1": 0.0,
+      "d2": 0.0,
+      "output": {
+        "unsupported": true,
+        "reason": "现有工具不支持按近 6 个月输出巡检异常率的时间趋势，也不支持季节性规律分析；可获取巡检综合分析或异常统计，但无法提供按月/按季的异常率变化序列。"
+      },
+      "status": "MISS"
+    }
+  ],
+  "summary": {
+    "total": 40,
+    "avg_d1": 0.396,
+    "avg_d2": 0.367,
+    "perfect": 10
+  }
+}

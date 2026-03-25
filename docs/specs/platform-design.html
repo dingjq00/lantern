@@ -1,0 +1,1271 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Insight68 NL-API Platform — 设计规格书</title>
+<style>
+  :root {
+    --blue-50: #EFF6FF;
+    --blue-100: #DBEAFE;
+    --blue-200: #BFDBFE;
+    --blue-500: #3B82F6;
+    --blue-600: #2563EB;
+    --blue-700: #1D4ED8;
+    --blue-800: #1E40AF;
+    --blue-900: #1E3A5F;
+    --gray-50: #F9FAFB;
+    --gray-100: #F3F4F6;
+    --gray-200: #E5E7EB;
+    --gray-300: #D1D5DB;
+    --gray-500: #6B7280;
+    --gray-600: #4B5563;
+    --gray-700: #374151;
+    --gray-800: #1F2937;
+    --green-50: #F0FDF4;
+    --green-600: #16A34A;
+    --amber-50: #FFFBEB;
+    --amber-600: #D97706;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+    font-size: 15px;
+    line-height: 1.75;
+    color: var(--gray-800);
+    background: var(--gray-50);
+    padding: 0;
+  }
+
+  .container {
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 40px 48px;
+    background: white;
+    min-height: 100vh;
+    box-shadow: 0 0 40px rgba(0,0,0,0.05);
+  }
+
+  /* Header */
+  h1 {
+    font-size: 28px;
+    font-weight: 700;
+    color: var(--blue-800);
+    border-bottom: 3px solid var(--blue-500);
+    padding-bottom: 16px;
+    margin-bottom: 8px;
+  }
+
+  h1 + blockquote {
+    border-left: none;
+    background: none;
+    padding: 0;
+    margin: 0 0 40px 0;
+    color: var(--gray-500);
+    font-size: 16px;
+    font-style: italic;
+  }
+
+  h2 {
+    font-size: 22px;
+    font-weight: 600;
+    color: var(--blue-700);
+    margin-top: 48px;
+    margin-bottom: 20px;
+    padding-bottom: 8px;
+    border-bottom: 2px solid var(--blue-100);
+  }
+
+  h3 {
+    font-size: 17px;
+    font-weight: 600;
+    color: var(--blue-800);
+    margin-top: 32px;
+    margin-bottom: 12px;
+  }
+
+  h4 {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--gray-700);
+    margin-top: 24px;
+    margin-bottom: 8px;
+  }
+
+  /* Paragraphs */
+  p {
+    margin-bottom: 14px;
+    color: var(--gray-700);
+  }
+
+  strong {
+    color: var(--gray-800);
+    font-weight: 600;
+  }
+
+  /* Links */
+  a { color: var(--blue-600); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+
+  /* Blockquotes */
+  blockquote {
+    border-left: 4px solid var(--blue-200);
+    background: var(--blue-50);
+    padding: 12px 20px;
+    margin: 16px 0;
+    border-radius: 0 8px 8px 0;
+  }
+  blockquote p { color: var(--gray-600); margin: 0; }
+
+  /* Code blocks */
+  pre {
+    background: var(--gray-800);
+    color: #E5E7EB;
+    padding: 20px 24px;
+    border-radius: 8px;
+    overflow-x: auto;
+    margin: 16px 0;
+    font-family: "JetBrains Mono", "Fira Code", "SF Mono", Menlo, monospace;
+    font-size: 13px;
+    line-height: 1.6;
+  }
+
+  code {
+    font-family: "JetBrains Mono", "Fira Code", "SF Mono", Menlo, monospace;
+    font-size: 13px;
+  }
+
+  p code, li code, td code {
+    background: var(--blue-50);
+    color: var(--blue-700);
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 13px;
+  }
+
+  /* Tables */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 16px 0;
+    font-size: 14px;
+  }
+
+  thead th {
+    background: var(--blue-700);
+    color: white;
+    font-weight: 600;
+    text-align: left;
+    padding: 10px 14px;
+    font-size: 13px;
+    text-transform: none;
+    letter-spacing: 0;
+  }
+
+  thead th:first-child { border-radius: 6px 0 0 0; }
+  thead th:last-child { border-radius: 0 6px 0 0; }
+
+  tbody td {
+    padding: 9px 14px;
+    border-bottom: 1px solid var(--gray-200);
+    vertical-align: top;
+  }
+
+  tbody tr:nth-child(even) { background: var(--gray-50); }
+  tbody tr:hover { background: var(--blue-50); }
+
+  /* Lists */
+  ul, ol {
+    margin: 8px 0 14px 24px;
+    color: var(--gray-700);
+  }
+
+  li {
+    margin-bottom: 6px;
+    padding-left: 4px;
+  }
+
+  li ul, li ol {
+    margin: 4px 0 4px 20px;
+  }
+
+  /* Horizontal rules */
+  hr {
+    border: none;
+    height: 1px;
+    background: var(--gray-200);
+    margin: 40px 0;
+  }
+
+  /* Special highlights */
+  p strong:first-child {
+    color: var(--blue-700);
+  }
+
+  /* Print styles */
+  @media print {
+    body { background: white; }
+    .container {
+      box-shadow: none;
+      padding: 20px;
+      max-width: 100%;
+    }
+    pre { background: var(--gray-100); color: var(--gray-800); border: 1px solid var(--gray-300); }
+    thead th { background: var(--gray-200); color: var(--gray-800); }
+    h1, h2, h3 { page-break-after: avoid; }
+    table { page-break-inside: avoid; }
+  }
+
+  /* TOC-like navigation hint */
+  .toc-hint {
+    background: var(--blue-50);
+    border: 1px solid var(--blue-200);
+    border-radius: 8px;
+    padding: 16px 24px;
+    margin: 24px 0 40px 0;
+    font-size: 13px;
+    color: var(--gray-600);
+  }
+  .toc-hint strong { color: var(--blue-700); }
+</style>
+</head>
+<body>
+<div class="container">
+<h1 id="insight68-nl-api-platform">Insight68 NL-API Platform — 设计规格书</h1>
+<blockquote>
+<p>自然语言操作企业系统的通用平台。EAM 是第一个落地场景。</p>
+</blockquote>
+<h2 id="1">1. 系统定位</h2>
+<h3 id="11">1.1 愿景</h3>
+<p><strong>企业系统的 Google 化</strong> — 一个输入框搞定一切。用户不需要学会怎么用系统，只管说你要什么。</p>
+<h3 id="12">1.2 定位级别</h3>
+<p>C 级平台 — 不是 EAM 专用工具，而是"自然语言操作企业系统"的通用平台。EAM 是第一个场景，架构为"接入任何有 API 的企业系统"而设计。</p>
+<h3 id="13">1.3 交付形态</h3>
+<p>先独立 Web 验证完整链路，再扩展多端（Telegram Bot / 企业微信 / REST API）。引擎做好了，接入端只是适配层。</p>
+<h3 id="14">1.4 落地节奏</h3>
+<table>
+<thead>
+<tr>
+<th>阶段</th>
+<th>目标</th>
+<th>核心产出</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>P0 跑通</strong></td>
+<td>EAM 查询场景端到端</td>
+<td>MCP Server(5 tool) + Web UI + 路由引擎</td>
+</tr>
+<tr>
+<td><strong>P1 强化</strong></td>
+<td>越用越准</td>
+<td>记忆系统 + 自学习引擎 + 置信度回退</td>
+</tr>
+<tr>
+<td><strong>P2 平台化</strong></td>
+<td>从 EAM 专用变成通用</td>
+<td>工具注册抽象 + Prompt 模板化 + 多系统接入</td>
+</tr>
+<tr>
+<td><strong>P3 规模化</strong></td>
+<td>50+ 工具 + 多端</td>
+<td>向量预筛选 + 动态加载 + 多端接入层</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="2">2. 四层架构</h2>
+<div class="codehilite"><pre><span></span><code>┌─────────────────────────────────────────────────┐
+│                  接入层 (Gateway)                 │
+│         Web UI │ Telegram │ 企业微信 │ REST API    │
+└───────────────────────┬─────────────────────────┘
+                        │
+┌───────────────────────┴─────────────────────────┐
+│                  智能层 (Brain)                    │
+│  LLM 路由 │ 记忆系统 │ 自学习引擎 │ 结果呈现引擎    │
+└───────────────────────┬─────────────────────────┘
+                        │
+┌───────────────────────┴─────────────────────────┐
+│              工具层 (Tool Registry)                │
+│  YAML 声明式注册 │ 能力匹配 │ 质量排序 │ 错误处理   │
+│  ┌──────┐ ┌──────┐ ┌──────┐ ┌──────┐            │
+│  │EAM   │ │MES   │ │QMS   │ │ ...  │            │
+│  └──────┘ └──────┘ └──────┘ └──────┘            │
+└───────────────────────┬─────────────────────────┘
+                        │ MCP 协议
+┌───────────────────────┴─────────────────────────┐
+│              数据层 (Data Sources)                 │
+│  P0: EAM Service 层直连                           │
+│  P2: GraphQL Federation（多系统统一数据访问）        │
+│  底层: PostgreSQL │ MySQL │ SQL Server │ REST API  │
+└─────────────────────────────────────────────────┘
+</code></pre></div>
+
+<h3 id="21">2.1 层间职责</h3>
+<table>
+<thead>
+<tr>
+<th>层</th>
+<th>职责</th>
+<th>依赖</th>
+<th>扩展方式</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>接入层</strong></td>
+<td>协议适配、用户认证、会话管理、结果格式化</td>
+<td>智能层接口</td>
+<td>加适配器</td>
+</tr>
+<tr>
+<td><strong>智能层</strong></td>
+<td>意图理解、路由决策、记忆、学习、结果呈现</td>
+<td>工具层接口 + LLM Provider</td>
+<td>换/加模型</td>
+</tr>
+<tr>
+<td><strong>工具层</strong></td>
+<td>能力声明、匹配、MCP 执行、降级</td>
+<td>MCP 协议</td>
+<td>加 YAML + Handler</td>
+</tr>
+<tr>
+<td><strong>数据层</strong></td>
+<td>确定性查询、数据存储</td>
+<td>各系统自有协议</td>
+<td>加数据源连接</td>
+</tr>
+</tbody>
+</table>
+<h3 id="22">2.2 核心设计原则</h3>
+<ul>
+<li><strong>每层只依赖下一层的接口，不依赖实现。</strong></li>
+<li><strong>平台独立于客户系统。</strong> 平台自带存储，不寄生在客户数据库上。</li>
+<li><strong>扩展需要的工作量是诚实的。</strong> 加一个新企业系统 = 工具层加 YAML + MCP Server + 智能层补充该域的 few-shot 示例和工具选择指南。接入层不改。</li>
+</ul>
+<h3 id="23">2.3 层间接口契约</h3>
+<div class="codehilite"><pre><span></span><code><span class="n">Gateway</span><span class="w"> </span><span class="err">→</span><span class="w"> </span><span class="n">Brain</span><span class="p">:</span>
+<span class="w">  </span><span class="n">BrainService</span><span class="o">.</span><span class="n">process</span><span class="p">(</span>
+<span class="w">    </span><span class="n">userId</span><span class="p">:</span><span class="w"> </span><span class="n">string</span><span class="p">,</span>
+<span class="w">    </span><span class="n">query</span><span class="p">:</span><span class="w"> </span><span class="n">string</span><span class="p">,</span>
+<span class="w">    </span><span class="n">sessionId</span><span class="p">:</span><span class="w"> </span><span class="n">string</span><span class="p">,</span>
+<span class="w">    </span><span class="n">context</span><span class="err">?</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">preferences</span><span class="p">,</span><span class="w"> </span><span class="n">history</span><span class="w"> </span><span class="p">}</span>
+<span class="w">  </span><span class="p">)</span><span class="w"> </span><span class="err">→</span><span class="w"> </span><span class="n">StructuredResult</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">answer</span><span class="p">:</span><span class="w"> </span><span class="n">string</span><span class="p">,</span><span class="w">            </span><span class="o">//</span><span class="w"> </span><span class="err">自然语言回答</span>
+<span class="w">    </span><span class="n">data</span><span class="p">:</span><span class="w"> </span><span class="n">any</span><span class="p">[],</span><span class="w">               </span><span class="o">//</span><span class="w"> </span><span class="err">结构化数据</span>
+<span class="w">    </span><span class="n">display</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;text&quot;</span><span class="o">|</span><span class="s2">&quot;table&quot;</span><span class="o">|</span><span class="s2">&quot;chart&quot;</span><span class="p">,</span>
+<span class="w">    </span><span class="n">columns</span><span class="err">?</span><span class="p">:</span><span class="w"> </span><span class="n">string</span><span class="p">[],</span>
+<span class="w">    </span><span class="n">followUp</span><span class="err">?</span><span class="p">:</span><span class="w"> </span><span class="n">string</span><span class="p">[],</span><span class="w">       </span><span class="o">//</span><span class="w"> </span><span class="err">追问建议</span>
+<span class="w">    </span><span class="n">confidence</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;high&quot;</span><span class="o">|</span><span class="s2">&quot;medium&quot;</span><span class="o">|</span><span class="s2">&quot;low&quot;</span>
+<span class="w">  </span><span class="p">}</span>
+
+<span class="n">Brain</span><span class="w"> </span><span class="err">→</span><span class="w"> </span><span class="n">ToolRegistry</span><span class="p">:</span>
+<span class="w">  </span><span class="n">ToolRegistry</span><span class="o">.</span><span class="k">match</span><span class="p">(</span>
+<span class="w">    </span><span class="n">intentTags</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">domains</span><span class="p">,</span><span class="w"> </span><span class="n">operation</span><span class="p">,</span><span class="w"> </span><span class="n">filters</span><span class="w"> </span><span class="p">}</span>
+<span class="w">  </span><span class="p">)</span><span class="w"> </span><span class="err">→</span><span class="w"> </span><span class="n">RankedTool</span><span class="p">[]</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">name</span><span class="p">:</span><span class="w"> </span><span class="n">string</span><span class="p">,</span>
+<span class="w">    </span><span class="n">matchScore</span><span class="p">:</span><span class="w"> </span><span class="n">number</span><span class="p">,</span>
+<span class="w">    </span><span class="n">quality</span><span class="p">:</span><span class="w"> </span><span class="n">number</span><span class="p">,</span><span class="w">           </span><span class="o">//</span><span class="w"> </span><span class="err">含</span><span class="w"> </span><span class="n">verdict</span><span class="w"> </span><span class="err">加分</span>
+<span class="w">    </span><span class="n">inputSchema</span><span class="p">:</span><span class="w"> </span><span class="n">object</span>
+<span class="w">  </span><span class="p">}</span>
+
+<span class="w">  </span><span class="n">ToolRegistry</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span>
+<span class="w">    </span><span class="n">toolName</span><span class="p">:</span><span class="w"> </span><span class="n">string</span><span class="p">,</span>
+<span class="w">    </span><span class="n">arguments</span><span class="p">:</span><span class="w"> </span><span class="n">object</span>
+<span class="w">  </span><span class="p">)</span><span class="w"> </span><span class="err">→</span><span class="w"> </span><span class="n">ToolResult</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">data</span><span class="p">:</span><span class="w"> </span><span class="n">any</span><span class="p">,</span>
+<span class="w">    </span><span class="n">status</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;success&quot;</span><span class="o">|</span><span class="s2">&quot;partial&quot;</span><span class="o">|</span><span class="s2">&quot;error&quot;</span><span class="p">,</span>
+<span class="w">    </span><span class="n">errorLevel</span><span class="err">?</span><span class="p">:</span><span class="w"> </span><span class="mi">1</span><span class="o">|</span><span class="mi">2</span><span class="o">|</span><span class="mi">3</span><span class="o">|</span><span class="mi">4</span>
+<span class="w">  </span><span class="p">}</span>
+</code></pre></div>
+
+<hr />
+<h2 id="3">3. 平台独立存储</h2>
+<h3 id="31">3.1 架构</h3>
+<p>平台数据和客户系统数据完全隔离：</p>
+<div class="codehilite"><pre><span></span><code><span class="err">平台存储（随平台部署，独立于客户）</span>
+<span class="err">├──</span><span class="w"> </span><span class="n">nl_memory_preferences</span><span class="w">    </span><span class="c1"># 用户偏好</span>
+<span class="err">├──</span><span class="w"> </span><span class="n">nl_memory_verdicts</span><span class="w">       </span><span class="c1"># 路由判决</span>
+<span class="err">├──</span><span class="w"> </span><span class="n">nl_memory_sessions</span><span class="w">       </span><span class="c1"># 路由日志</span>
+<span class="err">├──</span><span class="w"> </span><span class="n">nl_memory_feedback</span><span class="w">       </span><span class="c1"># 用户反馈</span>
+<span class="err">├──</span><span class="w"> </span><span class="n">nl_tool_registry</span><span class="w">         </span><span class="c1"># 工具注册表</span>
+<span class="err">├──</span><span class="w"> </span><span class="n">nl_users</span><span class="w">                 </span><span class="c1"># 用户管理</span>
+<span class="err">└──</span><span class="w"> </span><span class="err">向量索引</span><span class="w">                   </span><span class="c1"># 语义搜索</span>
+
+<span class="err">客户系统（</span><span class="n">MCP</span><span class="w"> </span><span class="err">协议访问，不直接碰库）</span>
+<span class="err">├──</span><span class="w"> </span><span class="n">EAM</span><span class="w"> </span><span class="p">(</span><span class="n">PostgreSQL</span><span class="p">)</span>
+<span class="err">├──</span><span class="w"> </span><span class="n">MES</span><span class="w"> </span><span class="p">(</span><span class="n">MySQL</span><span class="p">)</span>
+<span class="err">├──</span><span class="w"> </span><span class="n">QMS</span><span class="w"> </span><span class="p">(</span><span class="n">SQL</span><span class="w"> </span><span class="n">Server</span><span class="p">)</span>
+<span class="err">└──</span><span class="w"> </span><span class="o">...</span>
+</code></pre></div>
+
+<h3 id="32">3.2 两档自适应</h3>
+<div class="codehilite"><pre><span></span><code>┌─────────────────────────────────────────┐
+│     存储抽象层 (Storage Interface)        │
+│     统一的 CRUD + Search API             │
+└──────────┬──────────────┬───────────────┘
+           │              │
+  ┌────────┴───┐  ┌──────┴──────┐
+  │  SQLite    │  │ PostgreSQL  │
+  │+ sqlite-vec│  │ + pgvector  │
+  │(开发/轻量)  │  │ (生产)      │
+  └────────────┘  └─────────────┘
+</code></pre></div>
+
+<p>P0 用 SQLite 零依赖跑起来。生产部署切 PostgreSQL + pgvector。接口一致，业务代码不改。</p>
+<hr />
+<h2 id="4">4. 工具层</h2>
+<h3 id="41-yaml">4.1 YAML 声明式工具注册</h3>
+<p>每个工具一个 YAML 文件，声明能力、参数、示例、关系：</p>
+<div class="codehilite"><pre><span></span><code><span class="c1"># tools/eam/query_equipment.yaml</span>
+<span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">query_equipment</span>
+<span class="nt">description</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;按条件查询设备列表，支持按产线/分类/状态/位置筛选&quot;</span>
+<span class="nt">version</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1.0.0</span>
+<span class="nt">system</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">eam</span><span class="w">                        </span><span class="c1"># 所属系统</span>
+<span class="nt">domains</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">equipment</span><span class="p p-Indicator">]</span><span class="w">               </span><span class="c1"># 数据域</span>
+
+<span class="nt">operation</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">list</span><span class="w">                    </span><span class="c1"># list | detail | statistics | trend | alert | mutation</span>
+<span class="nt">supports_filters</span><span class="p">:</span><span class="w">                  </span><span class="c1"># 支持的筛选维度</span>
+<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">production_line</span>
+<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">status</span>
+<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">category</span>
+<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">location</span>
+<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">department</span>
+<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">keyword</span>
+<span class="nt">returns</span><span class="p">:</span><span class="w">                           </span><span class="c1"># 输出字段</span>
+<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">equipment_id</span>
+<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">equipment_name</span>
+<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">status</span>
+<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">category</span>
+<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">location</span>
+
+<span class="nt">feeds_into</span><span class="p">:</span><span class="w">                        </span><span class="c1"># 该工具的结果可以喂给谁</span>
+<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">get_equipment_detail</span>
+<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">query_fault_reports</span>
+<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">query_maintenance_tasks</span>
+<span class="nt">depends_on</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[]</span><span class="w">                     </span><span class="c1"># 该工具不依赖其他工具</span>
+
+<span class="nt">quality</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">50</span><span class="w">                        </span><span class="c1"># 质量分（正=通用，负=专用）</span>
+<span class="nt">cost</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">low</span><span class="w">                          </span><span class="c1"># low | medium | high</span>
+
+<span class="nt">inputSchema</span><span class="p">:</span><span class="w">                       </span><span class="c1"># MCP 标准参数</span>
+<span class="w">  </span><span class="nt">type</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">object</span>
+<span class="w">  </span><span class="nt">properties</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">keyword</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt"> type</span><span class="p">:</span><span class="w"> </span><span class="nv">string</span><span class="w"> </span><span class="p p-Indicator">}</span>
+<span class="w">    </span><span class="nt">status</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt"> type</span><span class="p">:</span><span class="w"> </span><span class="nv">integer</span><span class="p p-Indicator">,</span><span class="nt"> enum</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">0</span><span class="p p-Indicator">,</span><span class="nv">1</span><span class="p p-Indicator">,</span><span class="nv">2</span><span class="p p-Indicator">,</span><span class="nv">3</span><span class="p p-Indicator">,</span><span class="nv">4</span><span class="p p-Indicator">,</span><span class="nv">5</span><span class="p p-Indicator">,</span><span class="nv">6</span><span class="p p-Indicator">,</span><span class="nv">7</span><span class="p p-Indicator">]</span><span class="w"> </span><span class="p p-Indicator">}</span>
+<span class="w">    </span><span class="nt">productionLineId</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt"> type</span><span class="p">:</span><span class="w"> </span><span class="nv">string</span><span class="w"> </span><span class="p p-Indicator">}</span>
+<span class="w">    </span><span class="nt">categoryId</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt"> type</span><span class="p">:</span><span class="w"> </span><span class="nv">integer</span><span class="w"> </span><span class="p p-Indicator">}</span>
+<span class="w">    </span><span class="nt">locationId</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt"> type</span><span class="p">:</span><span class="w"> </span><span class="nv">integer</span><span class="w"> </span><span class="p p-Indicator">}</span>
+<span class="w">    </span><span class="nt">deptId</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt"> type</span><span class="p">:</span><span class="w"> </span><span class="nv">integer</span><span class="w"> </span><span class="p p-Indicator">}</span>
+<span class="w">    </span><span class="nt">isKey</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt"> type</span><span class="p">:</span><span class="w"> </span><span class="nv">integer</span><span class="p p-Indicator">,</span><span class="nt"> enum</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">0</span><span class="p p-Indicator">,</span><span class="nv">1</span><span class="p p-Indicator">]</span><span class="w"> </span><span class="p p-Indicator">}</span>
+
+<span class="nt">examples</span><span class="p">:</span><span class="w">                          </span><span class="c1"># per-tool 调用示例</span>
+<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">query</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;A线有多少台设备&quot;</span>
+<span class="w">    </span><span class="nt">arguments</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt"> productionLineId</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;A线&quot;</span><span class="w"> </span><span class="p p-Indicator">}</span>
+<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">query</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;当前维修中的设备&quot;</span>
+<span class="w">    </span><span class="nt">arguments</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt"> status</span><span class="p">:</span><span class="w"> </span><span class="nv">2</span><span class="w"> </span><span class="p p-Indicator">}</span>
+
+<span class="nt">when_to_use</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;查询设备列表、按条件筛选设备、获取产线下的设备&quot;</span>
+<span class="nt">when_not_to_use</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;查单台设备详情用</span><span class="nv"> </span><span class="s">get_equipment_detail&quot;</span>
+</code></pre></div>
+
+<h3 id="42">4.2 能力匹配服务</h3>
+<p>工具层对外暴露 <code>ToolRegistry.match(intentTags) → RankedTool[]</code> 接口，由智能层调用（见 Section 5.1 完整路由流程）。</p>
+<p>改编自 Firecrawl 引擎瀑布流：</p>
+<p><strong>matchScore 计算规则</strong>（满分 100）：</p>
+<table>
+<thead>
+<tr>
+<th>维度</th>
+<th>分值</th>
+<th>计算方式</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>domain 匹配</td>
+<td>40</td>
+<td>二元：工具 domains 与意图 domains 有交集 = 40，无交集 = 0</td>
+</tr>
+<tr>
+<td>operation 匹配</td>
+<td>30</td>
+<td>二元：工具 operation 与意图 operation 一致 = 30</td>
+</tr>
+<tr>
+<td>filter 覆盖</td>
+<td>20</td>
+<td>比例：意图要求的 filters 中，工具 supports_filters 覆盖了多少。如意图要 2 个 filter，工具支持其中 1 个 = 20×(1/2)=10</td>
+</tr>
+<tr>
+<td>链路价值</td>
+<td>10</td>
+<td>二元：工具 feeds_into 包含意图后续可能需要的工具 = 10</td>
+</tr>
+</tbody>
+</table>
+<p><strong>入围阈值</strong>：matchScore ≥ 50（即满分的 50%）。</p>
+<p><strong>排序优先级</strong>：matchScore 降序 → (quality + verdict 加分) 降序 → cost 升序。</p>
+<p><strong>P0 简化</strong>：22 个工具全量注入 Prompt，不做匹配裁剪。match 接口存在但返回全部工具。P2/P3 启用真正的匹配 + Top-K 筛选（默认 K=10）。</p>
+<h3 id="43">4.3 工具扩展流程</h3>
+<p>新增一个企业系统（如 MES 排产）：</p>
+<div class="codehilite"><pre><span></span><code><span class="err">工具层</span><span class="o">:</span>
+<span class="w">  </span><span class="mi">1</span><span class="o">.</span><span class="w"> </span><span class="err">创建</span><span class="w"> </span><span class="n">tools</span><span class="sr">/mes/</span><span class="w"> </span><span class="err">目录</span>
+<span class="w">  </span><span class="mi">2</span><span class="o">.</span><span class="w"> </span><span class="err">编写各工具的</span><span class="w"> </span><span class="n">YAML</span><span class="w"> </span><span class="err">声明文件</span>
+<span class="w">  </span><span class="mi">3</span><span class="o">.</span><span class="w"> </span><span class="err">实现</span><span class="w"> </span><span class="n">MCP</span><span class="w"> </span><span class="n">Server</span><span class="w"> </span><span class="n">handler</span><span class="err">（确定性查询逻辑）</span>
+
+<span class="err">智能层（必要的配套更新）</span><span class="o">:</span>
+<span class="w">  </span><span class="mi">4</span><span class="o">.</span><span class="w"> </span><span class="err">补充该域的</span><span class="w"> </span><span class="n">few</span><span class="o">-</span><span class="n">shot</span><span class="w"> </span><span class="err">编排示例（如</span><span class="w"> </span><span class="n">MES</span><span class="w"> </span><span class="err">排产链路的典型多步模式）</span>
+<span class="w">  </span><span class="mi">5</span><span class="o">.</span><span class="w"> </span><span class="err">更新工具选择指南（新域的路由策略）</span>
+
+<span class="err">接入层</span><span class="o">:</span><span class="w"> </span><span class="err">不改。</span>
+</code></pre></div>
+
+<p><strong>诚实说明</strong>：加新系统不是零成本——YAML + Handler 是主体工作量，但 few-shot 和选择指南的更新不可省略，否则新域的路由准确率会偏低。这是方案 A 实验的核心发现：Prompt 中的指南和示例贡献了 99% 的准确率提升。</p>
+<h3 id="44">4.4 错误处理</h3>
+<div class="codehilite"><pre><span></span><code>MCP 工具执行
+    ↓
+Level 1 可重试:
+  网络超时 / 连接断开 / 429 限流
+  → 自动重试（最多 2 次，指数退避）
+
+Level 2 可降级:
+  工具返回空数据 / 部分数据
+  → 用已有数据生成部分回答
+  → 提示用户&quot;部分信息获取失败&quot;
+
+Level 3 可替代:
+  特定工具不可用
+  → 查 YAML 的 feeds_into 找替代路径
+  → 用备选工具重试
+
+Level 4 不可恢复:
+  认证失败 / 系统离线 / 未知错误
+  → 通知用户&quot;该系统暂时不可用&quot;
+  → 记录日志
+</code></pre></div>
+
+<hr />
+<h2 id="5">5. 智能层</h2>
+<h3 id="51">5.1 完整路由流程（唯一权威描述）</h3>
+<p>这是用户查询到结果返回的完整链路。智能层编排，工具层提供匹配和执行服务。</p>
+<div class="codehilite"><pre><span></span><code><span class="err">用户查询</span><span class="w"> </span><span class="p">(</span><span class="n">from</span><span class="w"> </span><span class="n">Gateway</span><span class="p">)</span>
+<span class="w">    </span><span class="err">↓</span>
+<span class="err">┌─</span><span class="w"> </span><span class="err">智能层</span><span class="w"> </span><span class="err">─────────────────────────────────────────────┐</span>
+<span class="err">│</span><span class="w">                                                       </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="n">Step</span><span class="w"> </span><span class="mi">1</span><span class="p">:</span><span class="w"> </span><span class="err">意图提取（</span><span class="n">LLM</span><span class="w"> </span><span class="err">轻量调用）</span><span class="w">                       </span><span class="err">│</span>
+<span class="err">│</span><span class="w">    </span><span class="err">→</span><span class="w"> </span><span class="p">{</span><span class="n">domains</span><span class="p">,</span><span class="w"> </span><span class="n">operation</span><span class="p">,</span><span class="w"> </span><span class="n">filters</span><span class="p">,</span><span class="w"> </span><span class="n">intent_hash</span><span class="p">}</span><span class="w">        </span><span class="err">│</span>
+<span class="err">│</span><span class="w">                                                       </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="n">Step</span><span class="w"> </span><span class="mi">2</span><span class="p">:</span><span class="w"> </span><span class="err">工具匹配（调用</span><span class="w"> </span><span class="n">ToolRegistry</span><span class="o">.</span><span class="k">match</span><span class="err">）</span><span class="w">            </span><span class="err">│</span>
+<span class="err">│</span><span class="w">    </span><span class="err">→</span><span class="w"> </span><span class="n">RankedTool</span><span class="p">[]</span><span class="err">（见</span><span class="w"> </span><span class="n">Section</span><span class="w"> </span><span class="mf">4.2</span><span class="w"> </span><span class="err">匹配算法）</span><span class="w">            </span><span class="err">│</span>
+<span class="err">│</span><span class="w">                                                       </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="n">Step</span><span class="w"> </span><span class="mi">3</span><span class="p">:</span><span class="w"> </span><span class="err">记忆注入</span><span class="w">                                      </span><span class="err">│</span>
+<span class="err">│</span><span class="w">    </span><span class="err">→</span><span class="w"> </span><span class="err">查</span><span class="w"> </span><span class="n">verdicts</span><span class="w"> </span><span class="err">表</span><span class="p">:</span><span class="w"> </span><span class="n">intent_hash</span><span class="w"> </span><span class="err">→</span><span class="w"> </span><span class="err">历史最优路径</span><span class="w">          </span><span class="err">│</span>
+<span class="err">│</span><span class="w">    </span><span class="err">→</span><span class="w"> </span><span class="err">向量搜索</span><span class="w"> </span><span class="n">sessions</span><span class="w"> </span><span class="err">表</span><span class="p">:</span><span class="w"> </span><span class="err">相似历史查询（可选）</span><span class="w">           </span><span class="err">│</span>
+<span class="err">│</span><span class="w">    </span><span class="err">→</span><span class="w"> </span><span class="n">verdict</span><span class="w"> </span><span class="n">winner</span><span class="w"> </span><span class="err">工具获得</span><span class="w"> </span><span class="o">+</span><span class="mi">25</span><span class="o">/+</span><span class="mi">50</span><span class="w"> </span><span class="n">quality</span><span class="w"> </span><span class="err">加分</span><span class="w">       </span><span class="err">│</span>
+<span class="err">│</span><span class="w">                                                       </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="n">Step</span><span class="w"> </span><span class="mi">4</span><span class="p">:</span><span class="w"> </span><span class="n">Prompt</span><span class="w"> </span><span class="err">动态组装</span><span class="w">                                </span><span class="err">│</span>
+<span class="err">│</span><span class="w">    </span><span class="err">基础指令（规则</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="err">时间映射</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="err">工具选择指南）</span><span class="w">              </span><span class="err">│</span>
+<span class="err">│</span><span class="w">    </span><span class="o">+</span><span class="w"> </span><span class="err">匹配到的工具描述（从</span><span class="w"> </span><span class="n">YAML</span><span class="w"> </span><span class="err">动态生成）</span><span class="w">                 </span><span class="err">│</span>
+<span class="err">│</span><span class="w">    </span><span class="o">+</span><span class="w"> </span><span class="n">per</span><span class="o">-</span><span class="k">tool</span><span class="w"> </span><span class="err">示例（从</span><span class="w"> </span><span class="n">YAML</span><span class="w"> </span><span class="n">examples</span><span class="w"> </span><span class="err">字段）</span><span class="w">              </span><span class="err">│</span>
+<span class="err">│</span><span class="w">    </span><span class="o">+</span><span class="w"> </span><span class="n">few</span><span class="o">-</span><span class="n">shot</span><span class="w"> </span><span class="err">编排示例（覆盖当前系统的核心多步模式）</span><span class="w">       </span><span class="err">│</span>
+<span class="err">│</span><span class="w">    </span><span class="o">+</span><span class="w"> </span><span class="err">记忆上下文（</span><span class="n">verdict</span><span class="w"> </span><span class="err">推荐的路径，可选）</span><span class="w">               </span><span class="err">│</span>
+<span class="err">│</span><span class="w">                                                       </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="n">Step</span><span class="w"> </span><span class="mi">5</span><span class="p">:</span><span class="w"> </span><span class="n">LLM</span><span class="w"> </span><span class="err">路由决策</span><span class="w">                                  </span><span class="err">│</span>
+<span class="err">│</span><span class="w">    </span><span class="n">Provider</span><span class="o">.</span><span class="n">route</span><span class="p">(</span><span class="n">assembled_prompt</span><span class="p">,</span><span class="w"> </span><span class="n">matched_tools</span><span class="p">)</span><span class="w">     </span><span class="err">│</span>
+<span class="err">│</span><span class="w">    </span><span class="err">→</span><span class="w"> </span><span class="p">{</span><span class="s2">&quot;calls&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="o">...</span><span class="p">],</span><span class="w"> </span><span class="s2">&quot;confidence_signals&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="o">...</span><span class="p">}}</span><span class="w">     </span><span class="err">│</span>
+<span class="err">│</span><span class="w">                                                       </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="n">Step</span><span class="w"> </span><span class="mi">6</span><span class="p">:</span><span class="w"> </span><span class="err">置信度判断（见</span><span class="w"> </span><span class="n">Section</span><span class="w"> </span><span class="mf">5.5</span><span class="err">）</span><span class="w">                   </span><span class="err">│</span>
+<span class="err">│</span><span class="w">    </span><span class="n">high</span><span class="w">   </span><span class="err">→</span><span class="w"> </span><span class="n">Step</span><span class="w"> </span><span class="mi">7</span><span class="w">                                     </span><span class="err">│</span>
+<span class="err">│</span><span class="w">    </span><span class="n">medium</span><span class="w"> </span><span class="err">→</span><span class="w"> </span><span class="n">Step</span><span class="w"> </span><span class="mi">7</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="err">标记待确认</span><span class="w">                         </span><span class="err">│</span>
+<span class="err">│</span><span class="w">    </span><span class="n">low</span><span class="w">    </span><span class="err">→</span><span class="w"> </span><span class="err">反问用户，不执行</span><span class="w">                              </span><span class="err">│</span>
+<span class="err">│</span><span class="w">                                                       </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="n">Step</span><span class="w"> </span><span class="mi">7</span><span class="p">:</span><span class="w"> </span><span class="err">执行（调用</span><span class="w"> </span><span class="n">ToolRegistry</span><span class="o">.</span><span class="n">execute</span><span class="err">，逐步）</span><span class="w">         </span><span class="err">│</span>
+<span class="err">│</span><span class="w">    </span><span class="err">→</span><span class="w"> </span><span class="err">多步调用时，前一步结果注入后一步参数</span><span class="w">                  </span><span class="err">│</span>
+<span class="err">│</span><span class="w">    </span><span class="err">→</span><span class="w"> </span><span class="err">错误按</span><span class="w"> </span><span class="n">Level</span><span class="w"> </span><span class="mi">1</span><span class="o">-</span><span class="mi">4</span><span class="w"> </span><span class="err">处理（见</span><span class="w"> </span><span class="n">Section</span><span class="w"> </span><span class="mf">4.4</span><span class="err">）</span><span class="w">            </span><span class="err">│</span>
+<span class="err">│</span><span class="w">                                                       </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="n">Step</span><span class="w"> </span><span class="mi">8</span><span class="p">:</span><span class="w"> </span><span class="err">结果呈现（见</span><span class="w"> </span><span class="n">Section</span><span class="w"> </span><span class="mf">5.6</span><span class="err">）</span><span class="w">                     </span><span class="err">│</span>
+<span class="err">│</span><span class="w">    </span><span class="n">Provider</span><span class="o">.</span><span class="n">summarize</span><span class="p">(</span><span class="n">data</span><span class="p">,</span><span class="w"> </span><span class="n">question</span><span class="p">,</span><span class="w"> </span><span class="n">format_hint</span><span class="p">)</span><span class="w">     </span><span class="err">│</span>
+<span class="err">│</span><span class="w">    </span><span class="err">→</span><span class="w"> </span><span class="n">StructuredResult</span><span class="w"> </span><span class="err">返回</span><span class="w"> </span><span class="n">Gateway</span><span class="w">                      </span><span class="err">│</span>
+<span class="err">│</span><span class="w">                                                       </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="n">Step</span><span class="w"> </span><span class="mi">9</span><span class="p">:</span><span class="w"> </span><span class="err">异步日志</span><span class="w">                                      </span><span class="err">│</span>
+<span class="err">│</span><span class="w">    </span><span class="err">→</span><span class="w"> </span><span class="err">写入</span><span class="w"> </span><span class="n">sessions</span><span class="w"> </span><span class="err">表（路由决策</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="err">工具结果）</span><span class="w">              </span><span class="err">│</span>
+<span class="err">│</span><span class="w">    </span><span class="err">→</span><span class="w"> </span><span class="err">触发自学习冷路径（见</span><span class="w"> </span><span class="n">Section</span><span class="w"> </span><span class="mf">5.4</span><span class="err">）</span><span class="w">                  </span><span class="err">│</span>
+<span class="err">│</span><span class="w">                                                       </span><span class="err">│</span>
+<span class="err">└───────────────────────────────────────────────────────┘</span>
+</code></pre></div>
+
+<p><strong>与实验阶段 V4 Prompt 的关系</strong>：V4 的结构（规则 + 选择指南 + few-shot + 工具描述）完全保留，只是从静态文本变成动态组装。新增的是 Step 2 匹配和 Step 3 记忆注入——P0 阶段匹配返回全部工具、记忆为空，等价于 V4 原始行为。</p>
+<h3 id="52-llm">5.2 LLM 提供者抽象</h3>
+<div class="codehilite"><pre><span></span><code><span class="err">┌──────────────────────────────────┐</span>
+<span class="err">│</span><span class="w">      </span><span class="n">LLM</span><span class="w"> </span><span class="n">Provider</span><span class="w"> </span><span class="n">Interface</span><span class="w">      </span><span class="err">│</span>
+<span class="err">│</span><span class="w">                                  </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="n">route</span><span class="p">(</span><span class="n">prompt</span><span class="p">,</span><span class="w"> </span><span class="n">tools</span><span class="p">)</span><span class="w"> </span><span class="err">→</span><span class="w"> </span><span class="n">calls</span><span class="p">[]</span><span class="w">  </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="n">evaluate</span><span class="p">(</span><span class="n">input</span><span class="p">)</span><span class="w"> </span><span class="err">→</span><span class="w"> </span><span class="n">score</span><span class="w">         </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="n">summarize</span><span class="p">(</span><span class="n">data</span><span class="p">,</span><span class="w"> </span><span class="n">question</span><span class="p">)</span><span class="w"> </span><span class="err">→</span><span class="w"> </span><span class="n">text</span><span class="err">│</span>
+<span class="err">└──────┬───────┬───────┬───────┬──┘</span>
+<span class="w">       </span><span class="err">│</span><span class="w">       </span><span class="err">│</span><span class="w">       </span><span class="err">│</span><span class="w">       </span><span class="err">│</span>
+<span class="w">   </span><span class="n">codex</span><span class="w">    </span><span class="n">OpenAI</span><span class="w">   </span><span class="n">Claude</span><span class="w">   </span><span class="n">Local</span>
+<span class="w">   </span><span class="n">proxy</span><span class="w">    </span><span class="n">API</span><span class="w">      </span><span class="n">API</span><span class="w">      </span><span class="n">Ollama</span>
+<span class="w">   </span><span class="p">(</span><span class="n">P0</span><span class="p">)</span><span class="w">    </span><span class="p">(</span><span class="err">付费</span><span class="p">)</span><span class="w">   </span><span class="p">(</span><span class="err">付费</span><span class="p">)</span><span class="w">   </span><span class="p">(</span><span class="err">未来</span><span class="p">)</span>
+</code></pre></div>
+
+<p>三个方法覆盖全部 LLM 需求：</p>
+<div class="codehilite"><pre><span></span><code><span class="n">route</span><span class="p">(</span>
+<span class="w">  </span><span class="n">prompt</span><span class="p">:</span><span class="w"> </span><span class="n">string</span><span class="p">,</span><span class="w">          </span><span class="o">//</span><span class="w"> </span><span class="err">组装好的完整</span><span class="w"> </span><span class="n">Prompt</span>
+<span class="w">  </span><span class="n">tools</span><span class="p">:</span><span class="w"> </span><span class="n">ToolSchema</span><span class="p">[]</span><span class="w">      </span><span class="o">//</span><span class="w"> </span><span class="err">匹配到的工具</span><span class="w"> </span><span class="n">schema</span>
+<span class="p">)</span><span class="w"> </span><span class="err">→</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">calls</span><span class="p">:</span><span class="w"> </span><span class="n">ToolCall</span><span class="p">[],</span><span class="w"> </span><span class="n">confidence_signals</span><span class="p">:</span><span class="w"> </span><span class="n">object</span><span class="w"> </span><span class="p">}</span>
+
+<span class="n">evaluate</span><span class="p">(</span>
+<span class="w">  </span><span class="n">question</span><span class="p">:</span><span class="w"> </span><span class="n">string</span><span class="p">,</span><span class="w">        </span><span class="o">//</span><span class="w"> </span><span class="err">用户原始查询</span>
+<span class="w">  </span><span class="n">toolChain</span><span class="p">:</span><span class="w"> </span><span class="n">string</span><span class="p">[],</span><span class="w">     </span><span class="o">//</span><span class="w"> </span><span class="err">路由选择的工具链</span>
+<span class="w">  </span><span class="n">resultSummary</span><span class="p">:</span><span class="w"> </span><span class="n">string</span><span class="w">    </span><span class="o">//</span><span class="w"> </span><span class="err">工具返回的数据摘要</span>
+<span class="p">)</span><span class="w"> </span><span class="err">→</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">relevance</span><span class="p">:</span><span class="w"> </span><span class="mi">1</span><span class="o">-</span><span class="mi">5</span><span class="p">,</span><span class="w"> </span><span class="n">completeness</span><span class="p">:</span><span class="w"> </span><span class="mi">1</span><span class="o">-</span><span class="mi">5</span><span class="p">,</span><span class="w"> </span><span class="n">efficiency</span><span class="p">:</span><span class="w"> </span><span class="mi">1</span><span class="o">-</span><span class="mi">5</span><span class="w"> </span><span class="p">}</span>
+
+<span class="n">summarize</span><span class="p">(</span>
+<span class="w">  </span><span class="n">data</span><span class="p">:</span><span class="w"> </span><span class="n">any</span><span class="p">,</span><span class="w">               </span><span class="o">//</span><span class="w"> </span><span class="err">工具返回的结构化数据</span>
+<span class="w">  </span><span class="n">question</span><span class="p">:</span><span class="w"> </span><span class="n">string</span><span class="p">,</span><span class="w">        </span><span class="o">//</span><span class="w"> </span><span class="err">用户原始问题</span>
+<span class="w">  </span><span class="n">formatHint</span><span class="p">:</span><span class="w"> </span><span class="n">string</span><span class="w">       </span><span class="o">//</span><span class="w"> </span><span class="s2">&quot;single_value&quot;</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="s2">&quot;list&quot;</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="s2">&quot;timeseries&quot;</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="s2">&quot;multi_step&quot;</span>
+<span class="p">)</span><span class="w"> </span><span class="err">→</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">answer</span><span class="p">:</span><span class="w"> </span><span class="n">string</span><span class="p">,</span><span class="w"> </span><span class="n">display</span><span class="p">:</span><span class="w"> </span><span class="n">string</span><span class="p">,</span><span class="w"> </span><span class="n">columns</span><span class="err">?</span><span class="p">:</span><span class="w"> </span><span class="n">string</span><span class="p">[],</span><span class="w"> </span><span class="n">followUp</span><span class="err">?</span><span class="p">:</span><span class="w"> </span><span class="n">string</span><span class="p">[]</span><span class="w"> </span><span class="p">}</span>
+</code></pre></div>
+
+<ul>
+<li><strong>route</strong> — 热路径，用 mini 级模型</li>
+<li><strong>evaluate</strong> — 冷路径（自学习），用 mini</li>
+<li><strong>summarize</strong> — 热路径，用 mini</li>
+</ul>
+<p>P0 只实现 codex-proxy adapter。切换 LLM = 加一个 adapter 文件。</p>
+<h3 id="53">5.3 记忆系统</h3>
+<p>基于 OpenClaw 记忆模式适配，使用平台独立存储（非文件）：</p>
+<h4 id="_1">三层记忆</h4>
+<table>
+<thead>
+<tr>
+<th>层</th>
+<th>存什么</th>
+<th>生命周期</th>
+<th>检索方式</th>
+<th>存储表</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>持久层</strong></td>
+<td>用户偏好（"我通常关心 A 线"）、系统配置</td>
+<td>长期不变</td>
+<td>user_id 直接读</td>
+<td>nl_memory_preferences</td>
+</tr>
+<tr>
+<td><strong>经验层</strong></td>
+<td>每类查询模式的最优工具 + 参数模板</td>
+<td>长期，置信度衰减</td>
+<td>intent_hash 精确匹配</td>
+<td>nl_memory_verdicts</td>
+</tr>
+<tr>
+<td><strong>会话层</strong></td>
+<td>路由日志、用户反馈</td>
+<td>时间衰减（半衰期 30 天）</td>
+<td>向量 + 关键词混合搜索</td>
+<td>nl_memory_sessions</td>
+</tr>
+</tbody>
+</table>
+<h4 id="_2">路由时的记忆注入</h4>
+<div class="codehilite"><pre><span></span><code>用户: &quot;A 线上月维修用了哪些备件？&quot;
+    ↓
+1. 意图提取 → intent_hash
+2. 查 verdicts 表: 该 hash 历史最优路径是 equipment → repair_orders → repair_detail
+3. 向量搜索 sessions 表: 找到语义相似的历史查询
+4. 注入 Prompt: &quot;历史经验：类似查询的最优路径是 [...]&quot;
+    ↓
+LLM 路由（有经验参考，准确率更高）
+</code></pre></div>
+
+<h3 id="54">5.4 自学习引擎</h3>
+<p>改编自 Firecrawl Engpicker 模式：</p>
+<h4 id="2s">热路径（实时，&lt; 2s）</h4>
+<div class="codehilite"><pre><span></span><code>用户查询 → 查 verdict (250ms 超时) → 匹配+路由 → MCP 执行 → 返回结果
+                                                      ↓
+                                               写入 session 日志
+</code></pre></div>
+
+<h4 id="_3">冷路径（异步后台）</h4>
+<div class="codehilite"><pre><span></span><code>触发条件:
+  • 同类查询累积 5 条日志
+  • 定时扫描（每小时）
+  • 用户显式反馈（&quot;这个结果不对&quot;）
+    ↓
+质量评估 (LLM Provider.evaluate):
+  输入: 用户原始查询 + 路由选择的工具链 + 工具返回数据摘要
+  评分维度（1-5 分）:
+    S1 相关性 — 返回的数据跟问题相关吗？ （权重 0.5）
+    S2 完整性 — 回答了问题的所有方面吗？ （权重 0.3）
+    S3 效率性 — 调用链路是否有冗余？     （权重 0.2）
+  综合分 = S1×0.5 + S2×0.3 + S3×0.2
+    ↓
+Verdict 计算:
+  同一 intent_hash 下按路由路径分组
+  每组取平均综合分，最高分组 = winner
+  置信度 = f(样本量, 分数差距, 时间衰减):
+    样本 &lt; 3:  confidence = low    → 不写 verdict
+    样本 3-10: confidence = medium → winner +25 quality
+    样本 &gt; 10 且领先 &gt; 0.5 分:
+               confidence = high   → winner +50 quality
+</code></pre></div>
+
+<h4 id="intent_hash">intent_hash 生成</h4>
+<div class="codehilite"><pre><span></span><code>用户查询: &quot;A 线上月维修用了哪些备件？&quot;
+    ↓ LLM 提取结构化意图
+{domains: [&quot;equipment&quot;,&quot;fault_repair&quot;], operation: &quot;list&quot;,
+ filters: [&quot;production_line&quot;,&quot;date_range&quot;], target: &quot;spare_usage&quot;}
+    ↓ 字段排序 + hash
+intent_hash = sha256(&quot;domains=equipment,fault_repair|op=list|...&quot;)
+</code></pre></div>
+
+<p>相似查询（"B 线本月维修消耗的备件"）得到<strong>同一个 hash</strong>——结构化意图一致，参数值不同。</p>
+<h4 id="_4">安全护栏</h4>
+<ul>
+<li>Verdict <strong>只加分不减分</strong> — 最坏情况回到默认排序</li>
+<li>单次加分<strong>上限 +50</strong> — 不会压倒性碾压其他工具</li>
+<li><strong>自动过期</strong> — 30 天无新样本的 verdict 置信度降级</li>
+<li><strong>人工覆盖</strong> — 管理员可手动标记 verdict 为 invalid</li>
+<li><strong>冷启动安全</strong> — 无 verdict 时完全靠基础质量分 + 匹配</li>
+</ul>
+<h3 id="55">5.5 置信度回退</h3>
+<h4 id="_5">三信号融合</h4>
+<div class="codehilite"><pre><span></span><code>信号 1: 工具匹配分 (Tool Match Score)
+  top-1 工具 matchScore:
+<span class="k">    &gt; </span><span class="ge">80% 加权优先级  → high</span>
+    50-80%           → medium
+    &lt; 50%            → low
+
+信号 2: Verdict 置信度 (Historical Confidence)
+  该 intent_hash 有 verdict 吗:
+    high confidence verdict   → high
+    medium 或无 verdict       → medium
+    有 verdict 但历史评分低    → low
+
+信号 3: 查询清晰度 (Query Clarity)
+  LLM 提取意图时的确定性:
+    单一明确意图              → high
+    可能有歧义但可推断         → medium
+    多重理解 / 缺关键信息      → low
+</code></pre></div>
+
+<h4 id="_6">决策矩阵</h4>
+<table>
+<thead>
+<tr>
+<th>综合置信度</th>
+<th>条件</th>
+<th>行为</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>high</strong></td>
+<td>3 个信号均 high</td>
+<td>直接执行</td>
+</tr>
+<tr>
+<td><strong>medium</strong></td>
+<td>任意 2 个 medium+</td>
+<td>执行 + 提示"这是我的理解，对吗？"</td>
+</tr>
+<tr>
+<td><strong>low</strong></td>
+<td>任意 1 个 low</td>
+<td>不执行，反问澄清（给选项）</td>
+</tr>
+</tbody>
+</table>
+<h4 id="_7">反问对话设计</h4>
+<div class="codehilite"><pre><span></span><code>Low confidence:
+  用户: &quot;那个设备的情况怎么样？&quot;
+  系统: &quot;请问您想了解哪方面？
+    1. 设备当前运行状态和 KPI
+    2. 最近的故障维修记录
+    3. 保养执行情况
+    4. 全生命周期事件&quot;
+  用户: &quot;2&quot;
+  系统: → 走 fault_repair 域, confidence 升 high
+        → 写入偏好记忆: 该用户问&quot;设备情况&quot;时偏好故障维修
+
+Medium confidence 反馈:
+  系统: &quot;这是 A 线上月的故障统计。这是您想要的吗？&quot;
+  用户: &quot;不是，我想看保养完成率&quot;
+  系统: → 切换 maintenance 域重新执行
+        → 记录反馈: fault_repair 路径 -1, maintenance 路径 +1
+        → 累积样本后更新 verdict
+</code></pre></div>
+
+<h3 id="56">5.6 结果呈现引擎</h3>
+<div class="codehilite"><pre><span></span><code>MCP 工具返回原始数据
+    ↓
+数据类型识别:
+  单值      → 直接回答
+  列表      → 表格
+  时序      → 趋势描述（P1: 图表）
+  多步结果  → 综合分析
+    ↓
+LLM Provider.summarize(data, question, format_hint)
+    ↓
+输出结构化中间格式:
+  {
+    &quot;answer&quot;: &quot;A线上月共使用12种备件，总成本¥45,200...&quot;,
+    &quot;data&quot;: [{备件明细}],
+    &quot;display&quot;: &quot;table&quot;,
+    &quot;columns&quot;: [&quot;备件名称&quot;, &quot;使用数量&quot;, &quot;单价&quot;, &quot;小计&quot;],
+    &quot;follow_up&quot;: [&quot;要看各备件成本占比吗？&quot;, &quot;要对比上上月的消耗吗？&quot;]
+  }
+    ↓
+接入层按端格式化:
+  Web      → 交互表格 + 文字 + 追问按钮
+  Telegram → 纯文字摘要 + 简化表格
+  API      → JSON
+</code></pre></div>
+
+<p><strong>关键</strong>：呈现引擎输出结构化中间格式，不是最终 HTML。渲染由接入层做，同一结果在不同端有不同呈现。</p>
+<h3 id="57-agent">5.7 调查型 Agent（架构预留）</h3>
+<p>当前路由是一次规划模式。预留 Agent 循环扩展点：</p>
+<div class="codehilite"><pre><span></span><code><span class="n">LLM</span><span class="w"> </span><span class="err">路由输出</span><span class="w"> </span><span class="n">calls</span><span class="p">[]</span>
+<span class="w">    </span><span class="err">↓</span>
+<span class="n">calls</span><span class="w"> </span><span class="err">包含</span><span class="w"> </span><span class="p">{</span><span class="s2">&quot;tool&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;__continue__&quot;</span><span class="p">}</span><span class="w"> </span><span class="err">?</span>
+<span class="w">    </span><span class="err">│</span><span class="w">                    </span><span class="err">│</span>
+<span class="w">    </span><span class="n">No</span><span class="w">                   </span><span class="n">Yes</span><span class="err">（</span><span class="n">P1</span><span class="w"> </span><span class="err">启用）</span>
+<span class="w">    </span><span class="err">↓</span><span class="w">                    </span><span class="err">↓</span>
+<span class="w">  </span><span class="err">按序执行返回</span><span class="w">       </span><span class="err">执行当前步骤</span><span class="w"> </span><span class="err">→</span><span class="w"> </span><span class="err">结果注入上下文</span><span class="w"> </span><span class="err">→</span><span class="w"> </span><span class="n">LLM</span><span class="w"> </span><span class="err">再次决策</span>
+<span class="w">                    </span><span class="err">循环直到无</span><span class="w"> </span><span class="n">__continue__</span><span class="w"> </span><span class="err">或达到最大轮次</span><span class="p">(</span><span class="mi">5</span><span class="p">)</span>
+</code></pre></div>
+
+<p>P0 不实现循环。P1 启用时只在路由引擎加循环判断，工具层和接入层不改。</p>
+<hr />
+<h2 id="6">6. 扩展路线图</h2>
+<p>基于行业调研和实验数据，明确各阶段的技术演进：</p>
+<h3 id="61">6.1 工具数量扩展</h3>
+<table>
+<thead>
+<tr>
+<th>工具数</th>
+<th>触发条件</th>
+<th>技术方案</th>
+<th>参考项目</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>&lt; 30</strong></td>
+<td>P0-P1</td>
+<td>全量注入 Prompt（已验证 94.2%）</td>
+<td>当前方案</td>
+</tr>
+<tr>
+<td><strong>30-50</strong></td>
+<td>新系统接入</td>
+<td>向量预筛选 → Top-10 注入</td>
+<td>Semantic Router (3.4k★)</td>
+</tr>
+<tr>
+<td><strong>50-80</strong></td>
+<td>多系统并行</td>
+<td>动态工具加载，启动基础集按需展开</td>
+<td>GitHub MCP Server</td>
+</tr>
+<tr>
+<td><strong>100+</strong></td>
+<td>平台规模化</td>
+<td>渐进式发现（发现→元数据→执行 3 级）</td>
+<td>SAP OData MCP (114★)</td>
+</tr>
+</tbody>
+</table>
+<h3 id="62-p0">6.2 P0 架构预埋</h3>
+<p>即使 P0 全量注入，以下设计为未来扩展预埋接口：</p>
+<table>
+<thead>
+<tr>
+<th>预埋点</th>
+<th>P0 状态</th>
+<th>未来启用方式</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>YAML 能力标签</td>
+<td>写了但不用于匹配</td>
+<td>P2 启用匹配算法</td>
+</tr>
+<tr>
+<td>intent_hash</td>
+<td>生成并存储</td>
+<td>P1 启用 verdict 查询</td>
+</tr>
+<tr>
+<td>向量索引</td>
+<td>对工具描述建索引</td>
+<td>P2 启用 Top-K 筛选</td>
+</tr>
+<tr>
+<td>存储抽象层</td>
+<td>SQLite 实现</td>
+<td>生产切 PostgreSQL</td>
+</tr>
+<tr>
+<td>Agent 循环</td>
+<td>代码路径存在，不触发</td>
+<td>P1 启用 <strong>continue</strong></td>
+</tr>
+</tbody>
+</table>
+<h3 id="63">6.3 数据层演进</h3>
+<table>
+<thead>
+<tr>
+<th>阶段</th>
+<th>数据访问方式</th>
+<th>适用场景</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>P0</strong></td>
+<td>EAM 现有 Service 层直连</td>
+<td>单系统</td>
+</tr>
+<tr>
+<td><strong>P2</strong></td>
+<td>GraphQL Federation</td>
+<td>多系统统一网关</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="7">7. 实验数据基础</h2>
+<p>本设计基于 2026-03-25 的 8 个方案对比实验：</p>
+<table>
+<thead>
+<tr>
+<th>方案</th>
+<th>D1 召回</th>
+<th>D2 精确</th>
+<th>全对</th>
+<th>结论</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>扁平 V1</td>
+<td>39.6%</td>
+<td>36.7%</td>
+<td>10/40</td>
+<td>基线</td>
+</tr>
+<tr>
+<td>扁平 V2 (修复)</td>
+<td>72.5%</td>
+<td>80.4%</td>
+<td>23/40</td>
+<td>Prompt 是主要杠杆</td>
+</tr>
+<tr>
+<td>扁平 V2 (gpt-5.4)</td>
+<td>73.1%</td>
+<td>75.3%</td>
+<td>24/40</td>
+<td>模型升级无显著收益</td>
+</tr>
+<tr>
+<td>扁平 V3 (few-shot)</td>
+<td>77.3%</td>
+<td>80.6%</td>
+<td>27/40</td>
+<td>few-shot 定向有效</td>
+</tr>
+<tr>
+<td><strong>扁平 V4 (完整版)</strong></td>
+<td><strong>94.2%</strong></td>
+<td><strong>95.0%</strong></td>
+<td><strong>36/40</strong></td>
+<td><strong>选定方案</strong></td>
+</tr>
+<tr>
+<td>分层 V1</td>
+<td>81.2%</td>
+<td>85.7%</td>
+<td>22/40</td>
+<td>任务翻译丢信息</td>
+</tr>
+<tr>
+<td>分层 V2 (优化)</td>
+<td>90.5%</td>
+<td>91.9%</td>
+<td>29/40</td>
+<td>改善但仍不如扁平</td>
+</tr>
+<tr>
+<td>混合</td>
+<td>87.1%</td>
+<td>86.8%</td>
+<td>27/40</td>
+<td>分类器引入额外错误</td>
+</tr>
+</tbody>
+</table>
+<p><strong>关键结论</strong>：
+- Prompt 贡献 99% 的提升，模型贡献 1%
+- 22 个工具规模下扁平最优
+- gpt-5.4-mini 足够，无需更贵模型</p>
+<p><strong>行业验证</strong>：
+- dbt: 语义层路由 83% vs 裸 SQL 40%
+- Anthropic: per-tool 示例 72% → 90%
+- OpenAI: 建议工具数 &lt; 20
+- Paragon: 我们的 94.2% 超越其基准测试中所有模型</p>
+<hr />
+<h2 id="8">8. 设计决策记录</h2>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>决策</th>
+<th>理由</th>
+<th>数据依据</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>LLM 不碰 SQL</td>
+<td>SQL 生成失败率太高</td>
+<td>Spider 2.0: 23%, dbt: SQL 路径仅 40%</td>
+</tr>
+<tr>
+<td>2</td>
+<td>MCP 作为工具协议</td>
+<td>标准化、LLM 解耦、多端复用</td>
+<td>行业趋势，Google/Microsoft/SAP 均采用</td>
+</tr>
+<tr>
+<td>3</td>
+<td>扁平路由（当前）</td>
+<td>94.2% &gt; 分层 90.5%，调用少一半</td>
+<td>8 方案对比实验</td>
+</tr>
+<tr>
+<td>4</td>
+<td>gpt-5.4-mini</td>
+<td>模型升级仅 +0.6pp</td>
+<td>R2 vs R3 对比</td>
+</tr>
+<tr>
+<td>5</td>
+<td>否决分层/混合</td>
+<td>调度层翻译损耗 &gt; 域专精收益</td>
+<td>分层 V1/V2 + 混合实验</td>
+</tr>
+<tr>
+<td>6</td>
+<td>声明式 YAML 注册</td>
+<td>加工具不改代码</td>
+<td>Firecrawl + Google Toolbox 模式</td>
+</tr>
+<tr>
+<td>7</td>
+<td>Verdict 只加分不减分</td>
+<td>安全降级，最坏回到默认</td>
+<td>Firecrawl Engpicker 设计</td>
+</tr>
+<tr>
+<td>8</td>
+<td>平台独立存储</td>
+<td>不依赖客户数据库</td>
+<td>C 级平台需求</td>
+</tr>
+<tr>
+<td>9</td>
+<td>SQLite/PG 两档</td>
+<td>零依赖开发，生产可切换</td>
+<td>降低起步门槛</td>
+</tr>
+<tr>
+<td>10</td>
+<td>结果呈现用中间格式</td>
+<td>一次生成，多端适配</td>
+<td>先 Web 后多端的交付策略</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="9">9. 安全与多租户</h2>
+<h3 id="91">9.1 认证</h3>
+<table>
+<thead>
+<tr>
+<th>阶段</th>
+<th>方式</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>P0</strong></td>
+<td>API Key</td>
+<td>平台生成 API Key，每个用户/集成一个。最简启动</td>
+</tr>
+<tr>
+<td><strong>P1</strong></td>
+<td>JWT Token</td>
+<td>支持用户名密码登录，签发 JWT</td>
+</tr>
+<tr>
+<td><strong>P2</strong></td>
+<td>SSO/OAuth2</td>
+<td>对接企业 AD/LDAP/OIDC，单点登录</td>
+</tr>
+</tbody>
+</table>
+<h3 id="92">9.2 授权</h3>
+<p>每个用户关联可访问的系统和工具：</p>
+<div class="codehilite"><pre><span></span><code><span class="n">nl_users</span>
+<span class="w">  </span><span class="err">├──</span><span class="w"> </span><span class="n">user_id</span>
+<span class="w">  </span><span class="err">├──</span><span class="w"> </span><span class="n">auth_type</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;api_key&quot;</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="s2">&quot;jwt&quot;</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="s2">&quot;sso&quot;</span>
+<span class="w">  </span><span class="err">├──</span><span class="w"> </span><span class="n">allowed_systems</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;eam&quot;</span><span class="p">]</span><span class="w">          </span><span class="c1"># 可访问的系统</span>
+<span class="w">  </span><span class="err">├──</span><span class="w"> </span><span class="n">allowed_tools</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;*&quot;</span><span class="p">]</span><span class="w"> </span><span class="err">或</span><span class="w"> </span><span class="p">[</span><span class="err">具体列表</span><span class="p">]</span><span class="w">  </span><span class="c1"># 可用的工具（默认该系统全部）</span>
+<span class="w">  </span><span class="err">└──</span><span class="w"> </span><span class="n">role</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;viewer&quot;</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="s2">&quot;operator&quot;</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="s2">&quot;admin&quot;</span>
+</code></pre></div>
+
+<p>工具匹配时自动过滤：用户只能看到 <code>allowed_systems</code> 和 <code>allowed_tools</code> 范围内的工具。</p>
+<h3 id="93">9.3 多租户隔离</h3>
+<p>平台存储的所有表都带 <code>tenant_id</code>：</p>
+<ul>
+<li>verdicts、sessions、preferences、feedback 按 tenant_id 隔离</li>
+<li>租户 A 的学习经验不会影响租户 B</li>
+<li>P0 单租户，tenant_id 固定为 "default"。P2 启用多租户</li>
+</ul>
+<h3 id="94">9.4 数据安全</h3>
+<ul>
+<li>平台<strong>不存储客户业务数据</strong>，只存路由日志和元数据</li>
+<li>sessions 表的 result_summary 字段存数据摘要（非原始数据），可配置为不存储</li>
+<li>所有 LLM 调用走 codex-proxy/API，不向第三方传输客户数据</li>
+<li>MCP 工具的认证凭据由工具层管理，不经过智能层</li>
+</ul>
+<hr />
+<h2 id="10">10. 部署与运维</h2>
+<h3 id="101">10.1 部署架构</h3>
+<div class="codehilite"><pre><span></span><code>P0 最简部署（单机）:
+┌─────────────────────────────┐
+│  单进程                      │
+│  ├── Web Server (接入层)      │
+│  ├── Brain Service (智能层)   │
+│  ├── Tool Registry (工具层)   │
+│  ├── MCP Client              │
+│  └── SQLite (平台存储)        │
+└──────────┬──────────────────┘
+           │ MCP (stdio/HTTP)
+┌──────────┴──────────────────┐
+│  EAM MCP Server (独立进程)    │
+│  └── → EAM Service 层        │
+└─────────────────────────────┘
+</code></pre></div>
+
+<p>P0 全部在一台机器上。MCP Server 作为独立进程通过 stdio 或 HTTP 与平台通信。</p>
+<h3 id="102-mcp-server">10.2 MCP Server 管理</h3>
+<table>
+<thead>
+<tr>
+<th>方面</th>
+<th>设计</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>启动方式</td>
+<td>平台启动时自动拉起配置的 MCP Server 进程</td>
+</tr>
+<tr>
+<td>健康检查</td>
+<td>定时调用 MCP <code>ping</code>，连续 3 次失败标记不可用</td>
+</tr>
+<tr>
+<td>不可用处理</td>
+<td>对应工具标记为 unavailable，匹配时跳过，用户提示"该系统暂时不可用"</td>
+</tr>
+<tr>
+<td>日志</td>
+<td>MCP Server 日志独立输出，平台日志记录调用耗时和错误</td>
+</tr>
+</tbody>
+</table>
+<h3 id="103">10.3 自学习冷路径调度</h3>
+<table>
+<thead>
+<tr>
+<th>方面</th>
+<th>P0</th>
+<th>生产</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>调度方式</td>
+<td>进程内定时器（每小时）</td>
+<td>消息队列 / Cron Job</td>
+</tr>
+<tr>
+<td>触发条件</td>
+<td>同类查询累积 5 条 或 定时扫描</td>
+<td>同左 + 用户反馈事件</td>
+</tr>
+<tr>
+<td>并发控制</td>
+<td>单线程串行</td>
+<td>Worker 池</td>
+</tr>
+</tbody>
+</table>
+<h3 id="104">10.4 监控指标</h3>
+<table>
+<thead>
+<tr>
+<th>指标</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>route_latency_p95</td>
+<td>路由决策耗时（目标 &lt; 2s）</td>
+</tr>
+<tr>
+<td>tool_execution_latency</td>
+<td>MCP 工具执行耗时</td>
+</tr>
+<tr>
+<td>routing_accuracy</td>
+<td>用户反馈计算的实际准确率</td>
+</tr>
+<tr>
+<td>verdict_coverage</td>
+<td>有 verdict 的查询占比</td>
+</tr>
+<tr>
+<td>confidence_distribution</td>
+<td>high/medium/low 的比例</td>
+</tr>
+<tr>
+<td>llm_token_usage</td>
+<td>LLM 调用的 token 消耗</td>
+</tr>
+</tbody>
+</table>
+<div style="margin-top:60px; padding-top:20px; border-top:1px solid #E5E7EB; text-align:center; color:#9CA3AF; font-size:13px;">
+  Insight68 NL-API Platform Design Spec &middot; 2026-03-25 &middot; MES AI Explorer
+</div>
+</div>
+</body>
+</html>

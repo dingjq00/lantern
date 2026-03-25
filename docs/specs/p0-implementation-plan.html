@@ -1,0 +1,678 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>P0 Implementation Plan — Insight68 NL-API Platform</title>
+<style>
+:root {
+  --blue-50:#EFF6FF;--blue-100:#DBEAFE;--blue-200:#BFDBFE;--blue-500:#3B82F6;
+  --blue-600:#2563EB;--blue-700:#1D4ED8;--blue-800:#1E40AF;
+  --gray-50:#F9FAFB;--gray-100:#F3F4F6;--gray-200:#E5E7EB;--gray-300:#D1D5DB;
+  --gray-500:#6B7280;--gray-600:#4B5563;--gray-700:#374151;--gray-800:#1F2937;
+  --green-50:#F0FDF4;--green-600:#16A34A;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;font-size:15px;line-height:1.75;color:var(--gray-800);background:var(--gray-50)}
+.container{max-width:960px;margin:0 auto;padding:40px 48px;background:#fff;min-height:100vh;box-shadow:0 0 40px rgba(0,0,0,.05)}
+h1{font-size:26px;font-weight:700;color:var(--blue-800);border-bottom:3px solid var(--blue-500);padding-bottom:14px;margin-bottom:8px}
+h2{font-size:21px;font-weight:600;color:var(--blue-700);margin-top:44px;margin-bottom:18px;padding-bottom:8px;border-bottom:2px solid var(--blue-100)}
+h3{font-size:17px;font-weight:600;color:var(--blue-800);margin-top:30px;margin-bottom:10px}
+p{margin-bottom:12px;color:var(--gray-700)}
+strong{color:var(--gray-800);font-weight:600}
+a{color:var(--blue-600);text-decoration:none}
+blockquote{border-left:4px solid var(--blue-200);background:var(--blue-50);padding:12px 20px;margin:14px 0;border-radius:0 8px 8px 0}
+blockquote p{color:var(--gray-600);margin:0}
+pre{background:var(--gray-800);color:#E5E7EB;padding:18px 22px;border-radius:8px;overflow-x:auto;margin:14px 0;font-family:"JetBrains Mono","Fira Code",Menlo,monospace;font-size:13px;line-height:1.6}
+code{font-family:"JetBrains Mono","Fira Code",Menlo,monospace;font-size:13px}
+p code,li code,td code{background:var(--blue-50);color:var(--blue-700);padding:2px 6px;border-radius:4px}
+table{width:100%;border-collapse:collapse;margin:14px 0;font-size:14px}
+thead th{background:var(--blue-700);color:#fff;font-weight:600;text-align:left;padding:9px 14px;font-size:13px}
+thead th:first-child{border-radius:6px 0 0 0}thead th:last-child{border-radius:0 6px 0 0}
+tbody td{padding:8px 14px;border-bottom:1px solid var(--gray-200);vertical-align:top}
+tbody tr:nth-child(even){background:var(--gray-50)}tbody tr:hover{background:var(--blue-50)}
+ul,ol{margin:8px 0 12px 24px;color:var(--gray-700)}
+li{margin-bottom:5px;padding-left:4px}
+hr{border:none;height:1px;background:var(--gray-200);margin:36px 0}
+input[type="checkbox"]{margin-right:6px;accent-color:var(--blue-600)}
+@media print{
+  body{background:#fff}.container{box-shadow:none;padding:20px;max-width:100%}
+  pre{background:var(--gray-100);color:var(--gray-800);border:1px solid var(--gray-300)}
+  thead th{background:var(--gray-200);color:var(--gray-800)}
+  h1,h2,h3{page-break-after:avoid}table{page-break-inside:avoid}
+}
+</style>
+</head>
+<body>
+<div class="container">
+<h1 id="p0-implementation-plan-insight68-nl-api-platform">P0 Implementation Plan — Insight68 NL-API Platform</h1>
+<blockquote>
+<p><strong>For agentic workers:</strong> REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (<code>- [ ]</code>) syntax for tracking.</p>
+</blockquote>
+<p><strong>Goal:</strong> EAM 查询场景端到端跑通 — 用户在 Web 输入框输入自然语言，获得结构化回答。</p>
+<p><strong>Architecture:</strong> Next.js 全栈，四层架构（接入层/智能层/工具层/数据层）。22 个 EAM MCP Tools 通过 YAML 声明式注册，智能层动态组装 Prompt V4 调用 codex-proxy (gpt-5.4-mini) 路由，结果经 LLM 总结后返回 Web 前端。</p>
+<p><strong>Tech Stack:</strong> TypeScript, Next.js 15 (App Router), MCP SDK (@modelcontextprotocol/sdk), OpenAI SDK, SQLite (better-sqlite3), sqlite-vec, Tailwind CSS, shadcn/ui</p>
+<p><strong>Spec:</strong> <code>docs/specs/platform-design.md</code></p>
+<p><strong>EAM 数据来源:</strong> <code>/Users/dingjq/IdeaProjects/eamNewGe</code>（Java Service 层，通过 HTTP REST API 调用）</p>
+<hr />
+<h2 id="file-structure">File Structure</h2>
+<pre><code>mes-ai-explorer/
+├── app/                          # Next.js App Router
+│   ├── layout.tsx                # 全局布局
+│   ├── page.tsx                  # 首页（查询界面）
+│   ├── api/
+│   │   ├── chat/route.ts         # POST /api/chat — 主查询接口
+│   │   └── health/route.ts       # GET /api/health — 健康检查
+│   └── components/
+│       ├── ChatInput.tsx          # 查询输入框
+│       ├── ChatMessage.tsx        # 消息气泡（问题+回答）
+│       ├── ResultTable.tsx        # 表格渲染
+│       └── ConfidenceHint.tsx     # 置信度提示（medium/low）
+│
+├── lib/
+│   ├── brain/                     # 智能层
+│   │   ├── router.ts              # 完整路由流程（9 步编排）
+│   │   ├── intent.ts              # 意图提取 + intent_hash
+│   │   ├── prompt-assembler.ts    # Prompt V4 动态组装
+│   │   ├── confidence.ts          # 置信度三信号融合
+│   │   └── result-presenter.ts    # 结果呈现（data → StructuredResult）
+│   │
+│   ├── llm/                       # LLM Provider 抽象
+│   │   └── codex-proxy.ts         # codex-proxy adapter（接口定义在 lib/types.ts）
+│   │
+│   ├── tools/                     # 工具层
+│   │   ├── registry.ts            # YAML 加载 + match + execute
+│   │   ├── yaml-loader.ts         # YAML 文件扫描和解析
+│   │   └── mcp-client.ts          # MCP Client 封装
+│   │
+│   ├── storage/                   # 存储抽象层
+│   │   ├── types.ts               # Storage Interface
+│   │   ├── sqlite.ts              # SQLite 实现
+│   │   └── migrations/
+│   │       └── 001-init.sql       # 建表语句
+│   │
+│   └── types.ts                   # 全局类型定义
+│
+├── tools/                         # YAML 工具声明
+│   └── eam/
+│       ├── query-equipment.yaml
+│       ├── get-equipment-detail.yaml
+│       ├── get-equipment-lifecycle.yaml
+│       ├── get-equipment-status-distribution.yaml
+│       ├── query-fault-reports.yaml
+│       ├── query-repair-orders.yaml
+│       ├── get-repair-detail.yaml
+│       ├── get-fault-trend.yaml
+│       ├── query-maintenance-tasks.yaml
+│       ├── get-maintenance-detail.yaml
+│       ├── query-patrol-tasks.yaml
+│       ├── get-patrol-analytics.yaml
+│       ├── query-anomaly-records.yaml
+│       ├── get-anomaly-statistics.yaml
+│       ├── query-spare-parts.yaml
+│       ├── get-spare-stock.yaml
+│       ├── get-equipment-spare-bom.yaml
+│       ├── query-spare-transactions.yaml
+│       ├── get-spare-alerts.yaml
+│       ├── get-dashboard-summary.yaml
+│       ├── get-governance-dashboard.yaml
+│       └── get-todo-list.yaml
+│
+├── mcp-server/                    # EAM MCP Server（独立进程）
+│   ├── package.json
+│   ├── tsconfig.json
+│   ├── src/
+│   │   ├── index.ts               # MCP Server 入口
+│   │   ├── eam-client.ts          # EAM REST API 客户端
+│   │   └── handlers/
+│   │       ├── equipment.ts       # 设备域 handlers（4 个工具）
+│   │       ├── fault-repair.ts    # 故障维修域 handlers（4 个工具）
+│   │       ├── maintenance.ts     # 保养域 handlers（2 个工具）
+│   │       ├── patrol.ts          # 巡检域 handlers（4 个工具）
+│   │       ├── spare.ts           # 备件域 handlers（5 个工具）
+│   │       └── dashboard.ts       # 仪表盘域 handlers（3 个工具）
+│   └── tests/
+│       └── handlers.test.ts
+│
+├── prompts/                       # Prompt 模板
+│   ├── base-instructions.md       # 基础指令（规则 + 时间映射）
+│   ├── tool-selection-guide.md    # 工具选择指南
+│   └── few-shot-examples.json     # 4 个 few-shot 编排示例
+│
+├── tests/
+│   ├── lib/
+│   │   ├── brain/
+│   │   │   ├── router.test.ts
+│   │   │   ├── intent.test.ts
+│   │   │   ├── prompt-assembler.test.ts
+│   │   │   └── confidence.test.ts
+│   │   ├── tools/
+│   │   │   ├── registry.test.ts
+│   │   │   └── yaml-loader.test.ts
+│   │   ├── llm/
+│   │   │   └── codex-proxy.test.ts
+│   │   └── storage/
+│   │       └── sqlite.test.ts
+│   └── e2e/
+│       └── chat-flow.test.ts      # 端到端：输入问题 → 获得结构化回答
+│
+├── scripts/
+│   └── start.sh                   # 一键启动（MCP Server + Next.js）
+│
+├── package.json
+├── tsconfig.json
+├── next.config.ts
+├── tailwind.config.ts
+├── .env.local                     # 环境变量（API key 等）
+└── vitest.config.ts
+</code></pre>
+<hr />
+<h2 id="task-group-1">Task Group 1: 项目骨架 + 存储层</h2>
+<h3 id="task-11-nextjs">Task 1.1: 初始化 Next.js 项目</h3>
+<p><strong>Files:</strong><br />
+- Create: <code>package.json</code>, <code>tsconfig.json</code>, <code>next.config.ts</code>, <code>tailwind.config.ts</code>, <code>.env.local</code>, <code>vitest.config.ts</code></p>
+<ul>
+<li>[ ] <strong>Step 1: 创建 Next.js 项目</strong></li>
+</ul>
+<p>注意：当前目录已有 docs/、experiments/、CLAUDE.md 等文件。先备份再初始化：</p>
+<pre><code class="language-bash">cd /Users/dingjq/projects/mes-ai-explorer
+# 把已有文件暂存
+mkdir -p /tmp/mes-backup &amp;&amp; cp -r docs experiments CLAUDE.md README.md /tmp/mes-backup/
+# 初始化 Next.js（会覆盖部分文件）
+npx create-next-app@latest . --typescript --tailwind --eslint --app --src-dir=false --import-alias=&quot;@/*&quot; --use-npm
+# 恢复已有文件
+cp -r /tmp/mes-backup/* .
+</code></pre>
+<ul>
+<li>[ ] <strong>Step 2: 安装核心依赖</strong></li>
+</ul>
+<pre><code class="language-bash">npm install openai better-sqlite3 js-yaml
+npm install @modelcontextprotocol/sdk
+npm install -D vitest @types/better-sqlite3 @types/js-yaml
+</code></pre>
+<ul>
+<li>[ ] <strong>Step 3: 配置 vitest</strong></li>
+</ul>
+<p>Create <code>vitest.config.ts</code>:</p>
+<pre><code class="language-typescript">import { defineConfig } from 'vitest/config'
+import path from 'path'
+
+export default defineConfig({
+  test: {
+    globals: true,
+    environment: 'node',
+  },
+  resolve: {
+    alias: { '@': path.resolve(__dirname) },
+  },
+})
+</code></pre>
+<ul>
+<li>[ ] <strong>Step 4: 配置环境变量</strong></li>
+</ul>
+<p>Create <code>.env.local</code>:</p>
+<pre><code>LLM_BASE_URL=https://gptapi.tutu02.us.ci/v1
+LLM_API_KEY=sk-mes-ai-explorer-2026
+LLM_MODEL=gpt-5.4-mini
+EAM_API_BASE_URL=http://localhost:48080
+TOOLS_DIR=./tools
+</code></pre>
+<ul>
+<li>[ ] <strong>Step 5: 验证项目启动</strong></li>
+</ul>
+<pre><code class="language-bash">npm run dev
+# 访问 http://localhost:3000 看到 Next.js 默认页面
+</code></pre>
+<ul>
+<li>[ ] <strong>Step 6: 配置 .gitignore</strong></li>
+</ul>
+<p>确保 <code>.gitignore</code> 包含：</p>
+<pre><code>.env.local
+data/
+node_modules/
+.next/
+mcp-server/node_modules/
+</code></pre>
+<ul>
+<li>[ ] <strong>Step 7: Commit</strong></li>
+</ul>
+<pre><code class="language-bash">git add -A
+git commit -m &quot;feat: init Next.js project with core dependencies&quot;
+</code></pre>
+<hr />
+<h3 id="task-12">Task 1.2: 全局类型定义</h3>
+<p><strong>Files:</strong><br />
+- Create: <code>lib/types.ts</code></p>
+<ul>
+<li>[ ] <strong>Step 1: 定义核心类型</strong></li>
+</ul>
+<p>定义层间接口类型：<code>StructuredResult</code>, <code>IntentTags</code>, <code>RankedTool</code>, <code>ToolResult</code>, <code>ToolCall</code>, <code>RouteResult</code>, <code>ToolDefinition</code>, <code>ToolExample</code>, <code>LLMProvider</code>, <code>MemorySession</code>, <code>MemoryVerdict</code>, <code>MemoryPreference</code>。</p>
+<p>完整类型来源：<code>docs/specs/platform-design.md</code> Section 2.3 + Section 4.1 + Section 5.2。</p>
+<ul>
+<li>[ ] <strong>Step 2: Commit</strong></li>
+</ul>
+<pre><code class="language-bash">git add lib/types.ts
+git commit -m &quot;feat: define core type interfaces for all layers&quot;
+</code></pre>
+<hr />
+<h3 id="task-13">Task 1.3: 存储层</h3>
+<p><strong>Files:</strong><br />
+- Create: <code>lib/storage/types.ts</code>, <code>lib/storage/sqlite.ts</code>, <code>lib/storage/migrations/001-init.sql</code><br />
+- Test: <code>tests/lib/storage/sqlite.test.ts</code></p>
+<ul>
+<li>[ ] <strong>Step 1: 写 Storage Interface</strong></li>
+</ul>
+<p>定义 <code>StorageInterface</code>：insertSession, getSessionsByIntentHash, getVerdict, upsertVerdict, getPreference, setPreference, initialize, close。</p>
+<ul>
+<li>[ ] <strong>Step 2: 写建表 SQL</strong></li>
+</ul>
+<p>4 张表：nl_memory_sessions, nl_memory_verdicts, nl_memory_preferences, nl_users。所有表带 tenant_id（P0 默认 'default'）。字段定义见 spec Section 3.1 + Section 9.2。</p>
+<ul>
+<li>[ ] <strong>Step 3: 写测试</strong></li>
+</ul>
+<p>测试 session CRUD、verdict upsert/get、preference set/get、non-existent 返回 null。</p>
+<ul>
+<li>[ ] <strong>Step 4: 运行测试确认失败</strong></li>
+</ul>
+<pre><code class="language-bash">npx vitest run tests/lib/storage/sqlite.test.ts
+</code></pre>
+<ul>
+<li>[ ] <strong>Step 5: 实现 SQLiteStorage</strong></li>
+</ul>
+<p>基于 <code>better-sqlite3</code>，WAL 模式，JSON 序列化 toolChain 数组字段。</p>
+<ul>
+<li>[ ] <strong>Step 6: 运行测试确认通过</strong></li>
+</ul>
+<pre><code class="language-bash">npx vitest run tests/lib/storage/sqlite.test.ts
+</code></pre>
+<ul>
+<li>[ ] <strong>Step 7: Commit</strong></li>
+</ul>
+<pre><code class="language-bash">git add lib/storage/ tests/lib/storage/
+git commit -m &quot;feat: implement SQLite storage layer with sessions, verdicts, preferences&quot;
+</code></pre>
+<hr />
+<h2 id="task-group-2">Task Group 2: 工具层</h2>
+<h3 id="task-21-yaml-loader">Task 2.1: YAML Loader</h3>
+<p><strong>Files:</strong><br />
+- Create: <code>lib/tools/yaml-loader.ts</code><br />
+- Test: <code>tests/lib/tools/yaml-loader.test.ts</code></p>
+<ul>
+<li>[ ] <strong>Step 1: 写测试</strong></li>
+</ul>
+<p>验证：加载 22 个 EAM 工具、字段解析正确（domains/operation/supportsFilters/examples/feedsInto）、必填字段校验。</p>
+<ul>
+<li>[ ] <strong>Step 2: 编写 22 个 YAML 工具声明文件</strong></li>
+</ul>
+<p>基于 <code>docs/plan-a-p1-prompts.md</code> 中 G2 的 22 个工具设计，创建 <code>tools/eam/*.yaml</code>。每个文件遵循 spec Section 4.1 格式。字段来源：<br />
+- name/description/inputSchema → G2 工具清单<br />
+- domains/operation/supportsFilters/returns → EAM 数据模型<br />
+- feedsInto/dependsOn → 测试集多步链路<br />
+- examples → 测试集（<code>docs/plan-a-p2-test-cases.md</code>）<br />
+- whenToUse/whenNotToUse → Prompt V4 工具选择指南</p>
+<ul>
+<li>[ ] <strong>Step 3: 实现 yaml-loader.ts</strong></li>
+</ul>
+<p>扫描 tools/ 子目录，解析 YAML，snake_case → camelCase 字段映射，返回 ToolDefinition[]。</p>
+<ul>
+<li>[ ] <strong>Step 4: 运行测试确认通过</strong></li>
+</ul>
+<pre><code class="language-bash">npx vitest run tests/lib/tools/yaml-loader.test.ts
+</code></pre>
+<ul>
+<li>[ ] <strong>Step 5: Commit</strong></li>
+</ul>
+<pre><code class="language-bash">git add tools/ lib/tools/yaml-loader.ts tests/lib/tools/
+git commit -m &quot;feat: YAML tool declarations (22 EAM tools) + loader&quot;
+</code></pre>
+<hr />
+<h3 id="task-22-tool-registry">Task 2.2: Tool Registry（匹配 + 执行）</h3>
+<p><strong>Files:</strong><br />
+- Create: <code>lib/tools/registry.ts</code>, <code>lib/tools/mcp-client.ts</code><br />
+- Test: <code>tests/lib/tools/registry.test.ts</code></p>
+<ul>
+<li>[ ] <strong>Step 1: 写测试</strong></li>
+</ul>
+<p>验证：加载 22 工具、domain 匹配、operation 排序、P0 全量返回模式。</p>
+<ul>
+<li>[ ] <strong>Step 2: 实现 registry.ts</strong></li>
+</ul>
+<p>matchScore 计算（domain 40 + operation 30 + filter 20×比例 + chain 10）。排序：matchScore desc → quality desc。P0 模式下 match() 返回全部工具。execute() 接受 MCPClient 实例（由调用方注入），P0 阶段先留 stub 返回 mock，Task 5.1 接通真实 MCP。</p>
+<ul>
+<li>[ ] <strong>Step 3: 实现 mcp-client.ts</strong></li>
+</ul>
+<p>基于 <code>@modelcontextprotocol/sdk</code> 的 Client + StdioClientTransport。callTool() 解析 JSON text content → ToolResult。</p>
+<ul>
+<li>[ ] <strong>Step 4: 运行测试确认通过</strong></li>
+</ul>
+<pre><code class="language-bash">npx vitest run tests/lib/tools/registry.test.ts
+</code></pre>
+<ul>
+<li>[ ] <strong>Step 5: Commit</strong></li>
+</ul>
+<pre><code class="language-bash">git add lib/tools/ tests/lib/tools/
+git commit -m &quot;feat: tool registry with capability matching + MCP client&quot;
+</code></pre>
+<hr />
+<h3 id="task-23-eam-mcp-server">Task 2.3: EAM MCP Server</h3>
+<p><strong>Files:</strong><br />
+- Create: <code>mcp-server/</code> 整个目录</p>
+<p>P0 返回 mock 数据验证全链路，后续接入 EAM REST API。</p>
+<ul>
+<li>[ ] <strong>Step 1: 初始化 MCP Server 项目</strong></li>
+</ul>
+<pre><code class="language-bash">mkdir -p mcp-server/src/handlers
+cd mcp-server
+npm init -y
+npm install @modelcontextprotocol/sdk zod
+npm install -D typescript @types/node tsx
+</code></pre>
+<ul>
+<li>[ ] <strong>Step 2: 实现 MCP Server 入口</strong></li>
+</ul>
+<p><code>mcp-server/src/index.ts</code>：创建 McpServer，注册 6 个域的 handlers，StdioServerTransport 启动。</p>
+<ul>
+<li>[ ] <strong>Step 3: 实现 6 个域的 handlers（mock 数据）</strong></li>
+</ul>
+<p>按域分文件，每个工具返回符合 EAM 数据模型的 mock JSON：<br />
+- <code>handlers/equipment.ts</code> — 4 工具<br />
+- <code>handlers/fault-repair.ts</code> — 4 工具<br />
+- <code>handlers/maintenance.ts</code> — 2 工具<br />
+- <code>handlers/patrol.ts</code> — 4 工具<br />
+- <code>handlers/spare.ts</code> — 5 工具<br />
+- <code>handlers/dashboard.ts</code> — 3 工具</p>
+<p>工具签名严格对齐 YAML 声明的 inputSchema。</p>
+<ul>
+<li>[ ] <strong>Step 4: 验证 MCP Server 启动</strong></li>
+</ul>
+<pre><code class="language-bash">cd mcp-server &amp;&amp; npx tsx src/index.ts
+# stderr: &quot;EAM MCP Server running on stdio&quot;
+</code></pre>
+<ul>
+<li>[ ] <strong>Step 5: Commit</strong></li>
+</ul>
+<pre><code class="language-bash">git add mcp-server/
+git commit -m &quot;feat: EAM MCP Server with 22 mock tool handlers&quot;
+</code></pre>
+<hr />
+<h2 id="task-group-3">Task Group 3: 智能层</h2>
+<h3 id="task-31-llm-provider-codex-proxy-adapter">Task 3.1: LLM Provider (codex-proxy adapter)</h3>
+<p><strong>Files:</strong><br />
+- Create: <code>lib/llm/codex-proxy.ts</code><br />
+- Test: <code>tests/lib/llm/codex-proxy.test.ts</code></p>
+<ul>
+<li>[ ] <strong>Step 1: 写测试</strong></li>
+</ul>
+<p>验证 route()（简单查询返回 calls）、summarize()（数据总结包含关键数字）。需网络访问 codex-proxy，timeout 30s。</p>
+<ul>
+<li>[ ] <strong>Step 2: 实现 codex-proxy adapter</strong></li>
+</ul>
+<p>基于 <code>openai</code> SDK。三个方法：<br />
+- route(): 调 chat.completions，temperature=0，解析 JSON 输出<br />
+- evaluate(): 调 chat.completions，让 LLM 打分（1-5 三维度）<br />
+- summarize(): 调 chat.completions，temperature=0.3，生成自然语言回答</p>
+<ul>
+<li>[ ] <strong>Step 3: 运行测试</strong></li>
+</ul>
+<pre><code class="language-bash">npx vitest run tests/lib/llm/codex-proxy.test.ts
+</code></pre>
+<ul>
+<li>[ ] <strong>Step 4: Commit</strong></li>
+</ul>
+<pre><code class="language-bash">git add lib/llm/ tests/lib/llm/
+git commit -m &quot;feat: LLM provider abstraction + codex-proxy adapter&quot;
+</code></pre>
+<hr />
+<h3 id="task-32-prompt-v4">Task 3.2: Prompt V4 模板 + 组装器</h3>
+<p><strong>Files:</strong><br />
+- Create: <code>prompts/base-instructions.md</code>, <code>prompts/tool-selection-guide.md</code>, <code>prompts/few-shot-examples.json</code><br />
+- Create: <code>lib/brain/intent.ts</code>, <code>lib/brain/prompt-assembler.ts</code><br />
+- Test: <code>tests/lib/brain/prompt-assembler.test.ts</code></p>
+<ul>
+<li>[ ] <strong>Step 1: 迁移 Prompt V4 到模板文件</strong></li>
+</ul>
+<p>从实验 R5 的 Prompt V4 拆成三个文件。内容来源：experiments/ 中验证通过的完整 Prompt。</p>
+<ul>
+<li>[ ] <strong>Step 2: 写测试（TDD: red first）</strong></li>
+</ul>
+<p><code>tests/lib/brain/prompt-assembler.test.ts</code>：验证组装结果包含工具名、包含选择指南、包含 memory context。<br />
+<code>tests/lib/brain/intent.test.ts</code>：验证 computeIntentHash 对相同结构意图产生相同 hash，不同意图产生不同 hash。</p>
+<ul>
+<li>[ ] <strong>Step 3: 运行测试确认失败</strong></li>
+</ul>
+<pre><code class="language-bash">npx vitest run tests/lib/brain/prompt-assembler.test.ts tests/lib/brain/intent.test.ts
+</code></pre>
+<ul>
+<li>[ ] <strong>Step 4: 实现意图提取</strong></li>
+</ul>
+<p><code>lib/brain/intent.ts</code>：computeIntentHash() — 对结构化意图字段排序 + SHA256 截取。P0 简化：intent hash 留空。</p>
+<ul>
+<li>[ ] <strong>Step 5: 实现 Prompt 组装器</strong></li>
+</ul>
+<p><code>lib/brain/prompt-assembler.ts</code>：assemblePrompt(query, tools, memoryContext?) → {systemPrompt, userMessage}。懒加载模板文件，动态生成工具描述和示例。</p>
+<ul>
+<li>[ ] <strong>Step 6: 运行测试确认通过</strong></li>
+</ul>
+<pre><code class="language-bash">npx vitest run tests/lib/brain/prompt-assembler.test.ts tests/lib/brain/intent.test.ts
+</code></pre>
+<ul>
+<li>[ ] <strong>Step 7: Commit</strong></li>
+</ul>
+<pre><code class="language-bash">git add lib/brain/intent.ts lib/brain/prompt-assembler.ts prompts/ tests/lib/brain/
+git commit -m &quot;feat: Prompt V4 templates + dynamic assembler&quot;
+</code></pre>
+<hr />
+<h3 id="task-33">Task 3.3: 置信度 + 结果呈现</h3>
+<p><strong>Files:</strong><br />
+- Create: <code>lib/brain/confidence.ts</code>, <code>lib/brain/result-presenter.ts</code><br />
+- Test: <code>tests/lib/brain/confidence.test.ts</code></p>
+<ul>
+<li>[ ] <strong>Step 1: 写测试（TDD: red first）</strong></li>
+</ul>
+<p><code>tests/lib/brain/confidence.test.ts</code>：验证三种场景——全 high→high、mixed→medium、有 low→low。<br />
+<code>tests/lib/brain/result-presenter.test.ts</code>：验证数据类型检测（single_value/list/timeseries/multi_step）和 StructuredResult 输出结构。</p>
+<ul>
+<li>[ ] <strong>Step 2: 运行测试确认失败</strong></li>
+</ul>
+<pre><code class="language-bash">npx vitest run tests/lib/brain/confidence.test.ts tests/lib/brain/result-presenter.test.ts
+</code></pre>
+<ul>
+<li>[ ] <strong>Step 3: 实现置信度三信号融合</strong></li>
+</ul>
+<p>三信号（matchScore/verdict/clarity）→ high/medium/low。规则：任意 1 个 low → low；3 个 high → high；其余 → medium。</p>
+<ul>
+<li>[ ] <strong>Step 4: 实现结果呈现引擎</strong></li>
+</ul>
+<p>合并多步工具结果 → 识别数据类型 → LLM summarize → 输出 StructuredResult。</p>
+<ul>
+<li>[ ] <strong>Step 5: 运行测试确认通过</strong></li>
+</ul>
+<pre><code class="language-bash">npx vitest run tests/lib/brain/confidence.test.ts tests/lib/brain/result-presenter.test.ts
+</code></pre>
+<ul>
+<li>[ ] <strong>Step 6: Commit</strong></li>
+</ul>
+<pre><code class="language-bash">git add lib/brain/confidence.ts lib/brain/result-presenter.ts tests/lib/brain/
+git commit -m &quot;feat: confidence scoring + result presentation engine&quot;
+</code></pre>
+<hr />
+<h3 id="task-34-9">Task 3.4: 路由主编排器（9 步流程）</h3>
+<p><strong>Files:</strong><br />
+- Create: <code>lib/brain/router.ts</code><br />
+- Test: <code>tests/lib/brain/router.test.ts</code></p>
+<ul>
+<li>[ ] <strong>Step 1: 写集成测试（TDD: red first）</strong></li>
+</ul>
+<p>processQuery("系统里有多少台设备？") → 返回含 answer 和 confidence 的 StructuredResult。需 codex-proxy 网络访问。</p>
+<ul>
+<li>[ ] <strong>Step 2: 运行测试确认失败</strong></li>
+</ul>
+<pre><code class="language-bash">npx vitest run tests/lib/brain/router.test.ts
+</code></pre>
+<ul>
+<li>[ ] <strong>Step 3: 实现 processQuery()</strong></li>
+</ul>
+<p>9 步编排：意图提取 → 工具匹配 → 记忆注入(P0跳过) → Prompt 组装 → LLM 路由 → 置信度判断 → 工具执行 → 结果呈现 → 异步日志。</p>
+<p>P0 简化：Step 1 跳过独立 intent 提取，Step 2 返回全部工具，Step 3 无记忆。</p>
+<ul>
+<li>[ ] <strong>Step 4: 运行测试确认通过</strong></li>
+</ul>
+<pre><code class="language-bash">npx vitest run tests/lib/brain/router.test.ts
+</code></pre>
+<ul>
+<li>[ ] <strong>Step 4: Commit</strong></li>
+</ul>
+<pre><code class="language-bash">git add lib/brain/router.ts tests/lib/brain/
+git commit -m &quot;feat: 9-step routing orchestrator&quot;
+</code></pre>
+<hr />
+<h2 id="task-group-4-web-ui">Task Group 4: 接入层 (Web UI)</h2>
+<h3 id="task-41-api-route">Task 4.1: API Route</h3>
+<p><strong>Files:</strong><br />
+- Create: <code>app/api/chat/route.ts</code>, <code>app/api/health/route.ts</code></p>
+<ul>
+<li>[ ] <strong>Step 1: 实现 POST /api/chat</strong></li>
+</ul>
+<p>接收 <code>{query, userId?}</code>，单例初始化 registry/storage/provider，调用 processQuery()，返回 StructuredResult JSON。</p>
+<ul>
+<li>[ ] <strong>Step 2: 实现 GET /api/health</strong></li>
+</ul>
+<p>返回 <code>{status: "ok", timestamp, version}</code>。</p>
+<ul>
+<li>[ ] <strong>Step 3: Commit</strong></li>
+</ul>
+<pre><code class="language-bash">git add app/api/
+git commit -m &quot;feat: /api/chat and /api/health endpoints&quot;
+</code></pre>
+<hr />
+<h3 id="task-42-web-ui">Task 4.2: Web UI 组件</h3>
+<p><strong>Files:</strong><br />
+- Modify: <code>app/layout.tsx</code>, <code>app/page.tsx</code><br />
+- Create: <code>app/components/ChatInput.tsx</code>, <code>app/components/ChatMessage.tsx</code>, <code>app/components/ResultTable.tsx</code>, <code>app/components/ConfidenceHint.tsx</code></p>
+<ul>
+<li>[ ] <strong>Step 1: 实现布局和首页</strong></li>
+</ul>
+<p>清爽蓝色系单页聊天界面：顶部标题栏（"Insight68 — 智能查询助手"），中间消息流，底部输入框。</p>
+<ul>
+<li>[ ] <strong>Step 2: 实现 ChatInput</strong></li>
+</ul>
+<p>输入框 + 发送按钮，Enter 发送，发送中 loading。</p>
+<ul>
+<li>[ ] <strong>Step 3: 实现 ChatMessage</strong></li>
+</ul>
+<p>消息气泡，区分用户/系统。系统回答含 answer 文本 + ResultTable(if table) + followUp 按钮 + ConfidenceHint。</p>
+<ul>
+<li>[ ] <strong>Step 4: 实现 ResultTable</strong></li>
+</ul>
+<p>根据 columns + data 渲染响应式表格。蓝色表头，斑马纹。</p>
+<ul>
+<li>[ ] <strong>Step 5: 实现 ConfidenceHint</strong></li>
+</ul>
+<p>high=隐藏，medium=蓝色"这是我的理解"，low=黄色选择题。</p>
+<ul>
+<li>[ ] <strong>Step 6: 验证 UI</strong></li>
+</ul>
+<pre><code class="language-bash">npm run dev
+# http://localhost:3000 输入测试问题
+</code></pre>
+<ul>
+<li>[ ] <strong>Step 7: Commit</strong></li>
+</ul>
+<pre><code class="language-bash">git add app/
+git commit -m &quot;feat: Web UI — chat interface with table and confidence hints&quot;
+</code></pre>
+<hr />
+<h2 id="task-group-5">Task Group 5: 端到端集成 + 验收</h2>
+<h3 id="task-51-mcp-server">Task 5.1: 接通 MCP Server</h3>
+<p><strong>Files:</strong><br />
+- Modify: <code>lib/tools/registry.ts</code><br />
+- Create: <code>scripts/start.sh</code></p>
+<ul>
+<li>[ ] <strong>Step 1: Registry 接入 MCP Client</strong></li>
+</ul>
+<p>修改 ToolRegistry 构造函数：接收 MCPClient 实例，execute() 代理到 client.callTool()。</p>
+<ul>
+<li>[ ] <strong>Step 2: 创建启动脚本</strong></li>
+</ul>
+<p><code>scripts/start.sh</code>：后台启动 MCP Server → 启动 Next.js → 退出时清理子进程。</p>
+<ul>
+<li>[ ] <strong>Step 3: 端到端手动测试</strong></li>
+</ul>
+<p>启动服务，测试 3 个代表性场景：<br />
+1. 简单查询："系统里有多少台设备？"<br />
+2. 单步查询："维修工单 WO-001 用了哪些备件？"<br />
+3. 多步查询："A 线上月维修用了哪些备件？"</p>
+<ul>
+<li>[ ] <strong>Step 4: Commit</strong></li>
+</ul>
+<pre><code class="language-bash">git add scripts/ lib/tools/registry.ts
+git commit -m &quot;feat: end-to-end integration with MCP Server&quot;
+</code></pre>
+<hr />
+<h3 id="task-52">Task 5.2: 验收测试</h3>
+<p><strong>Files:</strong><br />
+- Create: <code>tests/e2e/chat-flow.test.ts</code></p>
+<ul>
+<li>[ ] <strong>Step 1: 编写冒烟测试</strong></li>
+</ul>
+<p>通过 /api/chat 接口测试核心场景（需服务运行中）：<br />
+- L1 简单查询 ×3<br />
+- L2 双步查询 ×2<br />
+- L3 多步链路 ×1</p>
+<p>验证 response 包含 answer、confidence、display 字段。</p>
+<ul>
+<li>[ ] <strong>Step 2: 运行验收</strong></li>
+</ul>
+<pre><code class="language-bash">npx vitest run tests/e2e/chat-flow.test.ts
+</code></pre>
+<ul>
+<li>[ ] <strong>Step 3: Final Commit</strong></li>
+</ul>
+<pre><code class="language-bash">git add tests/e2e/
+git commit -m &quot;feat: P0 complete — end-to-end EAM NL query platform&quot;
+</code></pre>
+<hr />
+<h2 id="task-summary">Task Summary</h2>
+<table>
+<thead>
+<tr>
+<th>Group</th>
+<th>Tasks</th>
+<th>核心产出</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>1. 骨架+存储</strong></td>
+<td>1.1-1.3</td>
+<td>Next.js 项目 + 类型定义 + SQLite 存储层</td>
+</tr>
+<tr>
+<td><strong>2. 工具层</strong></td>
+<td>2.1-2.3</td>
+<td>22 个 YAML 声明 + Tool Registry + EAM MCP Server</td>
+</tr>
+<tr>
+<td><strong>3. 智能层</strong></td>
+<td>3.1-3.4</td>
+<td>LLM Provider + Prompt V4 组装 + 置信度 + 9 步路由</td>
+</tr>
+<tr>
+<td><strong>4. 接入层</strong></td>
+<td>4.1-4.2</td>
+<td>/api/chat + Web UI</td>
+</tr>
+<tr>
+<td><strong>5. 集成验收</strong></td>
+<td>5.1-5.2</td>
+<td>MCP 接通 + 验收测试</td>
+</tr>
+</tbody>
+</table>
+<p>Total: <strong>13 个 Task，约 50 个 Step</strong>。</p>
+<div style="margin-top:50px;padding-top:16px;border-top:1px solid #E5E7EB;text-align:center;color:#9CA3AF;font-size:13px">
+  P0 Implementation Plan &middot; Insight68 NL-API Platform &middot; 2026-03-25
+</div>
+</div>
+</body>
+</html>

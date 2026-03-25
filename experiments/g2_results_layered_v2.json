@@ -1,0 +1,765 @@
+{
+  "experiment": "G2_Layered_v2",
+  "model": "gpt-5.4-mini",
+  "architecture": "dispatch_v2 + domain_agents + question_passthrough",
+  "timestamp": "2026-03-25T19:14:06.817415",
+  "total_llm_calls": 99,
+  "results": [
+    {
+      "id": "T01",
+      "level": "L1",
+      "question": "现在系统里一共有多少台设备？",
+      "dispatch": [
+        "dashboard"
+      ],
+      "llm_tools": [
+        "get_dashboard_summary"
+      ],
+      "gt_tools": [
+        "get_dashboard_summary"
+      ],
+      "d1": 1.0,
+      "d2": 1.0,
+      "status": "OK"
+    },
+    {
+      "id": "T02",
+      "level": "L1",
+      "question": "当前有几个待审核的故障报修？",
+      "dispatch": [
+        "fault_repair"
+      ],
+      "llm_tools": [
+        "query_fault_reports"
+      ],
+      "gt_tools": [
+        "get_dashboard_summary"
+      ],
+      "d1": 1.0,
+      "d2": 1.0,
+      "status": "OK"
+    },
+    {
+      "id": "T03",
+      "level": "L1",
+      "question": "设备 EQ-001 的详细信息是什么？",
+      "dispatch": [
+        "equipment"
+      ],
+      "llm_tools": [
+        "get_equipment_detail",
+        "get_equipment_lifecycle"
+      ],
+      "gt_tools": [
+        "get_equipment_detail"
+      ],
+      "d1": 1.0,
+      "d2": 0.5,
+      "status": "PARTIAL"
+    },
+    {
+      "id": "T04",
+      "level": "L1",
+      "question": "各状态的设备数量分布是怎样的？",
+      "dispatch": [
+        "equipment"
+      ],
+      "llm_tools": [
+        "get_equipment_status_distribution"
+      ],
+      "gt_tools": [
+        "get_equipment_status_distribution"
+      ],
+      "d1": 1.0,
+      "d2": 1.0,
+      "status": "OK"
+    },
+    {
+      "id": "T05",
+      "level": "L1",
+      "question": "最近 30 天的故障趋势怎么样？",
+      "dispatch": [
+        "fault_repair"
+      ],
+      "llm_tools": [
+        "get_fault_trend"
+      ],
+      "gt_tools": [
+        "get_fault_trend"
+      ],
+      "d1": 1.0,
+      "d2": 1.0,
+      "status": "OK"
+    },
+    {
+      "id": "T06",
+      "level": "L1",
+      "question": "巡检异常的整体统计指标是什么？",
+      "dispatch": [
+        "patrol"
+      ],
+      "llm_tools": [
+        "get_anomaly_statistics",
+        "query_anomaly_records"
+      ],
+      "gt_tools": [
+        "get_anomaly_statistics"
+      ],
+      "d1": 1.0,
+      "d2": 0.5,
+      "status": "PARTIAL"
+    },
+    {
+      "id": "T07",
+      "level": "L1",
+      "question": "当前有哪些库存预警？",
+      "dispatch": [
+        "spare"
+      ],
+      "llm_tools": [
+        "get_spare_alerts"
+      ],
+      "gt_tools": [
+        "get_spare_alerts"
+      ],
+      "d1": 1.0,
+      "d2": 1.0,
+      "status": "OK"
+    },
+    {
+      "id": "T08",
+      "level": "L1",
+      "question": "我有哪些待办事项？",
+      "dispatch": [
+        "dashboard"
+      ],
+      "llm_tools": [
+        "get_todo_list"
+      ],
+      "gt_tools": [
+        "get_todo_list"
+      ],
+      "d1": 1.0,
+      "d2": 1.0,
+      "status": "OK"
+    },
+    {
+      "id": "T09",
+      "level": "L1",
+      "question": "维修工单目前各状态有多少个？",
+      "dispatch": [
+        "fault_repair"
+      ],
+      "llm_tools": [
+        "query_repair_orders"
+      ],
+      "gt_tools": [
+        "query_repair_orders"
+      ],
+      "d1": 1.0,
+      "d2": 1.0,
+      "status": "OK"
+    },
+    {
+      "id": "T10",
+      "level": "L1",
+      "question": "设备分类中哪类设备最多？",
+      "dispatch": [
+        "dashboard"
+      ],
+      "llm_tools": [
+        "get_dashboard_summary"
+      ],
+      "gt_tools": [
+        "get_dashboard_summary"
+      ],
+      "d1": 1.0,
+      "d2": 1.0,
+      "status": "OK"
+    },
+    {
+      "id": "T11",
+      "level": "L2",
+      "question": "上月故障最多的设备是哪台？",
+      "dispatch": [
+        "fault_repair"
+      ],
+      "llm_tools": [
+        "query_fault_reports"
+      ],
+      "gt_tools": [
+        "query_fault_reports"
+      ],
+      "d1": 1.0,
+      "d2": 1.0,
+      "status": "OK"
+    },
+    {
+      "id": "T12",
+      "level": "L2",
+      "question": "维修工单 WO-001 用了哪些备件？",
+      "dispatch": [
+        "fault_repair"
+      ],
+      "llm_tools": [
+        "get_repair_detail"
+      ],
+      "gt_tools": [
+        "get_repair_detail"
+      ],
+      "d1": 1.0,
+      "d2": 1.0,
+      "status": "OK"
+    },
+    {
+      "id": "T13",
+      "level": "L2",
+      "question": "设备 EQ-002 的保养任务执行情况怎样？",
+      "dispatch": [
+        "maintenance"
+      ],
+      "llm_tools": [
+        "query_maintenance_tasks"
+      ],
+      "gt_tools": [
+        "query_maintenance_tasks"
+      ],
+      "d1": 1.0,
+      "d2": 1.0,
+      "status": "OK"
+    },
+    {
+      "id": "T14",
+      "level": "L2",
+      "question": "近 7 天完成了几个巡检任务？",
+      "dispatch": [
+        "patrol"
+      ],
+      "llm_tools": [
+        "query_patrol_tasks"
+      ],
+      "gt_tools": [
+        "query_patrol_tasks"
+      ],
+      "d1": 1.0,
+      "d2": 1.0,
+      "status": "OK"
+    },
+    {
+      "id": "T15",
+      "level": "L2",
+      "question": "当前维修中的设备都是哪些？",
+      "dispatch": [
+        "equipment"
+      ],
+      "llm_tools": [
+        "query_equipment"
+      ],
+      "gt_tools": [
+        "query_equipment"
+      ],
+      "d1": 1.0,
+      "d2": 1.0,
+      "status": "OK"
+    },
+    {
+      "id": "T16",
+      "level": "L2",
+      "question": "备件 SP-001 都用在哪些设备上？",
+      "dispatch": [
+        "spare"
+      ],
+      "llm_tools": [
+        "get_equipment_spare_bom"
+      ],
+      "gt_tools": [
+        "get_equipment_spare_bom"
+      ],
+      "d1": 1.0,
+      "d2": 1.0,
+      "status": "OK"
+    },
+    {
+      "id": "T17",
+      "level": "L2",
+      "question": "设备 EQ-001 最近一次保养是什么时候？",
+      "dispatch": [
+        "maintenance"
+      ],
+      "llm_tools": [
+        "query_maintenance_tasks"
+      ],
+      "gt_tools": [
+        "query_maintenance_tasks"
+      ],
+      "d1": 1.0,
+      "d2": 1.0,
+      "status": "OK"
+    },
+    {
+      "id": "T18",
+      "level": "L2",
+      "question": "本月新增了多少故障报修？",
+      "dispatch": [
+        "fault_repair"
+      ],
+      "llm_tools": [
+        "query_fault_reports"
+      ],
+      "gt_tools": [
+        "query_fault_reports"
+      ],
+      "d1": 1.0,
+      "d2": 1.0,
+      "status": "OK"
+    },
+    {
+      "id": "T19",
+      "level": "L2",
+      "question": "设备 EQ-003 的全生命周期事件有哪些？",
+      "dispatch": [
+        "equipment"
+      ],
+      "llm_tools": [
+        "get_equipment_lifecycle"
+      ],
+      "gt_tools": [
+        "get_equipment_lifecycle"
+      ],
+      "d1": 1.0,
+      "d2": 1.0,
+      "status": "OK"
+    },
+    {
+      "id": "T20",
+      "level": "L2",
+      "question": "近 30 天巡检发现最多异常的设备是哪台？",
+      "dispatch": [
+        "patrol"
+      ],
+      "llm_tools": [
+        "query_anomaly_records"
+      ],
+      "gt_tools": [
+        "get_patrol_analytics"
+      ],
+      "d1": 1.0,
+      "d2": 1.0,
+      "status": "OK"
+    },
+    {
+      "id": "T21",
+      "level": "L3",
+      "question": "A 线上月维修用了哪些备件？",
+      "dispatch": [
+        "equipment",
+        "fault_repair"
+      ],
+      "llm_tools": [
+        "query_equipment",
+        "query_repair_orders"
+      ],
+      "gt_tools": [
+        "query_equipment",
+        "query_repair_orders",
+        "get_repair_detail"
+      ],
+      "d1": 0.67,
+      "d2": 1.0,
+      "status": "PARTIAL"
+    },
+    {
+      "id": "T22",
+      "level": "L3",
+      "question": "设备 EQ-003 的 BOM 里哪些备件库存不足？",
+      "dispatch": [
+        "spare"
+      ],
+      "llm_tools": [
+        "get_equipment_spare_bom"
+      ],
+      "gt_tools": [
+        "get_equipment_spare_bom",
+        "get_spare_stock"
+      ],
+      "d1": 0.5,
+      "d2": 1.0,
+      "status": "PARTIAL"
+    },
+    {
+      "id": "T23",
+      "level": "L3",
+      "question": "上月维修时参考了哪些知识文档？",
+      "dispatch": [
+        "fault_repair",
+        "fault_repair"
+      ],
+      "llm_tools": [
+        "query_repair_orders",
+        "get_repair_detail"
+      ],
+      "gt_tools": [
+        "query_repair_orders",
+        "get_repair_detail"
+      ],
+      "d1": 1.0,
+      "d2": 1.0,
+      "status": "OK"
+    },
+    {
+      "id": "T24",
+      "level": "L3",
+      "question": "B 线上个月巡检发现了几次异常？",
+      "dispatch": [
+        "equipment",
+        "patrol"
+      ],
+      "llm_tools": [
+        "query_equipment",
+        "query_anomaly_records"
+      ],
+      "gt_tools": [
+        "query_equipment",
+        "query_anomaly_records"
+      ],
+      "d1": 1.0,
+      "d2": 1.0,
+      "status": "OK"
+    },
+    {
+      "id": "T25",
+      "level": "L3",
+      "question": "最近维修用量最大的备件，关联了哪些设备？",
+      "dispatch": [
+        "fault_repair",
+        "spare"
+      ],
+      "llm_tools": [
+        "query_repair_orders",
+        "get_equipment_spare_bom"
+      ],
+      "gt_tools": [
+        "query_repair_orders",
+        "get_repair_detail",
+        "get_equipment_spare_bom"
+      ],
+      "d1": 0.67,
+      "d2": 1.0,
+      "status": "PARTIAL"
+    },
+    {
+      "id": "T26",
+      "level": "L3",
+      "question": "A 线设备的保养计划执行率是多少？",
+      "dispatch": [
+        "equipment",
+        "maintenance"
+      ],
+      "llm_tools": [
+        "query_equipment",
+        "query_maintenance_tasks"
+      ],
+      "gt_tools": [
+        "query_equipment",
+        "query_maintenance_tasks"
+      ],
+      "d1": 1.0,
+      "d2": 1.0,
+      "status": "OK"
+    },
+    {
+      "id": "T27",
+      "level": "L3",
+      "question": "维修工单 WO-005 的出库单涉及了哪些仓库？",
+      "dispatch": [
+        "fault_repair",
+        "spare"
+      ],
+      "llm_tools": [
+        "get_repair_detail",
+        "query_spare_transactions"
+      ],
+      "gt_tools": [
+        "get_repair_detail",
+        "query_spare_transactions"
+      ],
+      "d1": 1.0,
+      "d2": 1.0,
+      "status": "OK"
+    },
+    {
+      "id": "T28",
+      "level": "L3",
+      "question": "设备 EQ-001 最近一次故障的维修花了多少工时？",
+      "dispatch": [
+        "fault_repair",
+        "fault_repair"
+      ],
+      "llm_tools": [
+        "query_repair_orders",
+        "get_repair_detail"
+      ],
+      "gt_tools": [
+        "query_fault_reports",
+        "get_repair_detail"
+      ],
+      "d1": 1.0,
+      "d2": 1.0,
+      "status": "OK"
+    },
+    {
+      "id": "T29",
+      "level": "L4",
+      "question": "故障率最高的设备，保养是否按计划执行？",
+      "dispatch": [
+        "fault_repair",
+        "maintenance"
+      ],
+      "llm_tools": [
+        "query_fault_reports",
+        "query_maintenance_tasks"
+      ],
+      "gt_tools": [
+        "query_fault_reports",
+        "query_maintenance_tasks"
+      ],
+      "d1": 1.0,
+      "d2": 1.0,
+      "status": "OK"
+    },
+    {
+      "id": "T30",
+      "level": "L4",
+      "question": "上月维修成本最高的设备，它的巡检有没有发现过异常？",
+      "dispatch": [
+        "fault_repair",
+        "patrol"
+      ],
+      "llm_tools": [
+        "query_repair_orders",
+        "query_anomaly_records"
+      ],
+      "gt_tools": [
+        "query_repair_orders",
+        "get_repair_detail",
+        "query_anomaly_records"
+      ],
+      "d1": 0.67,
+      "d2": 1.0,
+      "status": "PARTIAL"
+    },
+    {
+      "id": "T31",
+      "level": "L4",
+      "question": "备件库存预警涉及的设备中，有哪些正在维修？",
+      "dispatch": [
+        "spare",
+        "spare",
+        "equipment"
+      ],
+      "llm_tools": [
+        "get_spare_alerts",
+        "get_equipment_spare_bom",
+        "query_equipment"
+      ],
+      "gt_tools": [
+        "get_spare_alerts",
+        "get_equipment_spare_bom",
+        "query_equipment"
+      ],
+      "d1": 1.0,
+      "d2": 1.0,
+      "status": "OK"
+    },
+    {
+      "id": "T32",
+      "level": "L4",
+      "question": "A 线设备的故障、保养、巡检三项指标概览",
+      "dispatch": [
+        "equipment",
+        "fault_repair",
+        "maintenance",
+        "patrol"
+      ],
+      "llm_tools": [
+        "query_equipment",
+        "query_fault_reports",
+        "query_repair_orders",
+        "get_fault_trend",
+        "query_maintenance_tasks",
+        "query_patrol_tasks",
+        "query_anomaly_records"
+      ],
+      "gt_tools": [
+        "query_equipment",
+        "query_fault_reports",
+        "query_maintenance_tasks",
+        "get_patrol_analytics"
+      ],
+      "d1": 1.0,
+      "d2": 0.57,
+      "status": "PARTIAL"
+    },
+    {
+      "id": "T33",
+      "level": "L4",
+      "question": "近 3 个月有故障但没安排保养的设备有哪些？",
+      "dispatch": [
+        "fault_repair",
+        "maintenance"
+      ],
+      "llm_tools": [
+        "query_fault_reports",
+        "query_maintenance_tasks"
+      ],
+      "gt_tools": [
+        "query_fault_reports",
+        "query_maintenance_tasks"
+      ],
+      "d1": 1.0,
+      "d2": 1.0,
+      "status": "OK"
+    },
+    {
+      "id": "T34",
+      "level": "L4",
+      "question": "外协维修的设备中，有没有重点设备？",
+      "dispatch": [
+        "fault_repair",
+        "equipment"
+      ],
+      "llm_tools": [
+        "query_repair_orders",
+        "query_equipment"
+      ],
+      "gt_tools": [
+        "query_repair_orders",
+        "get_equipment_detail"
+      ],
+      "d1": 0.5,
+      "d2": 0.5,
+      "status": "PARTIAL"
+    },
+    {
+      "id": "T35",
+      "level": "L5",
+      "question": "哪条产线近 3 个月故障呈上升趋势，且备件库存不足？",
+      "dispatch": [
+        "equipment",
+        "fault_repair",
+        "spare"
+      ],
+      "llm_tools": [
+        "query_equipment",
+        "get_fault_trend",
+        "get_equipment_spare_bom"
+      ],
+      "gt_tools": [
+        "get_fault_trend",
+        "query_equipment",
+        "get_spare_alerts"
+      ],
+      "d1": 0.67,
+      "d2": 0.67,
+      "status": "PARTIAL"
+    },
+    {
+      "id": "T36",
+      "level": "L5",
+      "question": "上季度各产线的保养完成率排名？",
+      "dispatch": [
+        "equipment",
+        "maintenance"
+      ],
+      "llm_tools": [
+        "query_equipment",
+        "query_maintenance_tasks"
+      ],
+      "gt_tools": [
+        "query_equipment",
+        "query_maintenance_tasks"
+      ],
+      "d1": 1.0,
+      "d2": 1.0,
+      "status": "OK"
+    },
+    {
+      "id": "T37",
+      "level": "L5",
+      "question": "同比去年同期，今年 Q1 的故障报修数是增还是减？",
+      "dispatch": [
+        "fault_repair"
+      ],
+      "llm_tools": [
+        "query_fault_reports",
+        "query_fault_reports"
+      ],
+      "gt_tools": [
+        "query_fault_reports"
+      ],
+      "d1": 1.0,
+      "d2": 1.0,
+      "status": "OK"
+    },
+    {
+      "id": "T38",
+      "level": "L5",
+      "question": "近半年维修频次最高的 3 台设备，各自的平均维修周期是多少？",
+      "dispatch": [
+        "fault_repair"
+      ],
+      "llm_tools": [
+        "query_repair_orders"
+      ],
+      "gt_tools": [
+        "query_repair_orders",
+        "get_equipment_detail"
+      ],
+      "d1": 0.5,
+      "d2": 1.0,
+      "status": "PARTIAL"
+    },
+    {
+      "id": "T39",
+      "level": "L5",
+      "question": "备件月消耗量环比分析，哪些备件用量在持续上升？",
+      "dispatch": [
+        "spare"
+      ],
+      "llm_tools": [
+        "query_spare_transactions"
+      ],
+      "gt_tools": [
+        "query_repair_orders",
+        "get_repair_detail"
+      ],
+      "d1": 0.0,
+      "d2": 0.0,
+      "status": "MISS"
+    },
+    {
+      "id": "T40",
+      "level": "L5",
+      "question": "近 6 个月巡检异常率变化趋势，有没有季节性规律？",
+      "dispatch": [
+        "patrol"
+      ],
+      "llm_tools": [
+        "get_patrol_analytics"
+      ],
+      "gt_tools": [
+        "get_patrol_analytics",
+        "query_anomaly_records"
+      ],
+      "d1": 1.0,
+      "d2": 1.0,
+      "status": "OK"
+    }
+  ],
+  "summary": {
+    "total": 40,
+    "avg_d1": 0.905,
+    "avg_d2": 0.919,
+    "perfect": 29
+  }
+}
