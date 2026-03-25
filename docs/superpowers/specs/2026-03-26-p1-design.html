@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>P1 Design — Insight68 NL-API Platform</title>
+<style>
+  :root { --blue: #1F3864; --blue-light: #4472C4; --blue-bg: #E8EFF8; --gray-100: #F8F9FA; --gray-200: #E9ECEF; --gray-600: #6C757D; --gray-900: #212529; }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; color: var(--gray-900); line-height: 1.7; max-width: 960px; margin: 0 auto; padding: 40px 32px 80px; background: #fff; }
+  h1 { color: var(--blue); font-size: 28px; font-weight: 700; margin: 0 0 16px; padding-bottom: 12px; border-bottom: 3px solid var(--blue-light); }
+  h2 { color: var(--blue); font-size: 20px; font-weight: 600; margin: 40px 0 12px; padding-bottom: 6px; border-bottom: 2px solid var(--blue-bg); }
+  h3 { color: var(--blue); font-size: 16px; font-weight: 600; margin: 24px 0 8px; }
+  p { margin: 8px 0; font-size: 14.5px; }
+  blockquote { background: var(--blue-bg); border-left: 4px solid var(--blue-light); padding: 16px 20px; margin: 16px 0; border-radius: 0 8px 8px 0; font-size: 14px; }
+  blockquote strong { color: var(--blue); }
+  pre { background: var(--gray-100); border: 1px solid var(--gray-200); border-radius: 8px; padding: 16px; overflow-x: auto; font-size: 13px; line-height: 1.6; margin: 12px 0; font-family: 'SF Mono', 'Cascadia Code', 'Consolas', monospace; }
+  code { background: var(--gray-100); padding: 2px 6px; border-radius: 4px; font-size: 13px; font-family: 'SF Mono', 'Cascadia Code', 'Consolas', monospace; color: #C7254E; }
+  pre code { background: none; padding: 0; color: inherit; }
+  table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 14px; }
+  thead tr { background: var(--blue); color: #fff; }
+  th { padding: 10px 14px; text-align: left; font-weight: 600; }
+  td { padding: 9px 14px; border-bottom: 1px solid var(--gray-200); }
+  tbody tr:nth-child(even) { background: var(--gray-100); }
+  tbody tr:hover { background: var(--blue-bg); }
+  ul, ol { margin: 8px 0 8px 24px; font-size: 14.5px; }
+  li { margin: 4px 0; }
+  li strong { color: var(--blue); }
+  hr { border: none; border-top: 1px solid var(--gray-200); margin: 32px 0; }
+  .badge { display: inline-block; background: var(--blue-light); color: #fff; font-size: 11px; padding: 2px 10px; border-radius: 12px; font-weight: 600; margin-right: 6px; }
+  .badge-sm { background: var(--blue-bg); color: var(--blue); }
+  .section-num { color: var(--blue-light); font-weight: 700; margin-right: 4px; }
+  .file-tree { background: var(--gray-100); border-radius: 8px; padding: 16px 20px; font-family: 'SF Mono', monospace; font-size: 13px; line-height: 1.8; }
+  .file-tree .new { color: #28A745; font-weight: 600; }
+  .file-tree .mod { color: #D97706; font-weight: 600; }
+  .file-tree .comment { color: var(--gray-600); }
+</style>
+</head>
+<body>
+
+<h1>P1 Design — Insight68 NL-API Platform</h1>
+
+<blockquote>
+  <strong>目标：</strong>技术验证扩展能力。在 P0（22 MCP Tools, 94.2% 路由准确率）基础上深化智能层算法，为 P2 多系统规模化打基础。<br><br>
+  <strong>方法论：</strong>先做最复杂的完整版（ReAct Agent），跑通后用减法验证哪些环节可以削减。<br><br>
+  <strong>设计原则：</strong>对的时候准确，不确定的时候诚实。
+</blockquote>
+
+<h2><span class="section-num">1.</span> 架构变化</h2>
+
+<p>P1 在 P0 的四层架构上做<strong>纵向深化</strong>，不改架构，增强智能层。</p>
+
+<pre><code>P0:  用户 → Prompt组装 → LLM一次路由 → 按序执行 → LLM总结 → 返回
+
+P1:  用户 → Prompt组装(+记忆+verdict)
+         → ReAct循环(思考→路由→执行→观察→再思考)
+         → 结果自验证
+         → LLM总结(+Grounding)
+         → 置信度回退
+         → 返回(+反馈按钮)</code></pre>
+
+<h2><span class="section-num">2.</span> 模块清单（按依赖顺序）</h2>
+
+<table>
+  <thead><tr><th>#</th><th>模块</th><th>改动量</th><th>核心产出</th></tr></thead>
+  <tbody>
+    <tr><td>1</td><td>会话层 + 经验层接入</td><td><span class="badge badge-sm">中</span></td><td>router 真正读写 session/verdict</td></tr>
+    <tr><td>2</td><td>ReAct Agent</td><td><span class="badge">大</span></td><td>替换单次路由，多轮推理循环</td></tr>
+    <tr><td>3</td><td>自学习 verdict</td><td><span class="badge badge-sm">中</span></td><td>冷启动 + 自动评估 + Thumbs Up/Down</td></tr>
+    <tr><td>4</td><td>置信度回退 + 超纲识别</td><td><span class="badge badge-sm">中</span></td><td>三信号真实计算，不再形同虚设</td></tr>
+    <tr><td>5</td><td>结果自验证</td><td><span class="badge badge-sm">小</span></td><td>数值合理性/空结果/单位一致性</td></tr>
+    <tr><td>6</td><td>Grounding 标注</td><td><span class="badge badge-sm">小</span></td><td>回答附带数据来源</td></tr>
+  </tbody>
+</table>
+
+<p><strong>不做的：</strong>持久层（用户偏好）— 对技术验证价值低，P2 再做。</p>
+
+<hr>
+
+<h2><span class="section-num">3.</span> 模块 1：会话层 + 经验层接入</h2>
+
+<h3>现状</h3>
+<p>P0 的 SQLiteStorage 已建好 4 张表（sessions/verdicts/preferences/users），接口已定义，但 router 没有读写。</p>
+
+<h3>改动</h3>
+<ul>
+  <li><code>router.ts</code>：每次查询执行后，写入 <code>nl_memory_sessions</code></li>
+  <li><code>router.ts</code>：ReAct 开始前，读取同 <code>intent_hash</code> 的历史 session 作为上下文</li>
+  <li><code>router.ts</code>：读取 verdict 作为推荐路径</li>
+</ul>
+
+<h3>不做</h3>
+<ul>
+  <li>持久层（preferences）不接</li>
+  <li>用户表不接（P0 default tenant 够用）</li>
+</ul>
+
+<hr>
+
+<h2><span class="section-num">4.</span> 模块 2：ReAct Agent</h2>
+
+<h3>核心循环（批量调用 + 按需追查）</h3>
+<pre><code>用户查询 → [规划] 像 P0 一样一次规划完整工具链（可多个）
+         → [批量执行] 按序执行所有工具调用
+         → [观察] 结果够不够回答问题？
+                  够 → 直接总结（和 P0 一样快）
+                  不够 → [追查] 基于已有结果，补充新的工具调用
+         → [批量执行] 执行补充调用
+         → ... 最多 3 轮追查
+         → [总结] 汇总所有结果，生成回答</code></pre>
+
+<h3>设计决策</h3>
+<ul>
+  <li><strong>最大追查轮次 = 3</strong> — 第一轮规划 + 最多 3 轮追查。超过说明问题超纲或工具缺失，走置信度回退</li>
+  <li><strong>每轮可多个工具调用</strong> — 第一轮和 P0 一样批量规划执行，简单查询零额外开销。追查轮基于已有结果补充调用</li>
+  <li><strong>LLM 输出结构化</strong> — 第一轮和追查轮格式统一，都可返回多个 calls：</li>
+</ul>
+
+<pre><code>// 第一轮：意图提取 + 工具链规划（和 P0 兼容）
+{
+  "thought": "用户想查A线上月故障最多的设备的备件库存，需要先查产线设备再查故障",
+  "intent": {"domains": ["fault-repair", "spare"], "operation": "detail",
+             "filters": ["productionLineId", "dateRange"]},
+  "clarity": "clear",
+  "calls": [
+    {"tool": "query_equipment", "arguments": {"productionLineId": 1}},
+    {"tool": "query_fault_reports", "arguments": {"dateRange": {"start": "2026-02-01", "end": "2026-02-28"}}}
+  ]
+}
+
+// 追查轮：基于已有结果补充调用
+{"thought": "已知 CNC-001 故障最多，需要查它的备件库存",
+ "calls": [{"tool": "get_equipment_spare_bom", "arguments": {"equipmentId": 101}}]}
+
+// 信息充足，结束
+{"thought": "已有足够数据回答", "finish": true}
+
+// 超纲
+{"thought": "该问题超出系统能力范围", "finish": true, "unsupported": true}</code></pre>
+
+<p>第一轮的 <code>intent</code> 字段用于计算 <code>intent_hash</code>（SHA256(domains+operation+filters) 截取前 16 位），驱动 verdict 查找和 session 记录。<code>clarity</code> 字段直接输出置信度 queryClarity 信号。</p>
+
+<ul>
+  <li><strong>观察注入</strong> — 上一步工具返回结果作为下一轮 Prompt 的一部分</li>
+  <li><strong>JSON 校验</strong> — 每轮用 zod schema 校验 LLM 输出，解析失败视为 finish with error</li>
+</ul>
+
+<h3>Prompt 组装策略</h3>
+<p><code>assemblePrompt()</code> 仅在第一轮调用，生成包含完整工具清单和 ReAct 指令的 system prompt。后续每轮由 <code>think()</code> 方法内部追加 observation 消息，不重新组装 system prompt。</p>
+
+<pre><code>messages = [
+  {role: "system", content: assemblePrompt()},         // 第一轮组装，后续不变
+  {role: "assistant", content: JSON(turn1_output)},     // 第一轮输出
+  {role: "user", content: "观察: " + JSON(tool_result)},// 工具结果
+  {role: "assistant", content: JSON(turn2_output)},     // 第二轮输出
+  ...
+]</code></pre>
+
+<h3>错误处理</h3>
+<table>
+  <thead><tr><th>级别</th><th>场景</th><th>处理</th></tr></thead>
+  <tbody>
+    <tr><td>Level 1</td><td>超时/网络</td><td>错误作为 observation 注入，LLM 选择重试或替代</td></tr>
+    <tr><td>Level 2</td><td>参数错误</td><td>LLM 看到错误后调整参数</td></tr>
+    <tr><td>Level 3</td><td>工具不存在</td><td>标记 warning，LLM 选其他工具</td></tr>
+    <tr><td>Level 4</td><td>MCP Server 不可用</td><td>降级为 P0 线性模式</td></tr>
+  </tbody>
+</table>
+
+<h3>与 P0 兼容</h3>
+<p>简单查询（L1/L2）第一轮就 finish，不产生多余循环。复杂查询（L4/L5）才真正多轮。</p>
+
+<h3><code>think()</code> 方法签名</h3>
+<pre><code>interface ThinkResult {
+  thought: string
+  intent?: IntentTags          // 仅第一轮
+  clarity?: ConfidenceLevel    // 仅第一轮
+  calls?: ToolCall[]           // 本轮要执行的工具（可多个）
+  finish?: boolean             // 结束
+  unsupported?: boolean        // 超纲
+}
+
+think(messages: Array&lt;{role: string, content: string}&gt;): Promise&lt;ThinkResult&gt;</code></pre>
+
+<h3>代码改动</h3>
+<table>
+  <thead><tr><th>文件</th><th>改动</th></tr></thead>
+  <tbody>
+    <tr><td><code>lib/brain/router.ts</code></td><td>从线性流程改为 ReAct 循环；RouterDeps 扩展加 <code>storage</code></td></tr>
+    <tr><td><code>lib/llm/codex-proxy.ts</code></td><td>新增 <code>think()</code> 方法</td></tr>
+    <tr><td><code>lib/types.ts</code></td><td>新增 <code>ThinkResult</code> 类型</td></tr>
+    <tr><td><code>prompts/react-instructions.md</code></td><td>新增 ReAct 格式指令模板</td></tr>
+  </tbody>
+</table>
+
+<hr>
+
+<h2><span class="section-num">5.</span> 模块 3：自学习 verdict 系统</h2>
+
+<h3>数据流闭环</h3>
+<pre><code>查询执行完成 → 异步写 session 日志
+            → 累积同一 intent_hash 达 5 条 → 触发 verdict 计算
+            → LLM 自动评分 (relevance×0.5 + completeness×0.3 + efficiency×0.2)
+            → 计算 winner 工具链，写入 verdict 表
+            → 下次同类查询，verdict 加分影响 ReAct 推荐路径
+
+Thumbs Up/Down → 直接修正 verdict 分数（权重 = 3 条自动评估）</code></pre>
+
+<h3>三阶段数据来源</h3>
+<table>
+  <thead><tr><th>阶段</th><th>数据来源</th><th>样本量</th></tr></thead>
+  <tbody>
+    <tr><td>冷启动</td><td>40 题测试集批跑</td><td>40 条 session</td></tr>
+    <tr><td>自动积累</td><td>每次查询异步评分</td><td>持续增长</td></tr>
+    <tr><td>人工修正</td><td>Thumbs Up/Down</td><td>1 次 = 3 条自动</td></tr>
+  </tbody>
+</table>
+
+<h3>安全护栏</h3>
+<ul>
+  <li>只加分不减分（+25 medium / +50 high）</li>
+  <li>上限 +50</li>
+  <li>30 天自动过期</li>
+  <li>人工可覆盖</li>
+</ul>
+
+<h3>与 ReAct 的集成</h3>
+<p>ReAct 每轮[思考]阶段，如果当前 <code>intent_hash</code> 有 verdict，把 winner 工具链作为"推荐路径"注入 Prompt。LLM 可以参考也可以忽略，不是硬编码。</p>
+
+<h3>Feedback 存储</h3>
+<p>Thumbs Up/Down 写入 <code>nl_memory_sessions.feedback</code> 字段（已有列，值为 <code>"up"</code> / <code>"down"</code> / <code>null</code>）。verdict 计算时，有 feedback 的 session 权重 ×3。不新建 feedback 表。</p>
+
+<h3>冷启动注意</h3>
+<p>40 题测试集可能只覆盖 15-20 个 distinct <code>intent_hash</code>，每个仅 1-2 条样本。解决：冷启动模式下降低阈值为 3 条，并为高频 intent 补充 2-3 条同义改写。</p>
+
+<h3>代码改动</h3>
+<table>
+  <thead><tr><th>文件</th><th>改动</th></tr></thead>
+  <tbody>
+    <tr><td><code>lib/brain/verdict.ts</code></td><td>新增：评分触发 + 计算 winner + 写入</td></tr>
+    <tr><td><code>lib/llm/codex-proxy.ts</code></td><td><code>evaluate()</code> 方法已有，接入真实调用</td></tr>
+    <tr><td><code>lib/storage/types.ts</code></td><td>StorageInterface 加 <code>updateSessionFeedback()</code></td></tr>
+    <tr><td><code>scripts/cold-start.ts</code></td><td>新增：40 题 + 同义改写批跑脚本</td></tr>
+    <tr><td><code>app/api/feedback/route.ts</code></td><td>新增：POST 接口写入 session feedback</td></tr>
+    <tr><td>前端</td><td>Thumbs Up/Down 按钮</td></tr>
+  </tbody>
+</table>
+
+<hr>
+
+<h2><span class="section-num">6.</span> 模块 4：置信度回退 + 超纲识别</h2>
+
+<h3>P0 现状</h3>
+<p>三信号写死（toolMatch=high, verdictConfidence=medium, queryClarity=high），形同虚设。</p>
+
+<h3>P1 — 三信号真实计算</h3>
+<table>
+  <thead><tr><th>信号</th><th>计算方式</th></tr></thead>
+  <tbody>
+    <tr><td><strong>toolMatch</strong></td><td>ReAct 第一轮 thought 中 LLM 自报确信度（P1 不启用 matchScore 预筛选）</td></tr>
+    <tr><td><strong>verdictConfidence</strong></td><td>直接读 verdict 表（sample≥10=high, 3-9=medium, &lt;3=low）</td></tr>
+    <tr><td><strong>queryClarity</strong></td><td>ReAct 第一轮意图提取时判断：明确/有歧义/超纲</td></tr>
+  </tbody>
+</table>
+
+<h3>超纲识别</h3>
+<p>融入 ReAct 第一轮[思考]。LLM 判断问题不在 22 个工具覆盖范围时，输出 <code>unsupported: true</code>。</p>
+
+<p>回退策略：</p>
+<ul>
+  <li><strong>high</strong> → 直接回答</li>
+  <li><strong>medium</strong> → 回答 + 提示"以上是根据您的描述匹配的结果"</li>
+  <li><strong>low</strong> → 给选项帮用户定位</li>
+</ul>
+
+<hr>
+
+<h2><span class="section-num">7.</span> 模块 5：结果自验证</h2>
+
+<p>工具执行后、LLM 总结前插入校验层。<strong>纯规则不用 LLM。</strong></p>
+
+<pre><code>工具返回数据 → 自验证检查 → 通过 → 进入总结
+                          → 异常 → 标记 warning，注入总结 Prompt</code></pre>
+
+<table>
+  <thead><tr><th>检查</th><th>规则</th><th>处理</th></tr></thead>
+  <tbody>
+    <tr><td>数值合理性</td><td>百分率 ∈ [0,100]、数量 ≥ 0、日期不在未来</td><td>标红 + "数据可能异常"</td></tr>
+    <tr><td>空结果检测</td><td>items=[] 或 total=0</td><td>区分"确实没有" vs "可能查错了"</td></tr>
+    <tr><td>单位一致性</td><td>简单关键词检测</td><td>P1 不过度工程化</td></tr>
+  </tbody>
+</table>
+
+<p>新增 <code>lib/brain/validator.ts</code>，纯函数，好测试。</p>
+
+<hr>
+
+<h2><span class="section-num">8.</span> 模块 6：Grounding 标注</h2>
+
+<h3>类型扩展</h3>
+<pre><code>interface StructuredResult {
+  // ... 现有字段
+  sources: Array&lt;{ tool: string; description: string }&gt;
+}</code></pre>
+
+<p>ReAct 每轮执行工具时记录来源（工具名 + YAML 里的 description），最终汇总到 <code>sources</code>。</p>
+<p>前端在回答下方显示灰色小字："数据来源：EAM 系统总览、故障报修记录"。</p>
+
+<hr>
+
+<h2><span class="section-num">9.</span> 成功标准</h2>
+
+<table>
+  <thead><tr><th>功能</th><th>成功标准</th><th>验证方式</th></tr></thead>
+  <tbody>
+    <tr><td>ReAct Agent</td><td>40 题 L4/L5 准确率 ≥92%（P0 ~85%）</td><td>测试集自动化批跑</td></tr>
+    <tr><td>自学习 verdict</td><td>冷启动后重跑测试集准确率 ≥2pp 提升</td><td>对比批跑</td></tr>
+    <tr><td>置信度回退</td><td>错误回答率 ≤3%</td><td>测试集 + 人工抽检</td></tr>
+    <tr><td>结果自验证</td><td>拦截 100% 数值异常</td><td>构造异常 mock 数据测试</td></tr>
+    <tr><td>Grounding 标注</td><td>每个回答有来源，覆盖率 100%</td><td>自动化检查</td></tr>
+  </tbody>
+</table>
+
+<p>全部用自动化脚本验证，不依赖人工判断。</p>
+
+<hr>
+
+<h2><span class="section-num">10.</span> 不做的（明确排除）</h2>
+
+<ul>
+  <li>持久层（用户偏好）— P2</li>
+  <li>前端大改 — P1 只加 Thumbs Up/Down 和 Grounding 小字</li>
+  <li>多系统接入 — P2</li>
+  <li>向量预筛选 — P2（工具数 &lt; 30 不需要）</li>
+  <li>写操作 — P1 只读</li>
+</ul>
+
+<hr>
+
+<h2><span class="section-num">11.</span> 技术风险</h2>
+
+<table>
+  <thead><tr><th>风险</th><th>缓解</th></tr></thead>
+  <tbody>
+    <tr><td>ReAct 循环增加延迟</td><td>简单查询第一轮就 finish；设最大轮次 5</td></tr>
+    <tr><td>LLM 自评 verdict 自嗨</td><td>Thumbs Up/Down 人工信号修正，权重 3×</td></tr>
+    <tr><td>codex-proxy 不稳定</td><td>每轮设 30s 超时，失败降级为 P0 线性模式</td></tr>
+    <tr><td>LLM 输出格式不稳定</td><td>zod schema 校验每轮输出，解析失败视为 finish with error</td></tr>
+  </tbody>
+</table>
+
+<h3>延迟目标</h3>
+<table>
+  <thead><tr><th>查询类型</th><th>目标</th></tr></thead>
+  <tbody>
+    <tr><td>L1/L2（1 轮 finish）</td><td>&lt; 3s</td></tr>
+    <tr><td>L3（2-3 轮）</td><td>&lt; 6s</td></tr>
+    <tr><td>L4/L5（4-5 轮）</td><td>&lt; 12s</td></tr>
+  </tbody>
+</table>
+<p>超过 3s 的查询前端显示进度提示（"正在分析..."/"正在查询第 N 步数据..."）。</p>
+
+<hr>
+
+<h2><span class="section-num">12.</span> 与 platform-design.md 的差异</h2>
+
+<p>P1 用 ReAct 模式替换了 platform-design.md Section 5.7 的 <code>__continue__</code> 哨兵机制。ReAct 更显式（每步有 thought 可观测）、更灵活（LLM 基于观察自主决策）。实施时同步更新 platform-design.md Section 5.7。</p>
+
+<hr>
+
+<h2><span class="section-num">13.</span> 与 P0 文件结构的关系</h2>
+
+<div class="file-tree">
+  <strong>lib/brain/</strong><br>
+  ├── router.ts &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment mod"># 大改：ReAct 循环</span><br>
+  ├── intent.ts &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment mod"># 改：真正实现意图提取 + clarity</span><br>
+  ├── prompt-assembler.ts &nbsp;&nbsp;&nbsp;&nbsp;<span class="comment mod"># 改：支持 ReAct 格式 + verdict 注入</span><br>
+  ├── confidence.ts &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment mod"># 改：三信号真实计算</span><br>
+  ├── result-presenter.ts &nbsp;&nbsp;&nbsp;&nbsp;<span class="comment mod"># 小改：加 sources</span><br>
+  ├── <span class="new">validator.ts</span> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment new"># 新增：结果自验证</span><br>
+  └── <span class="new">verdict.ts</span> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment new"># 新增：自学习评分 + verdict 计算</span><br>
+  <br>
+  <strong>lib/llm/</strong><br>
+  └── codex-proxy.ts &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment mod"># 改：新增 think() 方法</span><br>
+  <br>
+  <strong>prompts/</strong><br>
+  ├── base-instructions.md &nbsp;&nbsp;&nbsp;<span class="comment mod"># 改：加入 ReAct 格式指令</span><br>
+  ├── <span class="new">react-instructions.md</span> &nbsp;&nbsp;<span class="comment new"># 新增：ReAct 循环专用 Prompt</span><br>
+  ├── tool-selection-guide.md<br>
+  └── few-shot-examples.json &nbsp;<span class="comment mod"># 改：加入多轮推理示例</span><br>
+  <br>
+  <strong>scripts/</strong><br>
+  └── <span class="new">cold-start.ts</span> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment new"># 新增：40 题批跑冷启动</span><br>
+  <br>
+  <strong>app/api/</strong><br>
+  └── <span class="new">feedback/route.ts</span> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment new"># 新增：Thumbs Up/Down 接口</span>
+</div>
+
+<hr>
+<p style="text-align: center; color: var(--gray-600); font-size: 12px; margin-top: 40px;">
+  Insight68 NL-API Platform · P1 Design Spec · 2026-03-26
+</p>
+
+</body>
+</html>
