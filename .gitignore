@@ -49,3 +49,4 @@ mcp-server/node_modules/
 # .NET build artifacts
 experiments/**/bin/
 experiments/**/obj/
+mcp-server/node_modules/
