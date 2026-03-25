@@ -1,0 +1,33 @@
+[
+  {
+    "query": "A线上月的维修工单有哪些？",
+    "reasoning": "产线维度查询 → 先查产线设备，再查维修工单",
+    "calls": [
+      {"tool": "query_equipment", "arguments": {"productionLineId": 1}},
+      {"tool": "query_repair_orders", "arguments": {"equipmentId": "{{step1.result.items[*].equipmentId}}", "dateRange": {"start": "2026-02-01", "end": "2026-02-28"}}}
+    ]
+  },
+  {
+    "query": "维修工单 WO-201 用了哪些备件？",
+    "reasoning": "列表→详情模式 → get_repair_detail 包含备件清单",
+    "calls": [
+      {"tool": "get_repair_detail", "arguments": {"repairOrderId": 201}}
+    ]
+  },
+  {
+    "query": "哪些备件库存不足？会影响哪些设备？",
+    "reasoning": "预警→BOM→设备链路",
+    "calls": [
+      {"tool": "get_spare_alerts", "arguments": {}},
+      {"tool": "get_equipment_spare_bom", "arguments": {"spareId": "{{step1.result.items[*].spareId}}"}}
+    ]
+  },
+  {
+    "query": "CNC-001 上季度故障和保养的交叉分析",
+    "reasoning": "跨域分析 → 分别查故障和保养，数据层面交叉",
+    "calls": [
+      {"tool": "query_fault_reports", "arguments": {"equipmentId": 101, "dateRange": {"start": "2026-01-01", "end": "2026-03-31"}}},
+      {"tool": "query_maintenance_tasks", "arguments": {"equipmentId": 101, "dateRange": {"start": "2026-01-01", "end": "2026-03-31"}}}
+    ]
+  }
+]
