@@ -1,5 +1,7 @@
 import { ResultTable } from './ResultTable'
 import { ConfidenceHint } from './ConfidenceHint'
+import { TracePanel } from './TracePanel'
+import type { ExecutionTrace } from '@/lib/types'
 
 export interface Message {
   id: string
@@ -10,6 +12,8 @@ export interface Message {
   columns?: string[]
   confidence?: 'high' | 'medium' | 'low'
   followUp?: string[]
+  sources?: Array<{ tool: string; description: string }>
+  trace?: ExecutionTrace
 }
 
 interface ChatMessageProps {
@@ -41,6 +45,18 @@ export function ChatMessage({ message, onFollowUp }: ChatMessageProps) {
         {/* 置信度提示 */}
         {!isUser && message.confidence && (
           <ConfidenceHint confidence={message.confidence} />
+        )}
+
+        {/* 数据来源 */}
+        {!isUser && message.sources && message.sources.length > 0 && (
+          <div className="mt-1.5 text-xs text-gray-400">
+            数据来源：{message.sources.map(s => s.description).join('、')}
+          </div>
+        )}
+
+        {/* 执行追踪 */}
+        {!isUser && message.trace && (
+          <TracePanel trace={message.trace} />
         )}
 
         {/* 追问建议 */}

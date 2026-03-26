@@ -40,6 +40,8 @@ export default function Home() {
         columns: data.columns,
         confidence: data.confidence,
         followUp: data.followUp,
+        sources: data.sources,
+        trace: data.trace,
       }
       setMessages(prev => [...prev, assistantMsg])
     } catch {

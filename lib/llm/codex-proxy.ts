@@ -1,6 +1,6 @@
 // codex-proxy LLM Provider — 基于 OpenAI SDK
 import OpenAI from 'openai'
-import type { LLMProvider, RouteResult, EvaluateResult, SummarizeResult, ToolDefinition, ToolCall, DisplayFormat } from '@/lib/types'
+import type { LLMProvider, RouteResult, EvaluateResult, SummarizeResult, ThinkResult, ToolDefinition, ToolCall, DisplayFormat } from '@/lib/types'
 
 const DEFAULT_BASE_URL = process.env.LLM_BASE_URL || 'https://gptapi.tutu02.us.ci/v1'
 const DEFAULT_API_KEY = process.env.LLM_API_KEY || 'sk-mes-ai-explorer-2026'
@@ -101,5 +101,10 @@ followUp 要求：用祈使句写成可直接执行的指令，如"按优先级�
       columns: parsed.columns,
       followUp: parsed.followUp,
     }
+  }
+
+  // P1: ReAct 单轮推理 — Task 2.2 真正实现
+  async think(_messages: Array<{ role: string; content: string }>): Promise<ThinkResult> {
+    throw new Error('think() not yet implemented — see Task 2.2')
   }
 }
