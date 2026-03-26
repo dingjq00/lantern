@@ -32,6 +32,11 @@
   - 预警→影响设备：`get_spare_alerts` → `get_equipment_spare_bom`（反查设备）
   - 备件流转追踪：`get_repair_detail` → `query_spare_transactions`（出入库记录）
 
+### 数据分析（AI 自己做，不需要专门工具）
+- 拿到列表数据后，**自己做统计分析**：计数、分组、排序、Top-N、对比
+- 例如：query_equipment 返回设备列表 → 自己按 category 分组计数 → 找出最多的分类
+- 不需要专门的聚合工具，这是你作为 AI 的分析能力
+
 ### 治理指标（特殊边界）
 - `get_governance_dashboard` **仅用于**治理指标（健康度、数据质量、审计追溯）
 - 故障趋势用 `get_fault_trend`，运营概览用 `get_dashboard_summary`

@@ -8,7 +8,7 @@ describe('YAML Loader', () => {
   const tools = loadTools(TOOLS_DIR)
 
   it('加载 22 个 EAM 工具', () => {
-    expect(tools).toHaveLength(23)
+    expect(tools).toHaveLength(22)
   })
 
   it('每个工具都有必填字段', () => {
