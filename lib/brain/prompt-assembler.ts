@@ -53,24 +53,16 @@ export function assemblePrompt(
     ? { memoryContext: memoryContextOrOptions }
     : memoryContextOrOptions ?? {}
 
-  const today = new Date().toISOString().split('T')[0]
+  // ============ 静态层（不变，可缓存）============
+  // 放在 system message 开头，attention 权重最高，缓存命中率最大化
 
-  // 1. 基础指令 + ReAct 指令
-  const base = getBaseInstructions().replace('{{currentDate}}', today)
+  // 角色 + 核心规则
+  const base = getBaseInstructions()  // 不再嵌入 {{currentDate}}，日期移到动态层
+  // 行为模式
   const react = getReactInstructions()
-
-  // 2. 工具描述（标准 MCP 格式：name + description + 参数）
-  const toolDescriptions = tools.map(t => {
-    const params = Object.entries(t.inputSchema.properties)
-      .map(([k, v]) => `  - ${k} (${v.type}): ${v.description || ''}`)
-      .join('\n')
-    return `- **${t.name}**: ${t.description}\n${params || '  (无参数)'}`
-  }).join('\n')
-
-  // 3. 工具选择指南
+  // 选择方法论
   const guide = getToolSelectionGuide()
-
-  // 4. Few-shot 示例（ReAct 格式）
+  // Few-shot 示例
   const examples = getFewShotExamples()
   const exampleText = examples.map((ex: any, i: number) => {
     const lines = [`**示例 ${i + 1}**: "${ex.query}"`]
@@ -81,27 +73,42 @@ export function assemblePrompt(
     return lines.join('\n')
   }).join('\n\n')
 
-  // 5. 系统上下文（从工具声明推断）
+  // ============ 动态层（每次变，不缓存）============
+  // 放在 system message 后半段
+
+  const today = new Date().toISOString().split('T')[0]
   const systems = [...new Set(tools.map(t => t.system))]
   const domains = [...new Set(tools.flatMap(t => t.domains))]
-  const systemContext = `\n## 当前系统\n系统: ${systems.join(', ').toUpperCase()} | 数据域: ${domains.join(', ')} | 工具数: ${tools.length}\n`
 
-  // 6. 组装
+  // 工具描述（项目工具变化时才变）
+  const toolDescriptions = tools.map(t => {
+    const params = Object.entries(t.inputSchema.properties)
+      .map(([k, v]) => `  - ${k} (${v.type}): ${v.description || ''}`)
+      .join('\n')
+    return `- **${t.name}**: ${t.description}\n${params || '  (无参数)'}`
+  }).join('\n')
+
+  // ============ 组装：静态在前，动态在后 ============
   const sections = [
+    // --- 静态（可缓存）---
     base,
-    systemContext,
+    '\n',
     react,
-    '\n## 可用工具\n\n',
-    toolDescriptions,
     '\n\n',
     guide,
     '\n\n## 编排示例\n\n',
     exampleText,
+    // --- 缓存边界 ---
+    '\n\n---\n',
+    // --- 动态（每次变）---
+    `\n## 当前环境\n系统: ${systems.join(', ').toUpperCase()} | 数据域: ${domains.join(', ')} | 工具数: ${tools.length} | 日期: ${today}\n`,
+    '\n## 可用工具\n\n',
+    toolDescriptions,
   ]
 
-  // verdict 推荐路径注入
+  // 动态注入（verdict、用户上下文）
   if (options.verdict && options.verdict.toolChain.length > 0) {
-    sections.push(`\n\n## 历史推荐路径\n以下工具链在过去类似查询中表现较好（仅供参考，可自行调整）：\n${options.verdict.toolChain.join(' → ')}（评分 ${options.verdict.avgScore.toFixed(1)}，${options.verdict.sampleCount} 次样本）`)
+    sections.push(`\n\n## 历史推荐路径\n${options.verdict.toolChain.join(' → ')}（评分 ${options.verdict.avgScore.toFixed(1)}，${options.verdict.sampleCount} 次样本）`)
   }
 
   if (options.memoryContext) {
