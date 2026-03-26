@@ -43,7 +43,7 @@ export function registerDashboardHandlers(server: McpServer) {
     })}]
   }))
 
-  // 通用聚合工具
+  // 通用聚合工具 — 对 mock 数据执行真实聚合逻辑（不是查表返回预设）
   server.tool('aggregate_data', '对任意数据源做聚合统计', {
     source: z.string(),
     groupBy: z.string(),
@@ -53,25 +53,66 @@ export function registerDashboardHandlers(server: McpServer) {
     limit: z.number().int().optional(),
     dateRange: z.object({ start: z.string().optional(), end: z.string().optional() }).optional(),
   }, async (args) => {
-    // Mock: 根据 source + groupBy 返回预设聚合结果
-    const mockAggregations: Record<string, unknown> = {
-      'equipment:category': { groups: [{ key: '数控设备', value: 45 }, { key: '包装设备', value: 28 }, { key: '注塑设备', value: 22 }, { key: '焊接设备', value: 18 }, { key: '检测设备', value: 15 }], total: 128 },
-      'equipment:status': { groups: [{ key: '运行中', value: 98 }, { key: '维修中', value: 8 }, { key: '停机', value: 5 }, { key: '闲置', value: 7 }, { key: '报废', value: 4 }, { key: '封存', value: 3 }, { key: '待验收', value: 2 }, { key: '待整改', value: 1 }], total: 128 },
-      'equipment:productionLine': { groups: [{ key: 'A线', value: 42 }, { key: 'B线', value: 35 }, { key: 'C线', value: 28 }, { key: '仓库区', value: 23 }], total: 128 },
-      'fault_reports:equipmentId': { groups: [{ key: 'CNC-001', value: 5 }, { key: 'PACK-001', value: 3 }, { key: 'CNC-002', value: 2 }, { key: 'PACK-002', value: 2 }], total: 15 },
-      'fault_reports:faultType': { groups: [{ key: '机械故障', value: 8 }, { key: '电气故障', value: 5 }, { key: '液压故障', value: 2 }], total: 15 },
-      'fault_reports:productionLine': { groups: [{ key: 'A线', value: 7 }, { key: 'B线', value: 5 }, { key: 'C线', value: 3 }], total: 15 },
-      'repair_orders:equipmentId': { groups: [{ key: 'CNC-001', value: 4 }, { key: 'PACK-001', value: 3 }, { key: 'CNC-002', value: 3 }, { key: 'PACK-002', value: 2 }], total: 12 },
-      'maintenance_tasks:status': { groups: [{ key: '已完成', value: 5 }, { key: '待执行', value: 2 }, { key: '执行中', value: 1 }], total: 8 },
-      'anomaly_records:equipmentId': { groups: [{ key: 'CNC-001', value: 3 }, { key: 'PACK-001', value: 2 }, { key: 'CNC-002', value: 1 }], total: 6 },
-      'anomaly_records:source': { groups: [{ key: '巡检', value: 4 }, { key: '保养', value: 2 }], total: 6 },
+    // Mock 数据源（接入真实 API 后替换为 REST 调用）
+    const dataSources: Record<string, Array<Record<string, unknown>>> = {
+      equipment: [
+        { equipmentId: 101, name: 'CNC-001', category: '数控设备', status: '运行中', productionLine: 'A线' },
+        { equipmentId: 102, name: 'CNC-002', category: '数控设备', status: '运行中', productionLine: 'A线' },
+        { equipmentId: 103, name: 'PACK-001', category: '包装设备', status: '维修中', productionLine: 'B线' },
+        { equipmentId: 104, name: 'PACK-002', category: '包装设备', status: '运行中', productionLine: 'B线' },
+        { equipmentId: 105, name: 'INJ-001', category: '注塑设备', status: '运行中', productionLine: 'C线' },
+        { equipmentId: 106, name: 'WELD-001', category: '焊接设备', status: '停机', productionLine: 'A线' },
+        { equipmentId: 107, name: 'TEST-001', category: '检测设备', status: '运行中', productionLine: 'C线' },
+      ],
+      fault_reports: [
+        { faultReportId: 301, equipmentName: 'CNC-001', faultType: '机械故障', productionLine: 'A线' },
+        { faultReportId: 302, equipmentName: 'PACK-001', faultType: '电气故障', productionLine: 'B线' },
+        { faultReportId: 303, equipmentName: 'CNC-002', faultType: '机械故障', productionLine: 'A线' },
+        { faultReportId: 304, equipmentName: 'CNC-001', faultType: '液压故障', productionLine: 'A线' },
+        { faultReportId: 305, equipmentName: 'PACK-001', faultType: '电气故障', productionLine: 'B线' },
+      ],
+      repair_orders: [
+        { repairOrderId: 201, equipmentName: 'CNC-001', repairHours: 5.5, type: '内部' },
+        { repairOrderId: 202, equipmentName: 'PACK-001', repairHours: 3.0, type: '外协' },
+        { repairOrderId: 203, equipmentName: 'CNC-002', repairHours: 2.5, type: '内部' },
+      ],
+      maintenance_tasks: [
+        { taskId: 501, equipmentName: 'CNC-001', status: '已完成', planName: '月度保养' },
+        { taskId: 502, equipmentName: 'CNC-002', status: '待执行', planName: '月度保养' },
+        { taskId: 503, equipmentName: 'PACK-001', status: '执行中', planName: '季度保养' },
+      ],
+      anomaly_records: [
+        { anomalyId: 801, equipmentName: 'CNC-001', source: '巡检', severity: 2 },
+        { anomalyId: 802, equipmentName: 'PACK-001', source: '保养', severity: 3 },
+        { anomalyId: 803, equipmentName: 'CNC-002', source: '巡检', severity: 1 },
+      ],
     }
-    const key = `${args.source}:${args.groupBy}`
-    const result = mockAggregations[key] ?? { groups: [{ key: '未知', value: 0 }], total: 0, note: `暂无 ${args.source} 按 ${args.groupBy} 的聚合数据` }
-    // 应用 limit
-    if (args.limit && (result as any).groups) {
-      (result as any).groups = (result as any).groups.slice(0, args.limit)
+
+    const data = dataSources[args.source]
+    if (!data) {
+      return { content: [{ type: 'text' as const, text: JSON.stringify({ error: `未知数据源: ${args.source}`, availableSources: Object.keys(dataSources) }) }] }
     }
-    return { content: [{ type: 'text' as const, text: JSON.stringify(result) }] }
+
+    // 真实聚合逻辑
+    const groupMap = new Map<string, number>()
+    for (const item of data) {
+      const key = String(item[args.groupBy] ?? '未知')
+      const current = groupMap.get(key) ?? 0
+      if (args.operation === 'count') {
+        groupMap.set(key, current + 1)
+      } else if (args.valueField && typeof item[args.valueField] === 'number') {
+        const val = item[args.valueField] as number
+        if (args.operation === 'sum') groupMap.set(key, current + val)
+        else if (args.operation === 'max') groupMap.set(key, Math.max(current || -Infinity, val))
+        else if (args.operation === 'min') groupMap.set(key, Math.min(current || Infinity, val))
+      }
+    }
+
+    let groups = [...groupMap.entries()].map(([key, value]) => ({ key, value }))
+    if (args.sortBy === 'value_desc') groups.sort((a, b) => b.value - a.value)
+    else if (args.sortBy === 'value_asc') groups.sort((a, b) => a.value - b.value)
+    if (args.limit) groups = groups.slice(0, args.limit)
+
+    return { content: [{ type: 'text' as const, text: JSON.stringify({ groups, total: data.length }) }] }
   })
 }
