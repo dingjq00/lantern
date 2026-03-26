@@ -17,7 +17,7 @@
 ## File Structure
 
 ```
-mes-ai-explorer/
+insight68-platform/
 ├── app/                          # Next.js App Router
 │   ├── layout.tsx                # 全局布局
 │   ├── page.tsx                  # 首页（查询界面）
@@ -142,7 +142,7 @@ mes-ai-explorer/
 注意：当前目录已有 docs/、experiments/、CLAUDE.md 等文件。先备份再初始化：
 
 ```bash
-cd /Users/dingjq/projects/mes-ai-explorer
+cd /Users/dingjq/projects/insight68-platform
 # 把已有文件暂存
 mkdir -p /tmp/mes-backup && cp -r docs experiments CLAUDE.md README.md /tmp/mes-backup/
 # 初始化 Next.js（会覆盖部分文件）
@@ -182,7 +182,7 @@ export default defineConfig({
 Create `.env.local`:
 ```
 LLM_BASE_URL=https://gptapi.tutu02.us.ci/v1
-LLM_API_KEY=sk-mes-ai-explorer-2026
+LLM_API_KEY=sk-insight68-platform-2026
 LLM_MODEL=gpt-5.4-mini
 EAM_API_BASE_URL=http://localhost:48080
 TOOLS_DIR=./tools

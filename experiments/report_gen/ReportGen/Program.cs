@@ -6,7 +6,7 @@ using DocumentFormat.OpenXml;
 using DocumentFormat.OpenXml.Packaging;
 using DocumentFormat.OpenXml.Wordprocessing;
 
-var baseDir = "/Users/dingjq/projects/mes-ai-explorer/experiments";
+var baseDir = "/Users/dingjq/projects/insight68-platform/experiments";
 var dataPath = Path.Combine(baseDir, "report_data.json");
 var outputPath = Path.Combine(baseDir, "方案A_G2路由实验报告.docx");
 var json = File.ReadAllText(dataPath);

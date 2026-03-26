@@ -1,0 +1,987 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>P1 Implementation Plan — Insight68 NL-API Platform</title>
+<style>
+:root {
+  --blue-50:#EFF6FF;--blue-100:#DBEAFE;--blue-200:#BFDBFE;--blue-500:#3B82F6;
+  --blue-600:#2563EB;--blue-700:#1D4ED8;--blue-800:#1E40AF;
+  --gray-50:#F9FAFB;--gray-100:#F3F4F6;--gray-200:#E5E7EB;--gray-300:#D1D5DB;
+  --gray-500:#6B7280;--gray-600:#4B5563;--gray-700:#374151;--gray-800:#1F2937;
+  --green-50:#F0FDF4;--green-600:#16A34A;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;font-size:14.5px;line-height:1.75;color:var(--gray-800);background:var(--gray-50)}
+.container{max-width:960px;margin:0 auto;padding:40px 48px;background:#fff;min-height:100vh;box-shadow:0 0 40px rgba(0,0,0,.05)}
+h1{font-size:28px;font-weight:700;color:var(--blue-800);border-bottom:3px solid var(--blue-500);padding-bottom:14px;margin-bottom:8px}
+h2{font-size:20px;font-weight:600;color:var(--blue-700);margin-top:44px;margin-bottom:18px;padding-bottom:8px;border-bottom:2px solid var(--blue-100)}
+h3{font-size:16px;font-weight:600;color:var(--blue-800);margin-top:30px;margin-bottom:10px}
+h4{font-size:14.5px;font-weight:600;color:var(--gray-700);margin-top:20px;margin-bottom:8px}
+p{margin-bottom:12px;color:var(--gray-700)}
+strong{color:var(--gray-800);font-weight:600}
+p strong:first-child{color:var(--blue-700)}
+a{color:var(--blue-600);text-decoration:none}a:hover{text-decoration:underline}
+blockquote{border-left:4px solid var(--blue-200);background:var(--blue-50);padding:12px 20px;margin:14px 0;border-radius:0 8px 8px 0}
+blockquote p{color:var(--gray-600);margin:0}
+pre{background:var(--gray-800);color:#E5E7EB;padding:18px 22px;border-radius:8px;overflow-x:auto;margin:14px 0;font-family:"JetBrains Mono","Fira Code","SF Mono",Menlo,monospace;font-size:13px;line-height:1.6}
+code{font-family:"JetBrains Mono","Fira Code","SF Mono",Menlo,monospace;font-size:13px}
+p code,li code,td code{background:var(--blue-50);color:var(--blue-700);padding:2px 6px;border-radius:4px}
+pre code{background:none;color:inherit;padding:0;border-radius:0;font-size:inherit}
+table{width:100%;border-collapse:collapse;margin:14px 0;font-size:14px}
+thead th{background:var(--blue-700);color:#fff;font-weight:600;text-align:left;padding:9px 14px;font-size:13px}
+thead th:first-child{border-radius:6px 0 0 0}thead th:last-child{border-radius:0 6px 0 0}
+tbody td{padding:8px 14px;border-bottom:1px solid var(--gray-200);vertical-align:top}
+tbody tr:nth-child(even){background:var(--gray-50)}tbody tr:hover{background:var(--blue-50)}
+ul,ol{margin:8px 0 12px 24px;color:var(--gray-700)}
+li{margin-bottom:5px;padding-left:4px}
+li ul,li ol{margin:4px 0 4px 20px}
+hr{border:none;height:1px;background:var(--gray-200);margin:36px 0}
+input[type="checkbox"]{margin-right:6px;accent-color:var(--blue-600);vertical-align:middle}
+.step-label{font-weight:600;color:var(--gray-800)}
+.file-badge{display:inline-block;background:var(--blue-50);color:var(--blue-700);font-size:12px;padding:2px 8px;border-radius:4px;margin:2px 4px 2px 0;font-family:"JetBrains Mono","Fira Code","SF Mono",Menlo,monospace}
+.files-line{margin:8px 0 12px 0}
+.task-card{background:#fff;border:1px solid var(--gray-200);border-radius:10px;padding:24px 28px;margin:20px 0 28px 0;box-shadow:0 1px 4px rgba(0,0,0,.04)}
+.task-card h3{margin-top:0}
+/* Syntax highlighting keywords */
+.kw{color:#C678DD}.fn{color:#61AFEF}.str{color:#98C379}.cm{color:#5C6370;font-style:italic}.tp{color:#E5C07B}.num{color:#D19A66}.op{color:#56B6C2}
+@media print{
+  body{background:#fff}.container{box-shadow:none;padding:20px;max-width:100%}
+  pre{background:var(--gray-100);color:var(--gray-800);border:1px solid var(--gray-300)}
+  thead th{background:var(--gray-200);color:var(--gray-800)}
+  h1,h2,h3{page-break-after:avoid}table{page-break-inside:avoid}
+  .task-card{box-shadow:none;border:1px solid var(--gray-300)}
+}
+</style>
+</head>
+<body>
+<div class="container">
+
+<h1>P1 Implementation Plan — Insight68 NL-API Platform</h1>
+
+<blockquote>
+<p><strong>For agentic workers:</strong> REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (<code>- [ ]</code>) syntax for tracking.</p>
+</blockquote>
+
+<p><strong>Goal:</strong> 在 P0（22 MCP Tools, 单次路由, 94.2%）基础上实现 ReAct Agent + 自学习 + 置信度回退 + 结果验证 + Grounding，技术验证扩展能力。</p>
+
+<p><strong>Architecture:</strong> P0 四层架构不变，纵向深化智能层。核心改动：router.ts 从线性 9 步改为 ReAct 循环（批量调用+按需追查），新增 trace/verdict/validator 模块。</p>
+
+<p><strong>Tech Stack:</strong> TypeScript, Next.js 15, OpenAI SDK, better-sqlite3, vitest, zod (新增)</p>
+
+<p><strong>Spec:</strong> <code>docs/superpowers/specs/2026-03-26-p1-design.md</code></p>
+
+<hr />
+
+<!-- ============================================================ -->
+<!-- File Structure                                                 -->
+<!-- ============================================================ -->
+
+<h2 id="file-structure">File Structure</h2>
+
+<pre><code>lib/types.ts                          # 改：+ExecutionTrace, ThinkResult, ValidationResult, TraceCall
+lib/storage/types.ts                  # 改：+insertTrace, getTrace, updateSessionFeedback
+lib/storage/sqlite.ts                 # 改：实现新方法 + 加载 002 migration
+lib/storage/migrations/002-trace.sql  # 新增：nl_traces 表
+
+lib/brain/trace.ts                    # 新增：TraceCollector 类（收集+持久化）
+lib/brain/router.ts                   # 大改：ReAct 循环替换线性流程
+lib/brain/intent.ts                   # 改：真正意图提取（从 ThinkResult 解析）
+lib/brain/prompt-assembler.ts         # 改：支持 ReAct 指令 + verdict 注入
+lib/brain/confidence.ts               # 改：三信号真实计算
+lib/brain/result-presenter.ts         # 小改：+sources 字段
+lib/brain/validator.ts                # 新增：结果自验证（纯规则）
+lib/brain/verdict.ts                  # 新增：自学习评分 + winner 计算
+
+lib/llm/codex-proxy.ts               # 改：+think() 方法
+
+prompts/react-instructions.md         # 新增：ReAct 循环 Prompt
+prompts/base-instructions.md          # 改：整合 ReAct 格式
+prompts/few-shot-examples.json        # 改：+多轮追查示例
+
+scripts/cold-start.ts                 # 新增：测试集批跑冷启动
+scripts/benchmark.ts                  # 新增：40 题验收 + 延迟统计
+
+app/api/chat/route.ts                 # 改：注入 storage, 返回 trace
+app/api/feedback/route.ts             # 新增：Thumbs Up/Down
+app/components/TracePanel.tsx          # 新增：执行详情面板
+app/components/ChatMessage.tsx         # 改：+TracePanel +Thumbs +Sources
+app/page.tsx                          # 改：传递 trace/feedback 数据</code></pre>
+
+<hr />
+
+<!-- ============================================================ -->
+<!-- Task Group 1: 类型 + Trace 基础设施                            -->
+<!-- ============================================================ -->
+
+<h2 id="task-group-1">Task Group 1: 类型 + Trace 基础设施</h2>
+
+<!-- Task 1.1 -->
+<div class="task-card">
+<h3 id="task-1-1">Task 1.1: 新增类型定义</h3>
+
+<p class="files-line"><strong>Files:</strong></p>
+<ul>
+<li>Modify: <code>lib/types.ts</code></li>
+</ul>
+
+<p><input type="checkbox" disabled /> <span class="step-label">Step 1: 在 lib/types.ts 末尾添加 P1 新类型</span></p>
+
+<pre><code><span class="cm">// ============================================================</span>
+<span class="cm">// P1: 执行追踪</span>
+<span class="cm">// ============================================================</span>
+
+<span class="kw">export interface</span> <span class="tp">TraceCall</span> {
+  tool: <span class="tp">string</span>
+  arguments: <span class="tp">Record</span>&lt;<span class="tp">string</span>, <span class="tp">unknown</span>&gt;
+  result: <span class="tp">unknown</span>
+  status: <span class="str">'success'</span> | <span class="str">'error'</span>
+  durationMs: <span class="tp">number</span>
+}
+
+<span class="kw">export interface</span> <span class="tp">TraceRound</span> {
+  round: <span class="tp">number</span>
+  thought: <span class="tp">string</span>
+  calls: <span class="tp">TraceCall</span>[]
+  observation: <span class="tp">string</span>
+}
+
+<span class="kw">export interface</span> <span class="tp">ExecutionTrace</span> {
+  traceId: <span class="tp">string</span>
+  query: <span class="tp">string</span>
+  startTime: <span class="tp">number</span>
+  endTime?: <span class="tp">number</span>
+  rounds: <span class="tp">TraceRound</span>[]
+  intent?: <span class="tp">IntentTags</span>
+  verdict?: <span class="tp">MemoryVerdict</span> | <span class="kw">null</span>
+  confidence: <span class="tp">ConfidenceSignals</span>
+  finalConfidence: <span class="tp">ConfidenceLevel</span>
+  validation: <span class="tp">ValidationResult</span>[]
+  sources: <span class="tp">Array</span>&lt;{ tool: <span class="tp">string</span>; description: <span class="tp">string</span> }&gt;
+}
+
+<span class="cm">// P1: ReAct Agent</span>
+<span class="kw">export interface</span> <span class="tp">ThinkResult</span> {
+  thought: <span class="tp">string</span>
+  intent?: <span class="tp">IntentTags</span>
+  clarity?: <span class="tp">ConfidenceLevel</span>
+  calls?: <span class="tp">ToolCall</span>[]
+  finish?: <span class="tp">boolean</span>
+  unsupported?: <span class="tp">boolean</span>
+}
+
+<span class="cm">// P1: 结果自验证</span>
+<span class="kw">export interface</span> <span class="tp">ValidationResult</span> {
+  type: <span class="str">'numeric_range'</span> | <span class="str">'empty_result'</span> | <span class="str">'unit_mismatch'</span>
+  field?: <span class="tp">string</span>
+  message: <span class="tp">string</span>
+  severity: <span class="str">'warning'</span> | <span class="str">'error'</span>
+}</code></pre>
+
+<p>同时给 <code>StructuredResult</code> 加 <code>sources</code> 和 <code>trace</code> 字段：</p>
+
+<pre><code><span class="kw">export interface</span> <span class="tp">StructuredResult</span> {
+  <span class="cm">// ... 现有字段不动</span>
+  sources?: <span class="tp">Array</span>&lt;{ tool: <span class="tp">string</span>; description: <span class="tp">string</span> }&gt;
+  trace?: <span class="tp">ExecutionTrace</span>
+}</code></pre>
+
+<p>给 <code>LLMProvider</code> 接口加 <code>think</code> 方法：</p>
+
+<pre><code><span class="kw">export interface</span> <span class="tp">LLMProvider</span> {
+  <span class="cm">// ... 现有 route/evaluate/summarize 不动</span>
+  <span class="fn">think</span>(messages: <span class="tp">Array</span>&lt;{ role: <span class="tp">string</span>; content: <span class="tp">string</span> }&gt;): <span class="tp">Promise</span>&lt;<span class="tp">ThinkResult</span>&gt;
+}</code></pre>
+
+<p><input type="checkbox" disabled /> <span class="step-label">Step 2: TypeScript 编译检查</span></p>
+
+<pre><code>npx tsc --noEmit lib/types.ts</code></pre>
+
+<p><input type="checkbox" disabled /> <span class="step-label">Step 3: Commit</span></p>
+
+<pre><code>git add lib/types.ts
+git commit -m "feat(p1): add ExecutionTrace, ThinkResult, ValidationResult types"</code></pre>
+</div>
+
+<hr />
+
+<!-- Task 1.2 -->
+<div class="task-card">
+<h3 id="task-1-2">Task 1.2: Trace 存储层</h3>
+
+<p class="files-line"><strong>Files:</strong></p>
+<ul>
+<li>Create: <code>lib/storage/migrations/002-trace.sql</code></li>
+<li>Modify: <code>lib/storage/types.ts</code>, <code>lib/storage/sqlite.ts</code></li>
+<li>Test: <code>tests/lib/storage/sqlite.test.ts</code></li>
+</ul>
+
+<p><input type="checkbox" disabled /> <span class="step-label">Step 1: 创建 002-trace.sql migration</span></p>
+
+<pre><code><span class="kw">CREATE TABLE IF NOT EXISTS</span> nl_traces (
+  trace_id    <span class="tp">TEXT</span> <span class="kw">PRIMARY KEY</span>,
+  tenant_id   <span class="tp">TEXT</span> <span class="kw">NOT NULL DEFAULT</span> <span class="str">'default'</span>,
+  session_id  <span class="tp">TEXT</span>,
+  query       <span class="tp">TEXT</span> <span class="kw">NOT NULL</span>,
+  trace_json  <span class="tp">TEXT</span> <span class="kw">NOT NULL</span>,
+  created_at  <span class="tp">TEXT</span> <span class="kw">NOT NULL</span>
+);
+
+<span class="kw">CREATE INDEX IF NOT EXISTS</span> idx_traces_tenant_time
+  <span class="kw">ON</span> nl_traces (tenant_id, created_at <span class="kw">DESC</span>);</code></pre>
+
+<p><input type="checkbox" disabled /> <span class="step-label">Step 2: StorageInterface 加 trace + feedback 方法</span></p>
+
+<p>在 <code>lib/storage/types.ts</code> 加：</p>
+
+<pre><code><span class="kw">import type</span> { <span class="tp">ExecutionTrace</span> } <span class="kw">from</span> <span class="str">'@/lib/types'</span>
+
+<span class="cm">// 在 StorageInterface 内加：</span>
+<span class="fn">insertTrace</span>(tenantId: <span class="tp">string</span>, trace: <span class="tp">ExecutionTrace</span>, sessionId?: <span class="tp">string</span>): <span class="kw">void</span>
+<span class="fn">getTrace</span>(traceId: <span class="tp">string</span>): <span class="tp">ExecutionTrace</span> | <span class="kw">null</span>
+<span class="fn">updateSessionFeedback</span>(tenantId: <span class="tp">string</span>, sessionId: <span class="tp">string</span>, feedback: <span class="str">'up'</span> | <span class="str">'down'</span>): <span class="kw">void</span></code></pre>
+
+<p><input type="checkbox" disabled /> <span class="step-label">Step 3: 写测试</span></p>
+
+<p>在 <code>tests/lib/storage/sqlite.test.ts</code> 加 trace 和 feedback 测试用例。</p>
+
+<p><input type="checkbox" disabled /> <span class="step-label">Step 4: 实现 SQLiteStorage 新方法</span></p>
+
+<p><code>lib/storage/sqlite.ts</code>：</p>
+<ul>
+<li><code>initialize()</code> 加载 002-trace.sql</li>
+<li><code>insertTrace()</code> — JSON.stringify trace 写入</li>
+<li><code>getTrace()</code> — 读取并 JSON.parse</li>
+<li><code>updateSessionFeedback()</code> — UPDATE sessions SET feedback = ? WHERE tenant_id = ? AND session_id = ?</li>
+</ul>
+
+<p><input type="checkbox" disabled /> <span class="step-label">Step 5: 运行测试</span></p>
+
+<pre><code>npx vitest run tests/lib/storage/sqlite.test.ts</code></pre>
+
+<p><input type="checkbox" disabled /> <span class="step-label">Step 6: Commit</span></p>
+
+<pre><code>git add lib/storage/ tests/lib/storage/
+git commit -m "feat(p1): trace table + feedback update in storage layer"</code></pre>
+</div>
+
+<hr />
+
+<!-- Task 1.3 -->
+<div class="task-card">
+<h3 id="task-1-3">Task 1.3: TraceCollector</h3>
+
+<p class="files-line"><strong>Files:</strong></p>
+<ul>
+<li>Create: <code>lib/brain/trace.ts</code></li>
+<li>Test: <code>tests/lib/brain/trace.test.ts</code></li>
+</ul>
+
+<p><input type="checkbox" disabled /> <span class="step-label">Step 1: 写测试</span></p>
+
+<pre><code><span class="kw">import</span> { <span class="tp">TraceCollector</span> } <span class="kw">from</span> <span class="str">'@/lib/brain/trace'</span>
+
+<span class="fn">describe</span>(<span class="str">'TraceCollector'</span>, () =&gt; {
+  <span class="fn">it</span>(<span class="str">'创建 trace 并记录 round'</span>, () =&gt; {
+    <span class="kw">const</span> tc = <span class="kw">new</span> <span class="tp">TraceCollector</span>(<span class="str">'测试查询'</span>)
+    tc.<span class="fn">startRound</span>(<span class="num">0</span>, <span class="str">'分析问题'</span>)
+    tc.<span class="fn">addCall</span>({ tool: <span class="str">'get_dashboard_summary'</span>, arguments: {}, result: { total: <span class="num">128</span> }, status: <span class="str">'success'</span>, durationMs: <span class="num">300</span> })
+    tc.<span class="fn">endRound</span>(<span class="str">'获得结果'</span>)
+    <span class="kw">const</span> trace = tc.<span class="fn">build</span>()
+    <span class="fn">expect</span>(trace.rounds).<span class="fn">toHaveLength</span>(<span class="num">1</span>)
+    <span class="fn">expect</span>(trace.rounds[<span class="num">0</span>].calls).<span class="fn">toHaveLength</span>(<span class="num">1</span>)
+  })
+
+  <span class="fn">it</span>(<span class="str">'多轮追查记录'</span>, () =&gt; {
+    <span class="kw">const</span> tc = <span class="kw">new</span> <span class="tp">TraceCollector</span>(<span class="str">'复杂查询'</span>)
+    tc.<span class="fn">startRound</span>(<span class="num">0</span>, <span class="str">'首轮规划'</span>)
+    tc.<span class="fn">addCall</span>({ tool: <span class="str">'query_equipment'</span>, arguments: {}, result: {}, status: <span class="str">'success'</span>, durationMs: <span class="num">200</span> })
+    tc.<span class="fn">endRound</span>(<span class="str">'需要追查'</span>)
+    tc.<span class="fn">startRound</span>(<span class="num">1</span>, <span class="str">'追查备件'</span>)
+    tc.<span class="fn">addCall</span>({ tool: <span class="str">'get_spare_stock'</span>, arguments: {}, result: {}, status: <span class="str">'success'</span>, durationMs: <span class="num">150</span> })
+    tc.<span class="fn">endRound</span>(<span class="str">'信息充足'</span>)
+    <span class="fn">expect</span>(tc.<span class="fn">build</span>().rounds).<span class="fn">toHaveLength</span>(<span class="num">2</span>)
+  })
+})</code></pre>
+
+<p><input type="checkbox" disabled /> <span class="step-label">Step 2: 实现 TraceCollector</span></p>
+
+<pre><code><span class="kw">export class</span> <span class="tp">TraceCollector</span> {
+  <span class="kw">private</span> trace: <span class="tp">ExecutionTrace</span>
+  <span class="kw">private</span> currentRound: <span class="tp">TraceRound</span> | <span class="kw">null</span> = <span class="kw">null</span>
+
+  <span class="fn">constructor</span>(query: <span class="tp">string</span>) { <span class="cm">/* 初始化 trace */</span> }
+  <span class="fn">startRound</span>(round: <span class="tp">number</span>, thought: <span class="tp">string</span>): <span class="kw">void</span>
+  <span class="fn">addCall</span>(call: <span class="tp">TraceCall</span>): <span class="kw">void</span>
+  <span class="fn">endRound</span>(observation: <span class="tp">string</span>): <span class="kw">void</span>
+  <span class="fn">setIntent</span>(intent: <span class="tp">IntentTags</span>): <span class="kw">void</span>
+  <span class="fn">setVerdict</span>(verdict: <span class="tp">MemoryVerdict</span> | <span class="kw">null</span>): <span class="kw">void</span>
+  <span class="fn">setConfidence</span>(signals: <span class="tp">ConfidenceSignals</span>, final: <span class="tp">ConfidenceLevel</span>): <span class="kw">void</span>
+  <span class="fn">addValidation</span>(result: <span class="tp">ValidationResult</span>): <span class="kw">void</span>
+  <span class="fn">addSource</span>(tool: <span class="tp">string</span>, description: <span class="tp">string</span>): <span class="kw">void</span>
+  <span class="fn">build</span>(): <span class="tp">ExecutionTrace</span>
+}</code></pre>
+
+<p><input type="checkbox" disabled /> <span class="step-label">Step 3: 运行测试</span></p>
+
+<pre><code>npx vitest run tests/lib/brain/trace.test.ts</code></pre>
+
+<p><input type="checkbox" disabled /> <span class="step-label">Step 4: Commit</span></p>
+
+<pre><code>git add lib/brain/trace.ts tests/lib/brain/trace.test.ts
+git commit -m "feat(p1): TraceCollector — execution trace data collector"</code></pre>
+</div>
+
+<hr />
+
+<!-- Task 1.4 -->
+<div class="task-card">
+<h3 id="task-1-4">Task 1.4: TracePanel 前端组件</h3>
+
+<p class="files-line"><strong>Files:</strong></p>
+<ul>
+<li>Create: <code>app/components/TracePanel.tsx</code></li>
+<li>Modify: <code>app/components/ChatMessage.tsx</code></li>
+</ul>
+
+<p><input type="checkbox" disabled /> <span class="step-label">Step 1: 实现 TracePanel</span></p>
+
+<p>可折叠面板，展示：每轮的 thought/calls/observation，意图/verdict/置信度/验证结果。</p>
+
+<p><input type="checkbox" disabled /> <span class="step-label">Step 2: ChatMessage 中集成</span></p>
+
+<p>在 Message interface 加 <code>trace?: ExecutionTrace</code>，在消息下方渲染 TracePanel。</p>
+
+<p><input type="checkbox" disabled /> <span class="step-label">Step 3: Commit</span></p>
+
+<pre><code>git add app/components/
+git commit -m "feat(p1): TracePanel — collapsible execution detail panel"</code></pre>
+</div>
+
+<hr />
+
+<!-- ============================================================ -->
+<!-- Task Group 2: ReAct Agent                                      -->
+<!-- ============================================================ -->
+
+<h2 id="task-group-2">Task Group 2: ReAct Agent</h2>
+
+<!-- Task 2.1 -->
+<div class="task-card">
+<h3 id="task-2-1">Task 2.1: ReAct Prompt 模板</h3>
+
+<p class="files-line"><strong>Files:</strong></p>
+<ul>
+<li>Create: <code>prompts/react-instructions.md</code></li>
+<li>Modify: <code>prompts/base-instructions.md</code>, <code>prompts/few-shot-examples.json</code></li>
+</ul>
+
+<p><input type="checkbox" disabled /> <span class="step-label">Step 1: 创建 react-instructions.md</span></p>
+
+<p>ReAct 格式指令：JSON 输出格式（thought/intent/clarity/calls/finish/unsupported），观察注入规则，追查条件，最大轮次。</p>
+
+<p><input type="checkbox" disabled /> <span class="step-label">Step 2: 更新 base-instructions.md</span></p>
+
+<p>整合 ReAct 指令引用，保留工具选择指南和时间映射。</p>
+
+<p><input type="checkbox" disabled /> <span class="step-label">Step 3: 更新 few-shot-examples.json</span></p>
+
+<p>添加多轮追查示例（首轮规划 → 观察 → 追查）。</p>
+
+<p><input type="checkbox" disabled /> <span class="step-label">Step 4: Commit</span></p>
+
+<pre><code>git add prompts/
+git commit -m "feat(p1): ReAct prompt templates — instructions + few-shot"</code></pre>
+</div>
+
+<hr />
+
+<!-- Task 2.2 -->
+<div class="task-card">
+<h3 id="task-2-2">Task 2.2: think() 方法</h3>
+
+<p class="files-line"><strong>Files:</strong></p>
+<ul>
+<li>Modify: <code>lib/llm/codex-proxy.ts</code></li>
+<li>Test: <code>tests/lib/llm/codex-proxy.test.ts</code></li>
+</ul>
+
+<p><input type="checkbox" disabled /> <span class="step-label">Step 1: 安装 zod</span></p>
+
+<pre><code>npm install zod</code></pre>
+
+<p><input type="checkbox" disabled /> <span class="step-label">Step 2: 写测试</span></p>
+
+<p>验证 think() 返回合法 ThinkResult（含 thought + calls 或 finish）。</p>
+
+<p><input type="checkbox" disabled /> <span class="step-label">Step 3: 实现 think()</span></p>
+
+<p>基于 OpenAI chat.completions，response_format: json_object，zod 校验输出。</p>
+
+<p><input type="checkbox" disabled /> <span class="step-label">Step 4: 运行测试</span></p>
+
+<pre><code>npx vitest run tests/lib/llm/codex-proxy.test.ts</code></pre>
+
+<p><input type="checkbox" disabled /> <span class="step-label">Step 5: Commit</span></p>
+
+<pre><code>git add lib/llm/ tests/lib/llm/ package.json package-lock.json
+git commit -m "feat(p1): think() method — ReAct single-round reasoning with zod validation"</code></pre>
+</div>
+
+<hr />
+
+<!-- Task 2.3 -->
+<div class="task-card">
+<h3 id="task-2-3">Task 2.3: prompt-assembler 支持 ReAct</h3>
+
+<p class="files-line"><strong>Files:</strong></p>
+<ul>
+<li>Modify: <code>lib/brain/prompt-assembler.ts</code></li>
+<li>Test: <code>tests/lib/brain/prompt-assembler.test.ts</code></li>
+</ul>
+
+<p><input type="checkbox" disabled /> <span class="step-label">Step 1: 写测试</span></p>
+
+<p>验证组装结果包含 ReAct 格式指令、verdict 推荐路径注入。</p>
+
+<p><input type="checkbox" disabled /> <span class="step-label">Step 2: 实现</span></p>
+
+<p><code>assemblePrompt()</code> 加载 <code>react-instructions.md</code>，可选注入 verdict winner 作为推荐路径。</p>
+
+<p><input type="checkbox" disabled /> <span class="step-label">Step 3: 运行测试</span></p>
+
+<pre><code>npx vitest run tests/lib/brain/prompt-assembler.test.ts</code></pre>
+
+<p><input type="checkbox" disabled /> <span class="step-label">Step 4: Commit</span></p>
+
+<pre><code>git add lib/brain/prompt-assembler.ts prompts/ tests/lib/brain/
+git commit -m "feat(p1): prompt assembler supports ReAct format + verdict injection"</code></pre>
+</div>
+
+<hr />
+
+<!-- Task 2.4 -->
+<div class="task-card">
+<h3 id="task-2-4">Task 2.4: ReAct 循环核心</h3>
+
+<p class="files-line"><strong>Files:</strong></p>
+<ul>
+<li>Modify: <code>lib/brain/router.ts</code></li>
+<li>Test: <code>tests/lib/brain/router.test.ts</code></li>
+</ul>
+
+<p><input type="checkbox" disabled /> <span class="step-label">Step 1: 扩展 RouterDeps</span></p>
+
+<pre><code><span class="kw">interface</span> <span class="tp">RouterDeps</span> {
+  registry: <span class="tp">ToolRegistry</span>
+  llm: <span class="tp">LLMProvider</span>
+  storage: <span class="tp">StorageInterface</span>    <span class="cm">// 新增</span>
+  <span class="fn">callTool</span>: (name: <span class="tp">string</span>, args: <span class="tp">Record</span>&lt;<span class="tp">string</span>, <span class="tp">unknown</span>&gt;) =&gt; <span class="tp">Promise</span>&lt;<span class="tp">ToolResult</span>&gt;
+  history?: <span class="tp">Array</span>&lt;{ role: <span class="tp">string</span>; content: <span class="tp">string</span> }&gt;
+  tenantId?: <span class="tp">string</span>            <span class="cm">// 新增，默认 'default'</span>
+  userId?: <span class="tp">string</span>              <span class="cm">// 新增，默认 'anonymous'</span>
+}</code></pre>
+
+<p><input type="checkbox" disabled /> <span class="step-label">Step 2: 写测试 — 简单查询一轮完成</span></p>
+
+<p>mock think() 首轮返回 calls + finish，验证一轮即结束。</p>
+
+<p><input type="checkbox" disabled /> <span class="step-label">Step 3: 写测试 — 复杂查询触发追查</span></p>
+
+<p>mock think() 首轮返回 calls 不 finish，第二轮追查后 finish。</p>
+
+<p><input type="checkbox" disabled /> <span class="step-label">Step 4: 写测试 — 超纲直接返回</span></p>
+
+<p>mock think() 首轮返回 unsupported: true。</p>
+
+<p><input type="checkbox" disabled /> <span class="step-label">Step 5: 实现 ReAct 循环</span></p>
+
+<pre><code>1. 组装 Prompt
+2. 首轮 think() → 提取 intent/clarity + calls
+3. 批量执行 calls（记录到 TraceCollector）
+4. 观察结果 → think() 决定追查或 finish
+5. 追查循环（最多 3 轮）
+6. LLM 总结</code></pre>
+
+<p>此步只实现循环骨架，session/verdict/validation/grounding 在后续 task 接入。</p>
+
+<p><input type="checkbox" disabled /> <span class="step-label">Step 6: 运行测试</span></p>
+
+<pre><code>npx vitest run tests/lib/brain/router.test.ts</code></pre>
+
+<p><input type="checkbox" disabled /> <span class="step-label">Step 7: Commit</span></p>
+
+<pre><code>git add lib/brain/router.ts tests/lib/brain/router.test.ts
+git commit -m "feat(p1): ReAct loop core — think-execute-observe cycle"</code></pre>
+</div>
+
+<hr />
+
+<!-- Task 2.5 -->
+<div class="task-card">
+<h3 id="task-2-5">Task 2.5: ReAct 错误处理 + P0 降级</h3>
+
+<p class="files-line"><strong>Files:</strong></p>
+<ul>
+<li>Modify: <code>lib/brain/router.ts</code></li>
+<li>Test: <code>tests/lib/brain/router.test.ts</code></li>
+</ul>
+
+<p><input type="checkbox" disabled /> <span class="step-label">Step 1: 写测试 — 工具超时，LLM 选择替代方案</span></p>
+
+<p>mock callTool 返回 error，验证错误作为 observation 注入下一轮 think。</p>
+
+<p><input type="checkbox" disabled /> <span class="step-label">Step 2: 写测试 — MCP Server 不可用，降级 P0</span></p>
+
+<p>mock callTool 全部失败（Level 4），验证降级为线性总结。</p>
+
+<p><input type="checkbox" disabled /> <span class="step-label">Step 3: 实现 4 级错误处理</span></p>
+
+<p>在 ReAct 循环内：</p>
+<ul>
+<li>Level 1-3：错误信息作为 observation 注入 <code>"工具调用失败: {error}"</code> → LLM 下轮决策</li>
+<li>Level 4：退出循环，用已有结果走 P0 线性总结</li>
+</ul>
+
+<p><input type="checkbox" disabled /> <span class="step-label">Step 4: 运行测试</span></p>
+
+<pre><code>npx vitest run tests/lib/brain/router.test.ts</code></pre>
+
+<p><input type="checkbox" disabled /> <span class="step-label">Step 5: Commit</span></p>
+
+<pre><code>git add lib/brain/router.ts tests/lib/brain/router.test.ts
+git commit -m "feat(p1): ReAct error handling — 4 levels + P0 degradation fallback"</code></pre>
+</div>
+
+<hr />
+
+<!-- Task 2.6 -->
+<div class="task-card">
+<h3 id="task-2-6">Task 2.6: API Route 集成 + Storage 注入</h3>
+
+<p class="files-line"><strong>Files:</strong></p>
+<ul>
+<li>Modify: <code>app/api/chat/route.ts</code></li>
+</ul>
+
+<p><input type="checkbox" disabled /> <span class="step-label">Step 1: 单例初始化 SQLiteStorage</span></p>
+
+<pre><code><span class="kw">let</span> storage: <span class="tp">SQLiteStorage</span> | <span class="kw">null</span> = <span class="kw">null</span>
+<span class="kw">function</span> <span class="fn">getStorage</span>(): <span class="tp">SQLiteStorage</span> {
+  <span class="kw">if</span> (!storage) {
+    storage = <span class="kw">new</span> <span class="tp">SQLiteStorage</span>()
+    storage.<span class="fn">initialize</span>()
+  }
+  <span class="kw">return</span> storage
+}</code></pre>
+
+<p><input type="checkbox" disabled /> <span class="step-label">Step 2: 注入 RouterDeps 含 storage</span></p>
+
+<p>传 <code>storage: getStorage()</code> 给 processQuery。开发模式下返回 <code>result.trace</code>。</p>
+
+<p><input type="checkbox" disabled /> <span class="step-label">Step 3: 运行全部测试确认无回归</span></p>
+
+<pre><code>npx vitest run</code></pre>
+
+<p><input type="checkbox" disabled /> <span class="step-label">Step 4: Commit</span></p>
+
+<pre><code>git add app/api/chat/route.ts
+git commit -m "feat(p1): API route — inject storage, return trace in dev mode"</code></pre>
+</div>
+
+<hr />
+
+<!-- ============================================================ -->
+<!-- Task Group 3: 置信度 + 意图提取                                -->
+<!-- ============================================================ -->
+
+<h2 id="task-group-3">Task Group 3: 置信度 + 意图提取</h2>
+
+<!-- Task 3.1 -->
+<div class="task-card">
+<h3 id="task-3-1">Task 3.1: 真实意图提取</h3>
+
+<p class="files-line"><strong>Files:</strong></p>
+<ul>
+<li>Modify: <code>lib/brain/intent.ts</code></li>
+<li>Test: <code>tests/lib/brain/intent.test.ts</code></li>
+</ul>
+
+<p><input type="checkbox" disabled /> <span class="step-label">Step 1: 写测试</span></p>
+
+<p>验证 <code>extractIntentFromThinkResult()</code> 从 ThinkResult 提取 IntentTags + clarity。</p>
+
+<p><input type="checkbox" disabled /> <span class="step-label">Step 2: 实现</span></p>
+
+<p>新增 <code>extractIntentFromThinkResult(result: ThinkResult): { intent: IntentTags; clarity: ConfidenceLevel }</code>。从 think() 第一轮输出解析，保留 <code>computeIntentHash()</code> 不变。</p>
+
+<p><input type="checkbox" disabled /> <span class="step-label">Step 3: 运行测试</span></p>
+
+<pre><code>npx vitest run tests/lib/brain/intent.test.ts</code></pre>
+
+<p><input type="checkbox" disabled /> <span class="step-label">Step 4: Commit</span></p>
+
+<pre><code>git add lib/brain/intent.ts tests/lib/brain/intent.test.ts
+git commit -m "feat(p1): real intent extraction from ThinkResult"</code></pre>
+</div>
+
+<hr />
+
+<!-- Task 3.2 -->
+<div class="task-card">
+<h3 id="task-3-2">Task 3.2: 真实置信度计算</h3>
+
+<p class="files-line"><strong>Files:</strong></p>
+<ul>
+<li>Modify: <code>lib/brain/confidence.ts</code></li>
+<li>Test: <code>tests/lib/brain/confidence.test.ts</code></li>
+</ul>
+
+<p><input type="checkbox" disabled /> <span class="step-label">Step 1: 写测试</span></p>
+
+<p>验证 <code>computeRealConfidence()</code> 从 verdict + clarity + LLM 自报计算三信号。</p>
+
+<p><input type="checkbox" disabled /> <span class="step-label">Step 2: 实现</span></p>
+
+<pre><code><span class="kw">export function</span> <span class="fn">computeVerdictConfidence</span>(verdict: <span class="tp">MemoryVerdict</span> | <span class="kw">null</span>): <span class="tp">ConfidenceLevel</span> {
+  <span class="kw">if</span> (!verdict || verdict.sampleCount &lt; <span class="num">3</span>) <span class="kw">return</span> <span class="str">'low'</span>
+  <span class="kw">if</span> (verdict.sampleCount &gt;= <span class="num">10</span>) <span class="kw">return</span> <span class="str">'high'</span>
+  <span class="kw">return</span> <span class="str">'medium'</span>
+}</code></pre>
+
+<p>保留原 <code>computeConfidence()</code> 融合逻辑不变。</p>
+
+<p><input type="checkbox" disabled /> <span class="step-label">Step 3: 运行测试</span></p>
+
+<pre><code>npx vitest run tests/lib/brain/confidence.test.ts</code></pre>
+
+<p><input type="checkbox" disabled /> <span class="step-label">Step 4: Commit</span></p>
+
+<pre><code>git add lib/brain/confidence.ts tests/lib/brain/confidence.test.ts
+git commit -m "feat(p1): real confidence signals — verdict + clarity + LLM self-report"</code></pre>
+</div>
+
+<hr />
+
+<!-- ============================================================ -->
+<!-- Task Group 4: 结果自验证                                       -->
+<!-- ============================================================ -->
+
+<h2 id="task-group-4">Task Group 4: 结果自验证</h2>
+
+<!-- Task 4.1 -->
+<div class="task-card">
+<h3 id="task-4-1">Task 4.1: validator.ts</h3>
+
+<p class="files-line"><strong>Files:</strong></p>
+<ul>
+<li>Create: <code>lib/brain/validator.ts</code></li>
+<li>Test: <code>tests/lib/brain/validator.test.ts</code></li>
+</ul>
+
+<p><input type="checkbox" disabled /> <span class="step-label">Step 1: 写测试</span></p>
+
+<pre><code><span class="fn">describe</span>(<span class="str">'validateResult'</span>, () =&gt; {
+  <span class="fn">it</span>(<span class="str">'检测负数数量'</span>, () =&gt; { <span class="cm">/* quantity: -5 → warning */</span> })
+  <span class="fn">it</span>(<span class="str">'检测百分率超限'</span>, () =&gt; { <span class="cm">/* rate: 150 → warning */</span> })
+  <span class="fn">it</span>(<span class="str">'检测未来日期'</span>, () =&gt; { <span class="cm">/* date &gt; today → warning */</span> })
+  <span class="fn">it</span>(<span class="str">'检测空结果'</span>, () =&gt; { <span class="cm">/* items: [], total: 0 → warning */</span> })
+  <span class="fn">it</span>(<span class="str">'正常数据无警告'</span>, () =&gt; { <span class="cm">/* totalEquipment: 128 → [] */</span> })
+})</code></pre>
+
+<p><input type="checkbox" disabled /> <span class="step-label">Step 2: 实现</span></p>
+
+<p>纯函数 <code>validateResult(data: unknown): ValidationResult[]</code>。递归检查数值字段、items 数组、日期字段。</p>
+
+<p><input type="checkbox" disabled /> <span class="step-label">Step 3: 运行测试</span></p>
+
+<pre><code>npx vitest run tests/lib/brain/validator.test.ts</code></pre>
+
+<p><input type="checkbox" disabled /> <span class="step-label">Step 4: Commit</span></p>
+
+<pre><code>git add lib/brain/validator.ts tests/lib/brain/validator.test.ts
+git commit -m "feat(p1): result validator — numeric range, empty result, date checks"</code></pre>
+</div>
+
+<hr />
+
+<!-- ============================================================ -->
+<!-- Task Group 5: 自学习 verdict                                   -->
+<!-- ============================================================ -->
+
+<h2 id="task-group-5">Task Group 5: 自学习 verdict</h2>
+
+<!-- Task 5.1 -->
+<div class="task-card">
+<h3 id="task-5-1">Task 5.1: verdict.ts 评分引擎</h3>
+
+<p class="files-line"><strong>Files:</strong></p>
+<ul>
+<li>Create: <code>lib/brain/verdict.ts</code></li>
+<li>Test: <code>tests/lib/brain/verdict.test.ts</code></li>
+</ul>
+
+<p><input type="checkbox" disabled /> <span class="step-label">Step 1: 写测试</span></p>
+
+<p>验证：达到阈值触发计算、winner 选择正确、bonus 计算正确、feedback 权重 x3。</p>
+
+<p><input type="checkbox" disabled /> <span class="step-label">Step 2: 实现</span></p>
+
+<pre><code><span class="kw">export async function</span> <span class="fn">maybeUpdateVerdict</span>(
+  storage: <span class="tp">StorageInterface</span>,
+  llm: <span class="tp">LLMProvider</span>,
+  tenantId: <span class="tp">string</span>,
+  intentHash: <span class="tp">string</span>,
+  threshold?: <span class="tp">number</span>,  <span class="cm">// 默认 5，冷启动可传 3</span>
+): <span class="tp">Promise</span>&lt;<span class="kw">void</span>&gt;</code></pre>
+
+<p>逻辑：查 session 数 → 达阈值 → LLM evaluate 每条 → 加权平均 → 找 winner → upsert verdict。</p>
+
+<p><input type="checkbox" disabled /> <span class="step-label">Step 3: 运行测试</span></p>
+
+<pre><code>npx vitest run tests/lib/brain/verdict.test.ts</code></pre>
+
+<p><input type="checkbox" disabled /> <span class="step-label">Step 4: Commit</span></p>
+
+<pre><code>git add lib/brain/verdict.ts tests/lib/brain/verdict.test.ts
+git commit -m "feat(p1): verdict engine — evaluation trigger + winner calculation"</code></pre>
+</div>
+
+<hr />
+
+<!-- Task 5.2 -->
+<div class="task-card">
+<h3 id="task-5-2">Task 5.2: 冷启动脚本</h3>
+
+<p class="files-line"><strong>Files:</strong></p>
+<ul>
+<li>Create: <code>scripts/cold-start.ts</code></li>
+</ul>
+
+<p><input type="checkbox" disabled /> <span class="step-label">Step 1: 实现批跑脚本</span></p>
+
+<p>读取 <code>docs/plan-a-p2-test-cases.md</code> 的 40 题 + 同义改写，逐题调用 processQuery，写入 session。</p>
+
+<p><input type="checkbox" disabled /> <span class="step-label">Step 2: 实现 verdict 触发</span></p>
+
+<p>批跑完成后，对所有 distinct intent_hash 调用 <code>maybeUpdateVerdict(threshold=3)</code>。</p>
+
+<p><input type="checkbox" disabled /> <span class="step-label">Step 3: 验证</span></p>
+
+<pre><code>npx tsx scripts/cold-start.ts
+<span class="cm"># 检查 SQLite 中 sessions 和 verdicts 数据</span></code></pre>
+
+<p><input type="checkbox" disabled /> <span class="step-label">Step 4: Commit</span></p>
+
+<pre><code>git add scripts/cold-start.ts
+git commit -m "feat(p1): cold-start script — test set batch run + verdict bootstrap"</code></pre>
+</div>
+
+<hr />
+
+<!-- Task 5.3 -->
+<div class="task-card">
+<h3 id="task-5-3">Task 5.3: Feedback API + UI</h3>
+
+<p class="files-line"><strong>Files:</strong></p>
+<ul>
+<li>Create: <code>app/api/feedback/route.ts</code></li>
+<li>Modify: <code>app/components/ChatMessage.tsx</code>, <code>app/page.tsx</code></li>
+</ul>
+
+<p><input type="checkbox" disabled /> <span class="step-label">Step 1: 实现 POST /api/feedback</span></p>
+
+<p>接收 <code>{ sessionId, feedback: 'up' | 'down' }</code>，调用 storage.updateSessionFeedback()。</p>
+
+<p><input type="checkbox" disabled /> <span class="step-label">Step 2: ChatMessage 加 Thumbs Up/Down 按钮</span></p>
+
+<p>在助手消息底部加两个小按钮，点击调用 /api/feedback。</p>
+
+<p><input type="checkbox" disabled /> <span class="step-label">Step 3: page.tsx 传递 sessionId</span></p>
+
+<p>API 返回 trace.traceId 作为 sessionId 标识，前端存储并传给 ChatMessage。</p>
+
+<p><input type="checkbox" disabled /> <span class="step-label">Step 4: Commit</span></p>
+
+<pre><code>git add app/
+git commit -m "feat(p1): Thumbs Up/Down feedback — API + UI buttons"</code></pre>
+</div>
+
+<hr />
+
+<!-- ============================================================ -->
+<!-- Task Group 6: Grounding 标注                                   -->
+<!-- ============================================================ -->
+
+<h2 id="task-group-6">Task Group 6: Grounding 标注</h2>
+
+<!-- Task 6.1 -->
+<div class="task-card">
+<h3 id="task-6-1">Task 6.1: Sources 收集 + 展示</h3>
+
+<p class="files-line"><strong>Files:</strong></p>
+<ul>
+<li>Modify: <code>lib/brain/result-presenter.ts</code></li>
+<li>Modify: <code>app/components/ChatMessage.tsx</code></li>
+</ul>
+
+<p><input type="checkbox" disabled /> <span class="step-label">Step 1: result-presenter 加 sources 参数</span></p>
+
+<p><code>buildStructuredResult()</code> 加 <code>sources</code> 参数。</p>
+
+<p><input type="checkbox" disabled /> <span class="step-label">Step 2: ChatMessage 展示数据来源</span></p>
+
+<p>在消息底部加灰色小字："数据来源：EAM 系统总览、故障报修记录"。</p>
+
+<p><input type="checkbox" disabled /> <span class="step-label">Step 3: Commit</span></p>
+
+<pre><code>git add lib/brain/result-presenter.ts app/components/
+git commit -m "feat(p1): Grounding — data source attribution in responses"</code></pre>
+</div>
+
+<hr />
+
+<!-- ============================================================ -->
+<!-- Task Group 7: 端到端集成 + 验收                                -->
+<!-- ============================================================ -->
+
+<h2 id="task-group-7">Task Group 7: 端到端集成 + 验收</h2>
+
+<!-- Task 7.1 -->
+<div class="task-card">
+<h3 id="task-7-1">Task 7.1: 全链路集成测试</h3>
+
+<p class="files-line"><strong>Files:</strong></p>
+<ul>
+<li>Modify: <code>tests/e2e/chat-flow.test.ts</code></li>
+</ul>
+
+<p><input type="checkbox" disabled /> <span class="step-label">Step 1: 更新 e2e 测试</span></p>
+
+<p>验证 ReAct 循环、trace 返回、confidence 真实计算、sources 存在、validator 工作。</p>
+
+<p><input type="checkbox" disabled /> <span class="step-label">Step 2: 运行全部测试</span></p>
+
+<pre><code>npx vitest run</code></pre>
+
+<p><input type="checkbox" disabled /> <span class="step-label">Step 3: Commit</span></p>
+
+<pre><code>git add tests/
+git commit -m "feat(p1): e2e tests updated for ReAct + trace + confidence + grounding"</code></pre>
+</div>
+
+<hr />
+
+<!-- Task 7.2 -->
+<div class="task-card">
+<h3 id="task-7-2">Task 7.2: 40 题批跑验收</h3>
+
+<p class="files-line"><strong>Files:</strong></p>
+<ul>
+<li>Create: <code>scripts/benchmark.ts</code></li>
+</ul>
+
+<p><input type="checkbox" disabled /> <span class="step-label">Step 1: 实现 benchmark 脚本</span></p>
+
+<p>跑 40 题测试集，收集每题的 trace，统计：准确率、平均轮次、平均延迟、置信度分布、错误率。</p>
+
+<p><input type="checkbox" disabled /> <span class="step-label">Step 2: 运行验收</span></p>
+
+<pre><code>npx tsx scripts/benchmark.ts</code></pre>
+
+<p>验证成功标准：</p>
+<ul>
+<li>ReAct L4/L5 准确率 &ge;92%</li>
+<li>错误回答率 &le;3%</li>
+<li>100% 查询有完整 trace</li>
+<li>100% 回答有 sources</li>
+</ul>
+
+<p><input type="checkbox" disabled /> <span class="step-label">Step 3: Commit</span></p>
+
+<pre><code>git add scripts/benchmark.ts
+git commit -m "feat(p1): benchmark script — 40-question acceptance test"</code></pre>
+</div>
+
+<hr />
+
+<!-- Task 7.3 -->
+<div class="task-card">
+<h3 id="task-7-3">Task 7.3: 冷启动 + verdict 验证</h3>
+
+<p><input type="checkbox" disabled /> <span class="step-label">Step 1: 运行冷启动</span></p>
+
+<pre><code>npx tsx scripts/cold-start.ts</code></pre>
+
+<p><input type="checkbox" disabled /> <span class="step-label">Step 2: 重跑 benchmark</span></p>
+
+<pre><code>npx tsx scripts/benchmark.ts</code></pre>
+
+<p><input type="checkbox" disabled /> <span class="step-label">Step 3: 对比准确率提升是否 &ge;2pp</span></p>
+
+<p><input type="checkbox" disabled /> <span class="step-label">Step 4: Final Commit</span></p>
+
+<pre><code>git commit -m "feat(p1): P1 complete — ReAct Agent + verdict + confidence + validation + grounding + trace"</code></pre>
+</div>
+
+<hr />
+
+<!-- ============================================================ -->
+<!-- Task Summary                                                   -->
+<!-- ============================================================ -->
+
+<h2 id="task-summary">Task Summary</h2>
+
+<table>
+<thead>
+<tr>
+<th>Group</th>
+<th>Tasks</th>
+<th>核心产出</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>1. 类型+Trace</strong></td>
+<td>1.1-1.4</td>
+<td>新类型 + nl_traces 表 + TraceCollector + TracePanel</td>
+</tr>
+<tr>
+<td><strong>2. ReAct Agent</strong></td>
+<td>2.1-2.6</td>
+<td>Prompt 模板 + think() + prompt-assembler + ReAct 循环 + 错误处理 + API 集成</td>
+</tr>
+<tr>
+<td><strong>3. 置信度+意图</strong></td>
+<td>3.1-3.2</td>
+<td>真实意图提取 + 三信号真实计算</td>
+</tr>
+<tr>
+<td><strong>4. 结果自验证</strong></td>
+<td>4.1</td>
+<td>数值/空结果/日期校验</td>
+</tr>
+<tr>
+<td><strong>5. 自学习 verdict</strong></td>
+<td>5.1-5.3</td>
+<td>verdict 引擎 + 冷启动 + Thumbs Up/Down</td>
+</tr>
+<tr>
+<td><strong>6. Grounding</strong></td>
+<td>6.1</td>
+<td>Sources 收集 + 前端展示</td>
+</tr>
+<tr>
+<td><strong>7. 集成验收</strong></td>
+<td>7.1-7.3</td>
+<td>e2e 测试 + benchmark（含延迟阈值验证）+ 冷启动验证</td>
+</tr>
+</tbody>
+</table>
+
+<p><strong>Total: 17 个 Task，约 65 个 Step。</strong></p>
+
+</div>
+</body>
+</html>
