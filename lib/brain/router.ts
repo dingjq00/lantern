@@ -65,22 +65,22 @@ export async function processQuery(
     // think
     const thinkResult = await llm.think(messages)
 
-    // 首轮提取 intent
-    if (round === 0 && thinkResult.intent) {
-      intent = {
-        ...thinkResult.intent,
-        intentHash: computeIntentHash(thinkResult.intent.domains, thinkResult.intent.operation, thinkResult.intent.filters),
+    // 首轮提取 intent（可选——LLM 可能返回也可能不返回）
+    if (round === 0) {
+      if (thinkResult.intent) {
+        intent = {
+          ...thinkResult.intent,
+          intentHash: computeIntentHash(thinkResult.intent.domains, thinkResult.intent.operation, thinkResult.intent.filters),
+        }
+        trace.setIntent(intent)
+        verdict = storage.getVerdict(tenantId, intent.intentHash)
+        trace.setVerdict(verdict)
       }
-      clarity = thinkResult.clarity ?? 'medium'
-      trace.setIntent(intent)
-
-      // 用真正的 intent_hash 查 verdict
-      verdict = storage.getVerdict(tenantId, intent.intentHash)
-      trace.setVerdict(verdict)
+      clarity = thinkResult.clarity ?? 'high'  // 默认 high，不惩罚没返回 clarity 的情况
     }
 
-    // 超纲
-    if (thinkResult.unsupported || (thinkResult.finish && (!thinkResult.calls || thinkResult.calls.length === 0) && round === 0)) {
+    // 超纲——只在 LLM 显式声明 unsupported 时才判定，不因为"首轮没选工具"就放弃
+    if (thinkResult.unsupported) {
       trace.startRound(round, thinkResult.thought)
       trace.endRound('超纲或无法处理')
       const signals: ConfidenceSignals = { toolMatch: 'low', verdictConfidence: 'low', queryClarity: clarity }
