@@ -3,7 +3,7 @@ import Database from 'better-sqlite3'
 import path from 'path'
 import fs from 'fs'
 import type { StorageInterface } from './types'
-import type { MemorySession, MemoryVerdict, MemoryPreference, ExecutionTrace, Lesson } from '@/lib/types'
+import type { MemorySession, MemoryVerdict, MemoryPreference, ExecutionTrace, Lesson, BenchmarkRun, BenchmarkRunSummary } from '@/lib/types'
 
 export class SQLiteStorage implements StorageInterface {
   private db: Database.Database
@@ -208,6 +208,56 @@ export class SQLiteStorage implements StorageInterface {
       source: row.source as Lesson['source'],
       createdAt: new Date(row.created_at as string),
     }))
+  }
+
+  // --- Benchmark 追踪 ---
+
+  saveBenchmarkRun(run: BenchmarkRun): void {
+    const stmt = this.db.prepare(`
+      INSERT OR REPLACE INTO benchmark_runs (run_id, timestamp, config, summary, results, notes, created_at)
+      VALUES (@runId, @timestamp, @config, @summary, @results, @notes, @createdAt)
+    `)
+    stmt.run({
+      runId: run.runId,
+      timestamp: run.timestamp,
+      config: JSON.stringify(run.config),
+      summary: JSON.stringify(run.summary),
+      results: JSON.stringify(run.results),
+      notes: run.config.notes ?? null,
+      createdAt: new Date().toISOString(),
+    })
+  }
+
+  getBenchmarkRuns(): BenchmarkRunSummary[] {
+    const stmt = this.db.prepare(`SELECT run_id, timestamp, config, summary, notes FROM benchmark_runs ORDER BY timestamp DESC`)
+    const rows = stmt.all() as Record<string, unknown>[]
+    return rows.map(row => {
+      const config = JSON.parse(row.config as string)
+      const summary = JSON.parse(row.summary as string)
+      return {
+        runId: row.run_id as string,
+        timestamp: row.timestamp as string,
+        model: config.model,
+        totalQuestions: summary.total,
+        recall: summary.recall,
+        precision: summary.precision,
+        perfectCount: summary.perfectCount,
+        notes: row.notes as string | undefined,
+      }
+    })
+  }
+
+  getBenchmarkRun(runId: string): BenchmarkRun | null {
+    const stmt = this.db.prepare(`SELECT * FROM benchmark_runs WHERE run_id = ?`)
+    const row = stmt.get(runId) as Record<string, unknown> | undefined
+    if (!row) return null
+    return {
+      runId: row.run_id as string,
+      timestamp: row.timestamp as string,
+      config: JSON.parse(row.config as string),
+      summary: JSON.parse(row.summary as string),
+      results: JSON.parse(row.results as string),
+    }
   }
 
   close(): void {

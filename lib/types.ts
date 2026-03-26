@@ -275,3 +275,59 @@ export interface Lesson {
   source: 'self_eval' | 'user_feedback'
   createdAt: Date
 }
+
+// ============================================================
+// Benchmark 追踪
+// ============================================================
+
+export interface BenchmarkResult {
+  id: string
+  query: string
+  level: string
+  success: boolean
+  actualTools: string[]
+  expectedTools: string[]
+  recall: number
+  precision: number
+  rounds: number
+  latencyMs: number
+  confidence: string
+  hasSources: boolean
+  answer: string
+  trace?: ExecutionTrace
+}
+
+export interface BenchmarkRunSummary {
+  runId: string
+  timestamp: string
+  model: string
+  totalQuestions: number
+  recall: number
+  precision: number
+  perfectCount: number
+  notes?: string
+}
+
+export interface BenchmarkRun {
+  runId: string
+  timestamp: string
+  config: {
+    model: string
+    maxChaseRounds: number
+    escalationModel: string
+    promptVersion: string
+    notes?: string
+  }
+  summary: {
+    total: number
+    success: number
+    recall: number
+    precision: number
+    perfectCount: number
+    byLevel: Record<string, { recall: number; perfect: number; count: number; avgLatency: number; avgRounds: number }>
+    sourcesCoverage: number
+    latencyP50: number
+    latencyP95: number
+  }
+  results: BenchmarkResult[]
+}

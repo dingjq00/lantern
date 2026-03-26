@@ -251,6 +251,45 @@ async function main() {
   const latencies = successful.map(r => r.latencyMs).sort((a, b) => a - b)
   console.log(`延迟 P50: ${latencies[Math.floor(latencies.length * 0.5)]}ms P95: ${latencies[Math.floor(latencies.length * 0.95)]}ms`)
 
+  // ======== 保存到 DB ========
+  const runId = `run-${new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19)}`
+  const benchmarkRun = {
+    runId,
+    timestamp: new Date().toISOString(),
+    config: {
+      model: process.env.LLM_MODEL || 'gpt-5.4-mini',
+      maxChaseRounds: 2,
+      escalationModel: process.env.LLM_ESCALATION_MODEL || 'gpt-5.4',
+      promptVersion: 'v2-5step-template',
+      notes: process.argv[2] || undefined,  // npx tsx benchmark.ts "备注"
+    },
+    summary: {
+      total: results.length,
+      success: successful.length,
+      recall: avgRecall,
+      precision: avgPrecision,
+      perfectCount: perfectRecall,
+      byLevel: Object.fromEntries([...byLevel.entries()].map(([level, items]) => {
+        const succ = items.filter(r => r.success)
+        return [level, {
+          recall: succ.length ? succ.reduce((s, r) => s + r.recall, 0) / succ.length : 0,
+          perfect: succ.filter(r => r.recall === 1).length,
+          count: items.length,
+          avgLatency: succ.length ? Math.round(succ.reduce((s, r) => s + r.latencyMs, 0) / succ.length) : 0,
+          avgRounds: succ.length ? parseFloat((succ.reduce((s, r) => s + r.rounds, 0) / succ.length).toFixed(1)) : 0,
+        }]
+      })),
+      sourcesCoverage: withSources / successful.length,
+      latencyP50: latencies[Math.floor(latencies.length * 0.5)],
+      latencyP95: latencies[Math.floor(latencies.length * 0.95)],
+    },
+    results: results.map(r => ({ ...r, trace: r.trace })),
+  }
+  try {
+    storage.saveBenchmarkRun(benchmarkRun as any)
+    console.log(`\n运行记录已保存: ${runId}`)
+  } catch (e) { console.log(`保存失败: ${(e as Error).message}`) }
+
   storage.close()
 
   // ======== HTML 报告 ========

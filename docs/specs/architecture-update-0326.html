@@ -1,0 +1,1386 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Insight68 NL-API Platform — 架构更新 2026-03-26</title>
+<style>
+  :root {
+    --blue: #1F3864;
+    --blue-light: #4472C4;
+    --blue-bg: #E8EFF8;
+    --blue-50: #EFF6FF;
+    --blue-100: #DBEAFE;
+    --blue-200: #BFDBFE;
+    --blue-500: #3B82F6;
+    --blue-600: #2563EB;
+    --blue-700: #1D4ED8;
+    --blue-800: #1E40AF;
+    --blue-900: #1E3A5F;
+    --gray-50: #F9FAFB;
+    --gray-100: #F3F4F6;
+    --gray-200: #E5E7EB;
+    --gray-300: #D1D5DB;
+    --gray-500: #6B7280;
+    --gray-600: #4B5563;
+    --gray-700: #374151;
+    --gray-800: #1F2937;
+    --green-50: #F0FDF4;
+    --green-100: #DCFCE7;
+    --green-600: #16A34A;
+    --green-700: #15803D;
+    --amber-50: #FFFBEB;
+    --amber-100: #FEF3C7;
+    --amber-600: #D97706;
+    --red-50: #FEF2F2;
+    --red-100: #FEE2E2;
+    --red-600: #DC2626;
+    --red-700: #B91C1C;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+    font-size: 15px;
+    line-height: 1.75;
+    color: var(--gray-800);
+    background: var(--gray-50);
+    padding: 0;
+  }
+
+  .container {
+    max-width: 1000px;
+    margin: 0 auto;
+    padding: 40px 48px;
+    background: white;
+    min-height: 100vh;
+    box-shadow: 0 0 40px rgba(0,0,0,0.05);
+  }
+
+  /* Header */
+  h1 {
+    font-size: 28px;
+    font-weight: 700;
+    color: var(--blue);
+    border-bottom: 3px solid var(--blue-light);
+    padding-bottom: 16px;
+    margin-bottom: 8px;
+  }
+
+  .subtitle {
+    color: var(--gray-500);
+    font-size: 16px;
+    font-style: italic;
+    margin-bottom: 40px;
+  }
+
+  h2 {
+    font-size: 22px;
+    font-weight: 600;
+    color: var(--blue);
+    margin-top: 48px;
+    margin-bottom: 20px;
+    padding-bottom: 8px;
+    border-bottom: 2px solid var(--blue-bg);
+  }
+
+  h3 {
+    font-size: 17px;
+    font-weight: 600;
+    color: var(--blue);
+    margin-top: 32px;
+    margin-bottom: 12px;
+  }
+
+  h4 {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--gray-700);
+    margin-top: 24px;
+    margin-bottom: 8px;
+  }
+
+  /* Paragraphs */
+  p {
+    margin-bottom: 14px;
+    color: var(--gray-700);
+  }
+
+  strong {
+    color: var(--gray-800);
+    font-weight: 600;
+  }
+
+  /* Blockquotes */
+  blockquote {
+    border-left: 4px solid var(--blue-light);
+    background: var(--blue-bg);
+    padding: 12px 20px;
+    margin: 16px 0;
+    border-radius: 0 8px 8px 0;
+  }
+  blockquote p { color: var(--gray-600); margin: 0; }
+
+  /* Code blocks */
+  pre {
+    background: var(--gray-800);
+    color: #E5E7EB;
+    padding: 20px 24px;
+    border-radius: 8px;
+    overflow-x: auto;
+    margin: 16px 0;
+    font-family: "JetBrains Mono", "Fira Code", "SF Mono", Menlo, monospace;
+    font-size: 13px;
+    line-height: 1.6;
+    white-space: pre;
+  }
+
+  code {
+    font-family: "JetBrains Mono", "Fira Code", "SF Mono", Menlo, monospace;
+    font-size: 13px;
+  }
+
+  p code, li code, td code {
+    background: var(--blue-bg);
+    color: var(--blue);
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 13px;
+  }
+
+  /* Tables */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 16px 0;
+    font-size: 14px;
+  }
+
+  thead th {
+    background: var(--blue);
+    color: white;
+    font-weight: 600;
+    text-align: left;
+    padding: 10px 14px;
+    font-size: 13px;
+    text-transform: none;
+    letter-spacing: 0;
+  }
+
+  thead th:first-child { border-radius: 6px 0 0 0; }
+  thead th:last-child { border-radius: 0 6px 0 0; }
+
+  tbody td {
+    padding: 9px 14px;
+    border-bottom: 1px solid var(--gray-200);
+    vertical-align: top;
+  }
+
+  tbody tr:nth-child(even) { background: var(--gray-50); }
+  tbody tr:hover { background: var(--blue-50); }
+
+  /* Lists */
+  ul, ol {
+    margin: 8px 0 14px 24px;
+    color: var(--gray-700);
+  }
+
+  li {
+    margin-bottom: 6px;
+    padding-left: 4px;
+  }
+
+  li ul, li ol {
+    margin: 4px 0 4px 20px;
+  }
+
+  /* Horizontal rules */
+  hr {
+    border: none;
+    height: 1px;
+    background: var(--gray-200);
+    margin: 40px 0;
+  }
+
+  /* Status badges */
+  .badge {
+    display: inline-block;
+    padding: 2px 10px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+  }
+  .badge-green { background: var(--green-100); color: var(--green-700); }
+  .badge-amber { background: var(--amber-100); color: var(--amber-600); }
+  .badge-red { background: var(--red-100); color: var(--red-700); }
+  .badge-blue { background: var(--blue-100); color: var(--blue-700); }
+
+  /* Callout boxes */
+  .callout {
+    padding: 16px 20px;
+    border-radius: 8px;
+    margin: 16px 0;
+    border: 1px solid;
+  }
+  .callout-info {
+    background: var(--blue-50);
+    border-color: var(--blue-200);
+    color: var(--blue-800);
+  }
+  .callout-success {
+    background: var(--green-50);
+    border-color: var(--green-100);
+    color: var(--green-600);
+  }
+  .callout-warning {
+    background: var(--amber-50);
+    border-color: var(--amber-100);
+    color: var(--amber-600);
+  }
+  .callout-danger {
+    background: var(--red-50);
+    border-color: var(--red-100);
+    color: var(--red-600);
+  }
+  .callout p { color: inherit; margin: 0; }
+  .callout strong { color: inherit; }
+
+  /* Flow diagram container */
+  .flow-diagram {
+    background: var(--gray-50);
+    border: 1px solid var(--gray-200);
+    border-radius: 8px;
+    padding: 24px;
+    margin: 16px 0;
+    overflow-x: auto;
+  }
+  .flow-diagram pre {
+    background: none;
+    color: var(--gray-700);
+    padding: 0;
+    margin: 0;
+    font-size: 13px;
+    line-height: 1.5;
+  }
+
+  /* Comparison boxes */
+  .compare-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin: 16px 0;
+  }
+  .compare-box {
+    padding: 16px 20px;
+    border-radius: 8px;
+    border: 1px solid;
+  }
+  .compare-before {
+    background: var(--red-50);
+    border-color: var(--red-100);
+  }
+  .compare-after {
+    background: var(--green-50);
+    border-color: var(--green-100);
+  }
+  .compare-box h4 {
+    margin-top: 0;
+    margin-bottom: 8px;
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .compare-before h4 { color: var(--red-600); }
+  .compare-after h4 { color: var(--green-600); }
+  .compare-box p { margin: 0; font-size: 14px; }
+
+  /* Principle cards */
+  .principle-card {
+    background: white;
+    border: 1px solid var(--gray-200);
+    border-left: 4px solid var(--blue-light);
+    border-radius: 0 8px 8px 0;
+    padding: 16px 20px;
+    margin: 12px 0;
+  }
+  .principle-card .principle-num {
+    font-size: 12px;
+    color: var(--blue-light);
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 4px;
+  }
+  .principle-card .principle-title {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--blue);
+    margin-bottom: 6px;
+  }
+  .principle-card p {
+    font-size: 14px;
+    color: var(--gray-600);
+    margin: 0;
+  }
+
+  /* TOC */
+  .toc {
+    background: var(--blue-bg);
+    border-radius: 8px;
+    padding: 20px 28px;
+    margin: 24px 0 40px 0;
+  }
+  .toc h3 {
+    margin-top: 0;
+    font-size: 15px;
+    color: var(--blue);
+  }
+  .toc ol { margin: 8px 0 0 20px; }
+  .toc li { margin-bottom: 4px; font-size: 14px; }
+  .toc a { color: var(--blue-light); text-decoration: none; }
+  .toc a:hover { text-decoration: underline; }
+
+  /* Roadmap timeline */
+  .roadmap-item {
+    display: grid;
+    grid-template-columns: 100px 1fr;
+    gap: 16px;
+    margin: 12px 0;
+    padding: 12px 0;
+    border-bottom: 1px solid var(--gray-100);
+  }
+  .roadmap-item:last-child { border-bottom: none; }
+  .roadmap-phase {
+    font-weight: 700;
+    font-size: 14px;
+  }
+
+  /* Signal flow */
+  .signal-flow {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin: 12px 0;
+    font-size: 14px;
+    color: var(--gray-600);
+  }
+  .signal-flow .arrow {
+    color: var(--blue-light);
+    font-weight: 700;
+  }
+  .signal-flow .node {
+    background: white;
+    border: 1px solid var(--gray-300);
+    border-radius: 6px;
+    padding: 4px 12px;
+    font-size: 13px;
+  }
+  .signal-flow .node-highlight {
+    background: var(--blue-bg);
+    border-color: var(--blue-light);
+    color: var(--blue);
+    font-weight: 600;
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+<h1>Insight68 NL-API Platform -- Architecture Update</h1>
+<p class="subtitle">P1 完成后的架构回顾、设计变更记录、原则沉淀与下一步规划 -- 2026-03-26</p>
+
+<div class="toc">
+  <h3>目录</h3>
+  <ol>
+    <li><a href="#part1">Part 1: 当前架构（实际实现）</a></li>
+    <li><a href="#part2">Part 2: 与原始设计的差异</a></li>
+    <li><a href="#part3">Part 3: 架构原则（今天确立的）</a></li>
+    <li><a href="#part4">Part 4: 自学习路线图（下一阶段）</a></li>
+    <li><a href="#part5">Part 5: 整体路线图更新</a></li>
+  </ol>
+</div>
+
+<div class="callout callout-success">
+  <p><strong>P1 最终成果：</strong>通用架构（零查找表）下 Recall 90.6% -- L1 100% / L2 95% / L3 83% / L4 82% / L5 86%。组合：5 步模板 + 级联(mini/5.4) + 参数引用 {{N.path}} + 三步 think + 通用 guide。</p>
+</div>
+
+<hr>
+
+<!-- ===================== PART 1 ===================== -->
+
+<h2 id="part1">Part 1: 当前架构（实际实现）</h2>
+
+<p>以下是 P1 完成后 <strong>正在运行的架构</strong>，不是设计文档，是代码实现。</p>
+
+<h3>1.1 四层架构总览</h3>
+
+<div class="flow-diagram">
+<pre>
++---------------------------------------------------+
+|               接入层 (Gateway)                      |
+|         Web UI  |  REST API  |  (未来多端)          |
++---------------------------------------------------+
+                    |
++---------------------------------------------------+
+|               智能层 (Brain)                        |
+|  Prompt 组装 | ReAct 循环 | 级联策略 | 置信度       |
+|  Trace 收集 | Session/Verdict 读写 | 结果呈现       |
++---------------------------------------------------+
+                    |
++---------------------------------------------------+
+|           工具层 (Tool Registry)                    |
+|  22 个 YAML 声明 | 全量注入(无匹配裁剪)            |
+|  MCP Client 执行 | 错误 Level 1-4                 |
++---------------------------------------------------+
+                    | MCP 协议 (stdio)
++---------------------------------------------------+
+|           数据层 (EAM MCP Server)                   |
+|  22 个 Mock Handler | SQLite 平台存储              |
++---------------------------------------------------+
+</pre>
+</div>
+
+<h3>1.2 完整执行流（5 步模板 + 参数引用 + 三步 think + 级联 + 总结）</h3>
+
+<p>这是每个用户查询从输入到输出的 <strong>完整路径</strong>，对应 <code>lib/brain/router.ts</code> 的 <code>processQuery()</code> 函数。</p>
+
+<div class="flow-diagram">
+<pre>
+用户查询
+  |
+  v
++-- Prompt 组装 (prompt-assembler.ts) ---------------------------+
+|                                                                 |
+|  base-instructions.md  -- 规则 + 时间映射 + 参数说明             |
+|  + 系统上下文           -- 从工具 YAML 推断 (EAM, 6 域, 22 工具) |
+|  + react-instructions.md -- 5 步模板 + 参数引用 + 输出格式       |
+|  + 工具描述             -- 标准 MCP 格式 (name + desc + params)  |
+|  + tool-selection-guide.md -- 通用方法论 (无 EAM 特有内容)       |
+|  + few-shot-examples.json  -- 4 个编排示例 (ReAct 格式)         |
+|  + (可选) verdict 推荐路径                                       |
+|  + (可选) 用户上下文 (对话历史)                                   |
+|                                                                 |
++-----------------------------------------------------------------+
+  |
+  | messages = [system: prompt, user: query]
+  v
++-- ReAct 循环 (router.ts, 最多 3 次 think) ---------------------+
+|                                                                 |
+|  think-1 (规划): LLM 按 5 步模板推理                             |
+|    [意图] -> [候选] -> [审查] -> [规划] -> [验证]                 |
+|    输出: { thought, intent, clarity, calls: [...] }             |
+|                                                                 |
+|    * 如果 unsupported 或无 calls -> 级联升级到 gpt-5.4           |
+|    * 级联也失败 -> 真正超纲，返回反问选项                         |
+|                                                                 |
+|  执行 calls (按序, 支持 {{N.path}} 参数引用):                    |
+|    call[0] 执行 -> 解析 {{0.xxx}} -> call[1] 执行 -> ...        |
+|    每个 call 记录到 trace                                        |
+|                                                                 |
+|  观察注入 (Reflexion 式事实对比):                                 |
+|    "用户问: X, 已获得字段: Y, 按 5 步模板继续推理"               |
+|                                                                 |
+|  think-2 (审查): LLM 看到结果后判断                              |
+|    覆盖 -> { finish: true }                                     |
+|    不覆盖 -> { calls: [补充工具] } -> 执行 -> 注入观察           |
+|                                                                 |
+|  think-3 (finish, 仅复杂题需要):                                 |
+|    { finish: true }                                             |
+|                                                                 |
++-----------------------------------------------------------------+
+  |
+  v
++-- 置信度计算 (confidence.ts) ----------------------------------+
+|  toolMatch: high (默认, P1 未启用 matchScore)                   |
+|  verdictConfidence: 从 verdict 表 sampleCount 计算              |
+|  queryClarity: 从 LLM clarity 输出映射                          |
+|  融合: 3 high -> high / 任一 low -> low / 其余 medium           |
++-----------------------------------------------------------------+
+  |
+  v
++-- LLM 总结 (codex-proxy.ts summarize) -------------------------+
+|  输入: 合并的工具数据 + 用户原始问题 + 展示格式提示              |
+|  反编造规则: "只能基于提供的数据, 宁可说数据不足也不编造"         |
+|  输出: { answer, display, columns, followUp }                   |
++-----------------------------------------------------------------+
+  |
+  v
++-- 写入存储 (异步) ---------------------------------------------+
+|  session -> nl_memory_sessions                                  |
+|  trace   -> nl_traces                                           |
+|  lesson  -> 由外部信号触发 (不做 AI 自评)                        |
++-----------------------------------------------------------------+
+  |
+  v
+返回 StructuredResult { answer, data, display, confidence, sources, trace }
+</pre>
+</div>
+
+<h3>1.3 Prompt 文件与角色</h3>
+
+<table>
+  <thead>
+    <tr>
+      <th>文件</th>
+      <th>角色</th>
+      <th>关键内容</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>prompts/base-instructions.md</code></td>
+      <td>基础规则</td>
+      <td>只用清单中的工具、允许多步编排、参数支持业务编号、时间映射规则、"表达意图不展开循环"</td>
+    </tr>
+    <tr>
+      <td><code>prompts/react-instructions.md</code></td>
+      <td>ReAct 推理模板</td>
+      <td><strong>5 步结构化模板</strong>: [意图] [候选] [审查] [规划] [验证]。参数引用语法 <code>{{N.path}}</code>。首轮/审查轮/finish 三种 JSON 输出格式。域覆盖 + 数据覆盖双检查</td>
+    </tr>
+    <tr>
+      <td><code>prompts/tool-selection-guide.md</code></td>
+      <td>通用工具选择方法论</td>
+      <td>5 步方法: 理解上下文 -> 分析意图 -> 选工具 -> 拿到数据自己分析 -> 注意事项。<strong>零 EAM 特有内容</strong>，纯方法论</td>
+    </tr>
+    <tr>
+      <td><code>prompts/few-shot-examples.json</code></td>
+      <td>ReAct 编排示例</td>
+      <td>4 个示例覆盖: 单工具直查、依赖引用({{0.xxx}})、并行查询、多轮追查。全部使用 5 步模板格式</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3>1.4 Router 级联策略</h3>
+
+<p>级联(escalation)是 P1 最大的准确率贡献者（+16pp），实现在 <code>router.ts</code> 中：</p>
+
+<div class="flow-diagram">
+<pre>
+think-1 (gpt-5.4-mini)
+  |
+  +-- 有 calls -> 正常执行
+  |
+  +-- unsupported 或 无 calls
+        |
+        v
+      think-1-retry (gpt-5.4, 强模型)
+        |
+        +-- 有 calls -> 用强模型结果继续
+        |
+        +-- 仍然 unsupported -> 确认超纲，返回反问选项
+</pre>
+</div>
+
+<p>级联只在首轮触发，不在审查轮触发。强模型用于兜底 mini 搞不定的复杂题，不影响简单题的速度和成本。</p>
+
+<h3>1.5 Benchmark 结果</h3>
+
+<div class="callout callout-info">
+  <p><strong>测试条件：</strong>40 题测试集（L1-L5 五级难度），通用架构（零 EAM 查找表），gpt-5.4-mini + gpt-5.4 级联。Ground Truth 经过审查修正（8 题 GT 修正 + 6 组等效路径）。</p>
+</div>
+
+<table>
+  <thead>
+    <tr>
+      <th>难度</th>
+      <th>题数</th>
+      <th>Recall</th>
+      <th>说明</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>L1 (单工具直查)</td>
+      <td>10</td>
+      <td><span class="badge badge-green">100%</span></td>
+      <td>全对</td>
+    </tr>
+    <tr>
+      <td>L2 (有筛选条件)</td>
+      <td>10</td>
+      <td><span class="badge badge-green">95%</span></td>
+      <td>1 题参数错误</td>
+    </tr>
+    <tr>
+      <td>L3 (跨工具依赖)</td>
+      <td>6</td>
+      <td><span class="badge badge-amber">83%</span></td>
+      <td>1 题遗漏一步</td>
+    </tr>
+    <tr>
+      <td>L4 (跨域组合)</td>
+      <td>7</td>
+      <td><span class="badge badge-amber">82%</span></td>
+      <td>复杂域组合偶尔遗漏</td>
+    </tr>
+    <tr>
+      <td>L5 (分析推理)</td>
+      <td>7</td>
+      <td><span class="badge badge-amber">86%</span></td>
+      <td>需要 AI 分析能力的题表现好</td>
+    </tr>
+    <tr>
+      <td><strong>总计</strong></td>
+      <td><strong>40</strong></td>
+      <td><strong><span class="badge badge-green">90.6%</span></strong></td>
+      <td></td>
+    </tr>
+  </tbody>
+</table>
+
+<h3>1.6 核心代码文件</h3>
+
+<table>
+  <thead>
+    <tr>
+      <th>文件</th>
+      <th>职责</th>
+      <th>关键逻辑</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>lib/brain/router.ts</code></td>
+      <td>主编排器</td>
+      <td>ReAct 循环 + 级联 + 参数引用解析 + session/trace 写入</td>
+    </tr>
+    <tr>
+      <td><code>lib/brain/prompt-assembler.ts</code></td>
+      <td>Prompt 组装</td>
+      <td>6 段拼接: base + 系统上下文 + react + 工具描述 + guide + few-shot + (verdict/memory)</td>
+    </tr>
+    <tr>
+      <td><code>lib/llm/codex-proxy.ts</code></td>
+      <td>LLM Provider</td>
+      <td><code>think()</code> (ReAct 单轮推理, zod 校验), <code>summarize()</code> (反编造规则), <code>evaluate()</code></td>
+    </tr>
+    <tr>
+      <td><code>lib/brain/trace.ts</code></td>
+      <td>执行追踪</td>
+      <td>TraceCollector 收集每轮 thought/calls/observation，build() 输出完整 ExecutionTrace</td>
+    </tr>
+    <tr>
+      <td><code>lib/brain/confidence.ts</code></td>
+      <td>置信度融合</td>
+      <td>三信号: toolMatch + verdictConfidence + queryClarity，融合规则</td>
+    </tr>
+    <tr>
+      <td><code>lib/brain/verdict.ts</code></td>
+      <td>自学习引擎</td>
+      <td>maybeUpdateVerdict(): 达到阈值 -> LLM evaluate -> winner 计算 -> upsert verdict</td>
+    </tr>
+    <tr>
+      <td><code>lib/brain/intent.ts</code></td>
+      <td>意图 Hash</td>
+      <td>computeIntentHash(): domains+operation+filters -> SHA256 前 16 位</td>
+    </tr>
+    <tr>
+      <td><code>lib/brain/result-presenter.ts</code></td>
+      <td>结果呈现</td>
+      <td>detectDisplayFormat() + buildStructuredResult()</td>
+    </tr>
+  </tbody>
+</table>
+
+<hr>
+
+<!-- ===================== PART 2 ===================== -->
+
+<h2 id="part2">Part 2: 与原始设计的差异</h2>
+
+<p>P1 设计文档 (<code>docs/superpowers/specs/2026-03-26-p1-design.md</code>) 在编码和调优过程中经历了多次实质性变更。以下是每个变更点的"原始设计 vs 实际实现"对比。</p>
+
+<h3>2.1 ReAct: "每轮一个工具" --> 批量调用 + 参数引用</h3>
+
+<div class="compare-row">
+  <div class="compare-box compare-before">
+    <h4>原始设计</h4>
+    <p>标准 ReAct 循环: 每轮思考 -> 选一个工具 -> 执行 -> 观察 -> 下一轮。最多 3 轮追查（共 4 轮 think）。</p>
+  </div>
+  <div class="compare-box compare-after">
+    <h4>实际实现</h4>
+    <p>批量调用 + 参数引用: 首轮一次性规划完整链路（可多个工具），用 <code>{{N.path}}</code> 表达依赖关系。三步 think（规划 -> 审查放开 -> finish），简单题 2 次 think 就结束。</p>
+  </div>
+</div>
+
+<p><strong>为什么改：</strong>标准 ReAct 每轮只选一个工具，一个"设备EQ-001的维修记录"就要 3 轮 think（查设备 -> 拿 ID -> 查维修）。参数引用让有依赖的工具一轮全部规划完，router 按序执行并自动传参。Benchmark 显示追查轮过多有害（3 轮追查时 AI 重复调失败工具），1-2 轮就够。</p>
+
+<h3>2.2 自学习: Verdict Winner --> Lesson --> AI 自评无效 --> 外部信号</h3>
+
+<div class="compare-row">
+  <div class="compare-box compare-before">
+    <h4>原始设计</h4>
+    <p>verdict 系统: 同类查询累积 5 条 -> LLM evaluate -> 计算 winner 工具链 -> 下次注入推荐路径。Thumbs Up/Down 权重 x3。</p>
+  </div>
+  <div class="compare-box compare-after">
+    <h4>实际实现</h4>
+    <p>verdict 代码存在但 <strong>被证明无效</strong>: 60% 准确率下积累的 40% 是错误经验。AI 自评(lesson)也无效: 同一个脑子犯的错自评发现不了。当前状态: <strong>只存 session/trace，不做自动学习</strong>。注释写明"lesson 由外部信号触发"。</p>
+  </div>
+</div>
+
+<p><strong>演进路径：</strong></p>
+<ol>
+  <li>最初方案: verdict winner recording（记录哪个工具链最优）</li>
+  <li>发现问题: 60% 准确率下积累的是错误经验，越学越歪</li>
+  <li>替代方案: lesson 系统（记录错误教训而非正确答案）</li>
+  <li>实现了 AI 自评 generateLesson()，但发现循环论证 -- 同一个 LLM 犯错后自评也发现不了错误</li>
+  <li>结论: <strong>有效学习信号必须来自外部</strong>（用户反馈、结果质量检测、Ground Truth）</li>
+</ol>
+
+<div class="callout callout-warning">
+  <p><strong>dingjq 原话：</strong>"正确的积累，反而没有那么重要。" 从错误中学习比记录正确答案更有价值。</p>
+</div>
+
+<h3>2.3 Guide: EAM 查找表 --> 通用方法论</h3>
+
+<div class="compare-row">
+  <div class="compare-box compare-before">
+    <h4>原始设计 (EAM 查找表)</h4>
+    <p>tool-selection-guide.md 包含 EAM 域的查找表: "问到设备 -> 用 query_equipment"、"问到故障 -> 用 query_fault_reports"。Benchmark 88%。</p>
+  </div>
+  <div class="compare-box compare-after">
+    <h4>实际实现 (通用方法论)</h4>
+    <p>guide 零 EAM 特有内容: 5 步方法论（理解上下文 -> 分析意图 -> 选工具 -> 自己分析 -> 注意事项）。Benchmark 从 60% 经过级联+模板补回到 90.6%。</p>
+  </div>
+</div>
+
+<p><strong>为什么改：</strong>查找表 88% vs 通用 guide 60%，28pp 差距是"作弊分" -- 查找表里写的就是 Ground Truth 的答案，换个系统就全废了。通用方法论确保架构可迁移到任何企业系统。用级联(+16pp) + 5 步模板 + 参数引用补回了大部分差距。</p>
+
+<h3>2.4 工具描述: YAML 全量元数据 --> 标准 MCP 格式</h3>
+
+<div class="compare-row">
+  <div class="compare-box compare-before">
+    <h4>原始设计</h4>
+    <p>注入 YAML 的完整元数据: name, description, domains, operation, supports_filters, returns, feeds_into, depends_on, when_to_use, when_not_to_use, examples...</p>
+  </div>
+  <div class="compare-box compare-after">
+    <h4>实际实现</h4>
+    <p>标准 MCP 格式: <code>name + description + inputSchema.properties</code>。工具间链路关系写在 description 的自然语言中（"list 工具不含 X，需要本工具补全"），不用结构化的 feeds_into/depends_on。</p>
+  </div>
+</div>
+
+<p><strong>为什么改：</strong>LLM 理解自然语言描述比结构化标签更准确。把链路关系嵌入 description 比用 feeds_into 字段更直接。YAML 中的额外字段（domains, operation, supports_filters 等）仍然存在，用于未来 P2/P3 的向量预筛选和匹配算法，但当前 Prompt 中不注入。</p>
+
+<h3>2.5 Summarize: 增加反编造规则</h3>
+
+<div class="compare-row">
+  <div class="compare-box compare-before">
+    <h4>原始设计</h4>
+    <p>summarize 仅负责格式化: 把工具返回的数据转成自然语言回答 + 表格/图表。</p>
+  </div>
+  <div class="compare-box compare-after">
+    <h4>实际实现</h4>
+    <p>summarize system prompt 加入 <strong>严格反编造规则</strong>: "只能基于提供的数据回答，绝对不能编造数据中没有的数字、百分比或结论。宁可说数据不足也不能给出没有依据的数字。"</p>
+  </div>
+</div>
+
+<p><strong>为什么改：</strong>发现 LLM 会在总结时"发挥"，给出数据中不存在的百分比或对比结论。对企业系统来说，编造数据比说"不知道"严重得多。</p>
+
+<h3>2.6 变更汇总</h3>
+
+<table>
+  <thead>
+    <tr>
+      <th>维度</th>
+      <th>原始设计</th>
+      <th>实际实现</th>
+      <th>原因</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>ReAct 粒度</td>
+      <td>每轮一个工具，最多 4 轮</td>
+      <td>批量调用 + {{N.path}}，最多 3 次 think</td>
+      <td>减少 LLM 调用，追查过多有害</td>
+    </tr>
+    <tr>
+      <td>思考模板</td>
+      <td>自由 CoT</td>
+      <td>5 步结构化: 意图/候选/审查/规划/验证</td>
+      <td>自由 CoT 对工具选择不够甚至有害</td>
+    </tr>
+    <tr>
+      <td>观察注入</td>
+      <td>问"够不够"（是非判断）</td>
+      <td>Reflexion: "有什么字段/缺什么"（事实陈述）</td>
+      <td>是非判断让 AI 倾向结束，事实陈述更客观</td>
+    </tr>
+    <tr>
+      <td>自学习</td>
+      <td>Verdict winner + LLM evaluate</td>
+      <td>代码存在但无效，等外部信号</td>
+      <td>AI 自评是循环论证</td>
+    </tr>
+    <tr>
+      <td>Guide</td>
+      <td>EAM 查找表 (88%)</td>
+      <td>通用方法论 (90.6% with 级联)</td>
+      <td>查找表是作弊分，不可迁移</td>
+    </tr>
+    <tr>
+      <td>工具描述</td>
+      <td>YAML 全量元数据</td>
+      <td>标准 MCP: name + desc + params</td>
+      <td>自然语言链路关系更有效</td>
+    </tr>
+    <tr>
+      <td>级联策略</td>
+      <td>未设计</td>
+      <td>mini 失败 -> 5.4 重试（+16pp）</td>
+      <td>实验中发现的最大单一贡献</td>
+    </tr>
+    <tr>
+      <td>Summarize</td>
+      <td>纯格式化</td>
+      <td>加反编造规则</td>
+      <td>LLM 会编造不存在的数据</td>
+    </tr>
+  </tbody>
+</table>
+
+<hr>
+
+<!-- ===================== PART 3 ===================== -->
+
+<h2 id="part3">Part 3: 架构原则（今天确立的）</h2>
+
+<p>以下 7 条原则来自 2026-03-26 一整天的编码、benchmark、prompt 调优实验。不是理论猜测，是数据驱动的结论。</p>
+
+<div class="principle-card">
+  <div class="principle-num">Principle 1</div>
+  <div class="principle-title">MCP 是动作，AI 是能力</div>
+  <p>MCP 工具负责"获取数据"（确定性操作），AI 负责"分析数据"（计数、分组、排序、Top-N、对比）。聚合/统计是 AI 的分析能力，不做成 MCP 工具。这是分工的边界。</p>
+</div>
+
+<div class="principle-card">
+  <div class="principle-num">Principle 2</div>
+  <div class="principle-title">Guide 是方法论，YAML 是具象化</div>
+  <p>tool-selection-guide.md 零项目特有内容，纯方法论。YAML 声明文件包含项目相关的域/描述/参数。guide 可以跨项目复用，YAML 跟着具体系统走。查找表式 guide 虽然准确率高 (88%)，但 28pp 差距是"作弊分"，不可迁移。</p>
+</div>
+
+<div class="principle-card">
+  <div class="principle-num">Principle 3</div>
+  <div class="principle-title">从错误中学习 > 记录正确答案</div>
+  <p>verdict（记 winner）在 60% 准确率下积累的是 40% 错误经验。AI 自评（lesson）是循环论证，同一个脑子犯的错自评也发现不了。<strong>有效学习信号必须来自外部</strong>: 用户反馈（thumbs down）、结果质量检测（空数据/字段不匹配）、Ground Truth（测试时）。</p>
+</div>
+
+<div class="principle-card">
+  <div class="principle-num">Principle 4</div>
+  <div class="principle-title">优化优先级: Prompt > AI 分析 > MCP</div>
+  <p>三个优化杠杆的实际贡献: <strong>(1) Prompt/AI 调度</strong>（5 步模板、级联、参数引用 -- 贡献 90%+）> <strong>(3) AI 分析能力</strong>（summarize 质量 -- 贡献需要数据支撑）> <strong>(2) MCP 工具质量</strong>（mock 优化是片面的，跑真实 API 前不值得深耕）。</p>
+</div>
+
+<div class="principle-card">
+  <div class="principle-num">Principle 5</div>
+  <div class="principle-title">工具应同时接受业务编号和内部 ID</div>
+  <p>Poka-yoke 原则: 用户说"EQ-001"时直接传 keyword，不强制先查出内部 ID 再传。减少一步查询，降低出错概率。工具描述中用自然语言嵌入链路关系（"list 工具不含 X，需要本工具补全"），比结构化的 feeds_into 更直接。</p>
+</div>
+
+<div class="principle-card">
+  <div class="principle-num">Principle 6</div>
+  <div class="principle-title">Summarize 绝对不能编造数据</div>
+  <p>对企业系统来说，编造数据比说"不知道"严重得多。summarize prompt 加入严格规则: 只能基于提供的数据回答，宁可说"数据不足"也不能给出没有依据的数字。</p>
+</div>
+
+<div class="principle-card">
+  <div class="principle-num">Principle 7</div>
+  <div class="principle-title">复杂度是输出不是输入</div>
+  <p>所有查询走同一条路径: 规划 -> 执行 -> 观察 -> 决定是否追查。不做"简单/复杂"预分类。实验证明: 扁平 94.2% > 分层 90.5%，多加一层判断只会引入新的错误。结果够了自然结束，不够自然追查。</p>
+</div>
+
+<hr>
+
+<!-- ===================== PART 4 ===================== -->
+
+<h2 id="part4">Part 4: 自学习路线图（下一阶段）</h2>
+
+<h3>4.1 当前状态</h3>
+
+<table>
+  <thead>
+    <tr>
+      <th>组件</th>
+      <th>状态</th>
+      <th>问题</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Verdict 系统</td>
+      <td><span class="badge badge-red">代码存在但无效</span></td>
+      <td>60% 准确率下积累的 40% 是错误经验，循环论证。<code>verdict.ts</code> 中 <code>maybeUpdateVerdict()</code> 完整实现但不产生有效输出</td>
+    </tr>
+    <tr>
+      <td>AI 自评 (Lesson)</td>
+      <td><span class="badge badge-red">已证明无效，禁用</span></td>
+      <td>同一个 LLM 犯错后自评发现不了问题。<code>router.ts</code> 中 <code>generateLesson()</code> 存在但注释标明"由外部信号触发"</td>
+    </tr>
+    <tr>
+      <td>Lesson 表</td>
+      <td><span class="badge badge-amber">存在但无有效信号源</span></td>
+      <td>数据结构就绪（intentHash, query, selectedTools, quality, errorReason, betterPath, lesson, source），等外部信号写入</td>
+    </tr>
+    <tr>
+      <td>Thumbs Up/Down</td>
+      <td><span class="badge badge-amber">UI + API 就绪，未连接学习</span></td>
+      <td>前端按钮已渲染，API 接口 <code>/api/feedback</code> 已实现写入 session.feedback，但 feedback 未触发任何学习逻辑</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3>4.2 下一步: 四条路径</h3>
+
+<h4>路径 1: 结果质量检测（客观信号，最优先）</h4>
+
+<p>不依赖 AI 判断，纯粹检测工具返回的数据是否与用户问题匹配：</p>
+
+<ul>
+  <li><strong>空结果检测</strong>: 工具返回 <code>items=[]</code> 或 <code>total=0</code>，但用户问的是"有多少" -- 可能查错了工具或参数</li>
+  <li><strong>字段-意图不匹配</strong>: 用户问"备件库存"，但返回的数据里没有 stock/quantity 相关字段 -- 选错了工具</li>
+  <li><strong>数据-问题偏离</strong>: 用户问"A线设备"，但返回的数据里没有 productionLine=A 的记录</li>
+</ul>
+
+<div class="flow-diagram">
+<pre>
+工具返回数据
+  |
+  v
+[质量检测器] -- 纯规则，不用 LLM
+  |
+  +-- 空结果 + 用户问"有多少/哪些" --> 可能选错工具
+  +-- 返回字段不含意图关键词        --> 可能选错工具
+  +-- 数据匹配                      --> 正常，不操作
+  |
+  v (选错工具的情况)
+自动生成 lesson:
+  {
+    intentHash: "...",
+    query: "A线上月的备件消耗",
+    selectedTools: ["query_equipment"],
+    quality: "bad",
+    errorReason: "返回设备列表但用户问的是备件消耗，字段不匹配",
+    betterPath: [],  // 不猜测正确路径，留给下次 Prompt 注入时提醒 AI
+    lesson: "查备件消耗不要用 query_equipment，它返回设备列表不含备件信息",
+    source: "quality_check"
+  }
+</pre>
+</div>
+
+<h4>路径 2: 用户反馈闭环</h4>
+
+<p>将已有的 Thumbs Down 连接到学习系统：</p>
+
+<div class="flow-diagram">
+<pre>
+用户点 Thumbs Down
+  |
+  v
+记录: session.feedback = "down" (已实现)
+  |
+  v
+[新增] 从 session 中提取:
+  query + selectedTools + resultSummary
+  |
+  v
+写入 lesson:
+  {
+    query: "...",
+    selectedTools: [...],
+    quality: "bad",
+    errorReason: "用户反馈不满意",
+    source: "user_feedback"
+  }
+  |
+  v
+下次同类查询 (同 intentHash):
+  Prompt 注入 lesson: "上次查询 X 选了 Y 工具但用户不满意，请换个方向"
+</pre>
+</div>
+
+<h4>路径 3: Ground Truth 注入（仅测试环境）</h4>
+
+<p>Benchmark 知道正确答案，可以自动为错误题注入 lesson：</p>
+
+<div class="flow-diagram">
+<pre>
+benchmark 批跑
+  |
+  v
+对比 AI 选择 vs Ground Truth
+  |
+  +-- 匹配 --> 跳过
+  +-- 不匹配 --> 自动生成 lesson:
+        {
+          query: "...",
+          selectedTools: [AI 选的],
+          quality: "bad",
+          errorReason: "应该选 [GT 的工具] 而不是 [AI 选的]",
+          betterPath: [GT 工具链],
+          source: "ground_truth"
+        }
+  |
+  v
+重跑 benchmark，验证 lesson 注入后准确率是否提升
+</pre>
+</div>
+
+<div class="callout callout-info">
+  <p><strong>注意:</strong> Ground Truth 本身需要审查（P1 发现 8 题 GT 跳过了 ID 解析步骤，比 AI 还差）。GT 注入只在测试环境使用，不进入生产。</p>
+</div>
+
+<h4>路径 4: Skill 分解（架构升级）</h4>
+
+<p>将当前的单一 "think" 拆分为独立的可调优技能：</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>Skill</th>
+      <th>职责</th>
+      <th>独立 Prompt</th>
+      <th>独立评估</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Intent Parsing</td>
+      <td>从自然语言提取结构化意图</td>
+      <td>专注意图理解，不看工具列表</td>
+      <td>意图标签准确率</td>
+    </tr>
+    <tr>
+      <td>Tool Selection</td>
+      <td>根据意图选择工具链 + 参数</td>
+      <td>专注工具匹配，输入是结构化意图</td>
+      <td>工具选择 Recall/Precision</td>
+    </tr>
+    <tr>
+      <td>Result Validation</td>
+      <td>检查工具返回是否回答了问题</td>
+      <td>专注事实对比，不做路由决策</td>
+      <td>异常检出率</td>
+    </tr>
+    <tr>
+      <td>Summarize</td>
+      <td>把数据转成用户可理解的回答</td>
+      <td>专注表达，反编造规则</td>
+      <td>回答质量评分</td>
+    </tr>
+  </tbody>
+</table>
+
+<p><strong>理论基础：</strong>基于 ToolGT（结构化模板）、Step-Back Prompting（先理解不看工具）、Reflexion（事实对比）三篇研究。当前的 5 步模板已经隐含了这个拆分，Skill 分解是把隐含结构变成显式模块，每个模块可以独立调优和评估。</p>
+
+<h3>4.3 优先级排序</h3>
+
+<table>
+  <thead>
+    <tr>
+      <th>优先级</th>
+      <th>路径</th>
+      <th>投入</th>
+      <th>预期效果</th>
+      <th>前置条件</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>P0</td>
+      <td>结果质量检测</td>
+      <td>小 (纯规则)</td>
+      <td>自动发现选错工具的查询</td>
+      <td>无</td>
+    </tr>
+    <tr>
+      <td>P0</td>
+      <td>Ground Truth 注入</td>
+      <td>小</td>
+      <td>验证 lesson 机制是否有效</td>
+      <td>lesson 注入 Prompt 的逻辑</td>
+    </tr>
+    <tr>
+      <td>P1</td>
+      <td>用户反馈闭环</td>
+      <td>小-中</td>
+      <td>用户驱动的持续改进</td>
+      <td>有真实用户使用</td>
+    </tr>
+    <tr>
+      <td>P2</td>
+      <td>Skill 分解</td>
+      <td>大</td>
+      <td>每个环节独立可调，突破 90.6% 天花板</td>
+      <td>充分理解各环节瓶颈</td>
+    </tr>
+  </tbody>
+</table>
+
+<hr>
+
+<!-- ===================== PART 5 ===================== -->
+
+<h2 id="part5">Part 5: 整体路线图更新</h2>
+
+<h3>5.1 阶段总览</h3>
+
+<table>
+  <thead>
+    <tr>
+      <th>阶段</th>
+      <th>状态</th>
+      <th>核心交付物</th>
+      <th>Recall</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>P0</strong></td>
+      <td><span class="badge badge-green">Complete</span></td>
+      <td>22 MCP Tools, Web UI, 9 步路由, 13 Task / 47 tests</td>
+      <td>94.2% (有查找表)</td>
+    </tr>
+    <tr>
+      <td><strong>P1</strong></td>
+      <td><span class="badge badge-green">Complete</span></td>
+      <td>ReAct, Trace, 5 步模板, 级联, 参数引用, 17 Task / 76+ tests</td>
+      <td>90.6% (通用架构)</td>
+    </tr>
+    <tr>
+      <td><strong>P1.5</strong></td>
+      <td><span class="badge badge-blue">Next</span></td>
+      <td>自学习外部信号, Skill 分解, 工具 ID 解析, 真实 EAM API</td>
+      <td>目标 &ge; 93%</td>
+    </tr>
+    <tr>
+      <td><strong>P2</strong></td>
+      <td><span class="badge badge-amber">Planned</span></td>
+      <td>真实 EAM API 集成, MES 工具, 50+ 工具扩展</td>
+      <td>--</td>
+    </tr>
+    <tr>
+      <td><strong>P3</strong></td>
+      <td><span class="badge badge-amber">Planned</span></td>
+      <td>语义路由预筛选, 100+ 工具, 多端接入</td>
+      <td>--</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3>5.2 P1.5 详细规划</h3>
+
+<table>
+  <thead>
+    <tr>
+      <th>#</th>
+      <th>任务</th>
+      <th>类型</th>
+      <th>说明</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>1</td>
+      <td>结果质量检测器</td>
+      <td>新增</td>
+      <td>纯规则检测: 空结果 + 字段不匹配 -> 自动生成 lesson。不用 LLM</td>
+    </tr>
+    <tr>
+      <td>2</td>
+      <td>Lesson Prompt 注入</td>
+      <td>改动</td>
+      <td>prompt-assembler 读取 lesson 表，同 intentHash 的历史教训注入 system prompt</td>
+    </tr>
+    <tr>
+      <td>3</td>
+      <td>GT Lesson 注入脚本</td>
+      <td>新增</td>
+      <td>benchmark 错误题自动生成 lesson，验证 lesson 机制有效性</td>
+    </tr>
+    <tr>
+      <td>4</td>
+      <td>Thumbs Down 闭环</td>
+      <td>改动</td>
+      <td>feedback=down 时自动生成 lesson 写入 lesson 表</td>
+    </tr>
+    <tr>
+      <td>5</td>
+      <td>工具 ID 解析增强</td>
+      <td>改动</td>
+      <td>工具同时接受业务编号和内部 ID（poka-yoke）。减少 ID 查找步骤</td>
+    </tr>
+    <tr>
+      <td>6</td>
+      <td>查不到实体的友好提示</td>
+      <td>改动</td>
+      <td>查不到"EQ-001"时提示"未找到 EQ-001，系统中有 CNC-001/CNC-002/PACK-001"</td>
+    </tr>
+    <tr>
+      <td>7</td>
+      <td>接真实 EAM API</td>
+      <td>改动</td>
+      <td>MCP Server 从 mock handler 切换到调用 EAM REST API</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3>5.3 技术栈快照（当前）</h3>
+
+<table>
+  <thead>
+    <tr>
+      <th>层</th>
+      <th>技术</th>
+      <th>说明</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>前端</td>
+      <td>Next.js (React)</td>
+      <td>Web UI + API Routes 一体</td>
+    </tr>
+    <tr>
+      <td>智能层</td>
+      <td>TypeScript, gpt-5.4-mini + gpt-5.4 (级联)</td>
+      <td>codex-proxy LLM Provider, ReAct 循环</td>
+    </tr>
+    <tr>
+      <td>工具层</td>
+      <td>22 YAML + ToolRegistry + MCP Client</td>
+      <td>全量注入，无匹配裁剪</td>
+    </tr>
+    <tr>
+      <td>数据层</td>
+      <td>EAM MCP Server (22 mock handlers)</td>
+      <td>P1.5 接真实 API</td>
+    </tr>
+    <tr>
+      <td>存储</td>
+      <td>SQLite (平台独立存储)</td>
+      <td>sessions, verdicts, traces, lessons</td>
+    </tr>
+    <tr>
+      <td>测试</td>
+      <td>40 题 benchmark (L1-L5)</td>
+      <td>8 题 GT 修正 + 6 组等效路径</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3>5.4 关键指标演进</h3>
+
+<table>
+  <thead>
+    <tr>
+      <th>指标</th>
+      <th>P0</th>
+      <th>P1 (当前)</th>
+      <th>P1.5 (目标)</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Recall (40 题)</td>
+      <td>94.2% (有查找表)</td>
+      <td>90.6% (通用架构)</td>
+      <td>&ge; 93% (lesson 补回)</td>
+    </tr>
+    <tr>
+      <td>Guide 可迁移性</td>
+      <td>不可迁移 (EAM 查找表)</td>
+      <td>完全可迁移 (通用方法论)</td>
+      <td>完全可迁移</td>
+    </tr>
+    <tr>
+      <td>自学习</td>
+      <td>无</td>
+      <td>架构就绪，无有效信号</td>
+      <td>外部信号驱动</td>
+    </tr>
+    <tr>
+      <td>MCP 工具数</td>
+      <td>22</td>
+      <td>22</td>
+      <td>22 + 真实 API</td>
+    </tr>
+    <tr>
+      <td>LLM 调用次数/查询</td>
+      <td>2 (route + summarize)</td>
+      <td>3-4 (think x2-3 + summarize)</td>
+      <td>3-4</td>
+    </tr>
+  </tbody>
+</table>
+
+<hr>
+
+<h2>附录: 文件结构（P1 完成后）</h2>
+
+<pre>
+insight68-platform/
+  lib/
+    brain/
+      router.ts              # 主编排器: ReAct + 级联 + 参数引用 + session/trace 写入
+      prompt-assembler.ts    # Prompt 组装: 6 段拼接
+      confidence.ts          # 置信度三信号融合
+      trace.ts               # ExecutionTrace 收集器
+      verdict.ts             # 自学习 verdict (代码完整，等有效信号)
+      intent.ts              # intentHash 计算
+      result-presenter.ts    # 结果呈现 + 格式检测
+      validator.ts           # 结果自验证 (数值/空结果/单位)
+    llm/
+      codex-proxy.ts         # LLM Provider: think() + summarize() + evaluate()
+    tools/
+      registry.ts            # 工具注册表 + match() + execute()
+    storage/
+      types.ts               # StorageInterface
+      sqlite.ts              # SQLite 实现
+      migrations/            # 001-init.sql, 002-trace.sql
+    types.ts                 # 全局类型定义
+
+  prompts/
+    base-instructions.md     # 基础规则 (6 条)
+    react-instructions.md    # 5 步模板 + 参数引用 + 输出格式
+    tool-selection-guide.md  # 通用方法论 (5 步, 零 EAM 内容)
+    few-shot-examples.json   # 4 个 ReAct 编排示例
+
+  tools/eam/
+    *.yaml                   # 22 个工具声明文件
+
+  app/
+    api/
+      chat/route.ts          # POST /api/chat (主入口)
+      feedback/route.ts      # POST /api/feedback (Thumbs Up/Down)
+    components/
+      TracePanel.tsx          # 可折叠执行详情面板
+
+  docs/specs/
+    platform-design.md       # 平台设计规格书 (10 Section)
+    p0-implementation-plan.md
+    p1-implementation-plan.md
+    architecture-update-0326.html  # 本文档
+
+  docs/superpowers/specs/
+    2026-03-26-p1-design.md  # P1 原始设计文档
+
+  scripts/
+    cold-start.ts            # 40 题批跑冷启动
+    benchmark.ts             # Benchmark 自动化
+
+  experiments/               # 8 个方案的实验数据
+</pre>
+
+<hr>
+
+<p style="text-align: center; color: var(--gray-500); font-size: 13px; margin-top: 40px;">
+  Insight68 NL-API Platform -- Architecture Update 2026-03-26<br>
+  Generated from actual implementation code, benchmark data, and deep learning notes.
+</p>
+
+</div>
+</body>
+</html>
