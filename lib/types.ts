@@ -24,6 +24,8 @@ export interface StructuredResult {
   columns?: string[]
   followUp?: string[]
   confidence: ConfidenceLevel
+  sources?: Array<{ tool: string; description: string }>
+  trace?: ExecutionTrace
 }
 
 export type ConfidenceLevel = 'high' | 'medium' | 'low'
@@ -123,11 +125,12 @@ export interface ToolResult {
 // LLM Provider 抽象
 // ============================================================
 
-/** LLM Provider 统一接口 — P0 只实现 codex-proxy */
+/** LLM Provider 统一接口 */
 export interface LLMProvider {
   route(prompt: string, tools: ToolDefinition[]): Promise<RouteResult>
   evaluate(question: string, toolChain: string[], resultSummary: string): Promise<EvaluateResult>
   summarize(data: unknown, question: string, formatHint: DisplayFormat): Promise<SummarizeResult>
+  think(messages: Array<{ role: string; content: string }>): Promise<ThinkResult>
 }
 
 export type DisplayFormat = 'single_value' | 'list' | 'timeseries' | 'multi_step'
@@ -197,4 +200,61 @@ export interface NLUser {
   allowedTools: string[]
   role: 'viewer' | 'operator' | 'admin'
   tenantId: string
+}
+
+// ============================================================
+// P1: 执行追踪
+// ============================================================
+
+export interface TraceCall {
+  tool: string
+  arguments: Record<string, unknown>
+  result: unknown
+  status: 'success' | 'error'
+  durationMs: number
+}
+
+export interface TraceRound {
+  round: number
+  thought: string
+  calls: TraceCall[]
+  observation: string
+}
+
+export interface ExecutionTrace {
+  traceId: string
+  query: string
+  startTime: number
+  endTime?: number
+  rounds: TraceRound[]
+  intent?: IntentTags
+  verdict?: MemoryVerdict | null
+  confidence: ConfidenceSignals
+  finalConfidence: ConfidenceLevel
+  validation: ValidationResult[]
+  sources: Array<{ tool: string; description: string }>
+}
+
+// ============================================================
+// P1: ReAct Agent
+// ============================================================
+
+export interface ThinkResult {
+  thought: string
+  intent?: IntentTags
+  clarity?: ConfidenceLevel
+  calls?: ToolCall[]
+  finish?: boolean
+  unsupported?: boolean
+}
+
+// ============================================================
+// P1: 结果自验证
+// ============================================================
+
+export interface ValidationResult {
+  type: 'numeric_range' | 'empty_result' | 'unit_mismatch'
+  field?: string
+  message: string
+  severity: 'warning' | 'error'
 }
