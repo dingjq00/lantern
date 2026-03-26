@@ -139,13 +139,13 @@ export async function processQuery(
         : '工具调用失败'
       trace.endRound(observation)
 
-      // 把本轮结果注入消息上下文
+      // 把本轮结果注入消息上下文，引导 AI 判断是否充足
       messages.push({ role: 'assistant', content: JSON.stringify(thinkResult) })
       const obsData = thinkResult.calls.map(c => {
         const r = allResults.find(ar => ar.tool === c.tool)
         return { tool: c.tool, result: r?.data ?? 'error' }
       })
-      messages.push({ role: 'user', content: `观察: ${JSON.stringify(obsData)}` })
+      messages.push({ role: 'user', content: `观察结果: ${JSON.stringify(obsData)}\n\n用户原始问题是: "${query}"\n请判断：以上数据能完整回答用户的问题吗？如果缺少信息，继续补充调用；如果足够，输出 {"thought": "...", "finish": true}` })
     }
 
     // finish 在同一轮（首轮 calls + finish）
