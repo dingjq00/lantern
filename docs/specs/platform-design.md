@@ -758,3 +758,82 @@ P0 全部在一台机器上。MCP Server 作为独立进程通过 stdio 或 HTTP
 | verdict_coverage | 有 verdict 的查询占比 |
 | confidence_distribution | high/medium/low 的比例 |
 | llm_token_usage | LLM 调用的 token 消耗 |
+
+---
+
+## 11. 实现状态总结（2026-03-26 更新）
+
+### 11.1 已完成
+
+| 阶段 | 状态 | 核心产出 |
+|------|------|---------|
+| **P0** | ✅ 完成 | 22 MCP Tools + Web UI + 9 步路由 + 53 tests |
+| **P1** | ✅ 完成 | ReAct Agent + Trace + 5 步模板 + 级联 + Benchmark Dashboard + 76 tests |
+
+### 11.2 当前架构（P1 实现）
+
+**六层上下文架构：**
+
+| 层 | 文件 | 变化频率 | 说明 |
+|---|------|---------|------|
+| Layer 1: System Prompt | system-prompt.md | 永不变 | 你是谁 |
+| Layer 2: Rules | rules.md | 永不变 | 底线约束（禁止编造等） |
+| Layer 3: Task Instructions | base-instructions + react-instructions + guide | 按场景可换 | 5 步模板 + 参数引用 + 方法论 |
+| Layer 4: Examples | few-shot-examples.json | 偶尔变 | 6 个示例覆盖主要模式 |
+| — | — 缓存边界 — | — | — |
+| Layer 5: Dynamic Context | 日期 + 工具描述 + verdict + 用户上下文 | 每次变 | 运行时动态组装 |
+| Layer 6: User Input | 用户查询 | 每次变 | user message |
+
+**执行流程：**
+
+```
+用户查询
+  → think① 规划（5 步模板 + {{N.path}} 参数引用）
+    级联：mini 失败 → 自动升级 gpt-5.4
+  → Router 按序执行 calls，自动解析 {{}} 引用传参
+  → think② 审查放开（Reflexion 事实对比）
+    覆盖 → finish / 不覆盖 → 放开范围补充
+  → think③ finish
+  → Summarize（禁止编造）
+  → 写 session + trace
+```
+
+**Benchmark 数据：**
+- 3 次平均 Recall: 87.5%（通用架构，零查找表）
+- L1=100% L2=95% L3≈80% L4≈82% L5≈85%
+- Ground Truth 修正后单次峰值 91.7%
+- 英文 vs 中文指令：无显著差异
+
+### 11.3 已确立的架构原则
+
+1. **MCP 是动作，AI 是能力** — 聚合/统计是 AI 分析能力，不做成工具
+2. **Guide 是方法论，YAML 是具象化** — 保持通用性，换项目不改 guide
+3. **从错误中学习 > 记录正确答案** — 但 AI 自评是循环论证
+4. **优化优先级：① Prompt > ③ AI 分析 > ② MCP** — mock 数据优化片面
+5. **工具应接受业务编号 + 内部 ID** — poka-yoke 原则
+6. **summarize 绝对不能编造** — 宁可说"数据不足"
+7. **复杂度是循环的输出不是输入** — 不预判
+8. **静态在前（可缓存），动态在后** — Context Engineering 落地
+
+### 11.4 自学习现状
+
+| 方案 | 状态 | 结论 |
+|------|------|------|
+| Verdict（记 winner） | 代码在，效果无 | 60% 准确率下积累 40% 错误经验 |
+| AI 自评 Lesson | 已禁用 | 循环论证，同脑子评同脑子 |
+| Thumbs Up/Down | UI + API 就绪 | 未与 lesson 系统打通 |
+| 结果质量检测 | validator.ts 基础在 | 待扩展为"结果-问题匹配度" |
+
+**下一步有效方案：** 工具返回值即信号（PlayCard 伙伴提出）— 零成本，客观，最可靠
+
+### 11.5 下一阶段（P1.5）
+
+| 优先级 | 项目 | 说明 |
+|--------|------|------|
+| P0 | MCP 工具优化 | 接真实 API、工具接受业务编号、dateRange 一致性 |
+| P0 | 结果质量检测 | 返回值即信号，自动标注对错 |
+| P1 | 用户反馈 → Lesson | Thumbs down → lesson → 下次同类查询注入教训 |
+| P1 | Skill 分离 | 意图解析/工具匹配/结果校验 独立可调 |
+| P2 | 用户关心点 + 主动推荐 | trace → 使用习惯 → 个性化推荐 |
+| P2 | MES 系统接入 | 50+ 工具扩展验证 |
+| P3 | 语义路由预筛选 | Semantic Router，100+ 工具 |
