@@ -56,6 +56,16 @@ export default function Home() {
     }
   }
 
+  const handleFeedback = async (sessionId: string, feedback: 'up' | 'down') => {
+    try {
+      await fetch('/api/feedback', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sessionId, feedback }),
+      })
+    } catch { /* 反馈失败不影响用户体验 */ }
+  }
+
   return (
     <div className="flex flex-col h-screen bg-gray-50">
       {/* 标题栏 */}
@@ -84,7 +94,7 @@ export default function Home() {
           </div>
         )}
         {messages.map(msg => (
-          <ChatMessage key={msg.id} message={msg} onFollowUp={handleSend} />
+          <ChatMessage key={msg.id} message={msg} onFollowUp={handleSend} onFeedback={handleFeedback} />
         ))}
         {loading && (
           <div className="flex justify-start mb-4">

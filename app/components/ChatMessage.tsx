@@ -19,9 +19,10 @@ export interface Message {
 interface ChatMessageProps {
   message: Message
   onFollowUp?: (query: string) => void
+  onFeedback?: (sessionId: string, feedback: 'up' | 'down') => void
 }
 
-export function ChatMessage({ message, onFollowUp }: ChatMessageProps) {
+export function ChatMessage({ message, onFollowUp, onFeedback }: ChatMessageProps) {
   const isUser = message.role === 'user'
 
   return (
@@ -45,6 +46,22 @@ export function ChatMessage({ message, onFollowUp }: ChatMessageProps) {
         {/* 置信度提示 */}
         {!isUser && message.confidence && (
           <ConfidenceHint confidence={message.confidence} />
+        )}
+
+        {/* Thumbs Up/Down 反馈 */}
+        {!isUser && message.trace?.traceId && (
+          <div className="mt-1.5 flex gap-2">
+            <button
+              onClick={() => onFeedback?.(message.trace!.traceId, 'up')}
+              className="text-xs text-gray-400 hover:text-green-600 transition-colors"
+              title="有帮助"
+            >👍</button>
+            <button
+              onClick={() => onFeedback?.(message.trace!.traceId, 'down')}
+              className="text-xs text-gray-400 hover:text-red-500 transition-colors"
+              title="不准确"
+            >👎</button>
+          </div>
         )}
 
         {/* 数据来源 */}
