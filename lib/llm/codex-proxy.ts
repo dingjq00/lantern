@@ -1,6 +1,24 @@
 // codex-proxy LLM Provider — 基于 OpenAI SDK
 import OpenAI from 'openai'
-import type { LLMProvider, RouteResult, EvaluateResult, SummarizeResult, ThinkResult, ToolDefinition, ToolCall, DisplayFormat } from '@/lib/types'
+import { z } from 'zod'
+import type { LLMProvider, RouteResult, EvaluateResult, SummarizeResult, ThinkResult, ToolDefinition, ToolCall, DisplayFormat, ConfidenceLevel } from '@/lib/types'
+
+// ReAct 输出的 zod schema
+const ThinkResultSchema = z.object({
+  thought: z.string(),
+  intent: z.object({
+    domains: z.array(z.string()),
+    operation: z.string(),
+    filters: z.array(z.string()),
+  }).optional(),
+  clarity: z.enum(['clear', 'ambiguous', 'unsupported']).optional(),
+  calls: z.array(z.object({
+    tool: z.string(),
+    arguments: z.record(z.unknown()),
+  })).optional(),
+  finish: z.boolean().optional(),
+  unsupported: z.boolean().optional(),
+})
 
 const DEFAULT_BASE_URL = process.env.LLM_BASE_URL || 'https://gptapi.tutu02.us.ci/v1'
 const DEFAULT_API_KEY = process.env.LLM_API_KEY || 'sk-mes-ai-explorer-2026'
@@ -103,8 +121,42 @@ followUp 要求：用祈使句写成可直接执行的指令，如"按优先级�
     }
   }
 
-  // P1: ReAct 单轮推理 — Task 2.2 真正实现
-  async think(_messages: Array<{ role: string; content: string }>): Promise<ThinkResult> {
-    throw new Error('think() not yet implemented — see Task 2.2')
+  async think(messages: Array<{ role: string; content: string }>): Promise<ThinkResult> {
+    const response = await this.client.chat.completions.create({
+      model: this.model,
+      temperature: 0,
+      messages: messages.map(m => ({
+        role: m.role as 'system' | 'user' | 'assistant',
+        content: m.content,
+      })),
+      response_format: { type: 'json_object' },
+    })
+
+    const content = response.choices[0]?.message?.content || '{}'
+    try {
+      const raw = JSON.parse(content)
+      const parsed = ThinkResultSchema.parse(raw)
+      return {
+        thought: parsed.thought,
+        intent: parsed.intent ? {
+          ...parsed.intent,
+          intentHash: '',  // 由调用方计算
+        } : undefined,
+        clarity: mapClarity(parsed.clarity),
+        calls: parsed.calls as ToolCall[] | undefined,
+        finish: parsed.finish,
+        unsupported: parsed.unsupported,
+      }
+    } catch {
+      // zod 校验失败或 JSON 解析失败 → 安全降级为 finish
+      return { thought: content || '解析失败', finish: true }
+    }
   }
+}
+
+// clear→high, ambiguous→medium, unsupported→low
+function mapClarity(clarity?: string): ConfidenceLevel | undefined {
+  if (!clarity) return undefined
+  const map: Record<string, ConfidenceLevel> = { clear: 'high', ambiguous: 'medium', unsupported: 'low' }
+  return map[clarity] ?? 'medium'
 }
