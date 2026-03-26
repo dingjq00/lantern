@@ -25,7 +25,7 @@ const TEST_CASES: Array<{ id: string; query: string; level: string; expectedTool
   { id: 'T10', query: '设备分类中哪类设备最多？', level: 'L1', expectedTools: ['query_equipment'] },
   // L2
   { id: 'T11', query: '上月故障最多的设备是哪台？', level: 'L2', expectedTools: ['query_fault_reports'] },
-  { id: 'T12', query: '维修工单 WO-001 用了哪些备件？', level: 'L2', expectedTools: ['get_repair_detail'] },
+  { id: 'T12', query: '维修工单 WO-001 用了哪些备件？', level: 'L2', expectedTools: ['query_repair_orders', 'get_repair_detail'] },
   { id: 'T13', query: '设备 EQ-002 的保养任务执行情况怎样？', level: 'L2', expectedTools: ['query_maintenance_tasks'] },
   { id: 'T14', query: '近 7 天完成了几个巡检任务？', level: 'L2', expectedTools: ['query_patrol_tasks'] },
   { id: 'T15', query: '当前维修中的设备都是哪些？', level: 'L2', expectedTools: ['query_equipment'] },
