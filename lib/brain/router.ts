@@ -13,6 +13,7 @@ import type {
 } from '@/lib/types'
 
 const MAX_CHASE_ROUNDS = 3
+const ESCALATION_MODEL = process.env.LLM_ESCALATION_MODEL || 'gpt-5.4'
 
 interface RouterDeps {
   registry: ToolRegistry
@@ -80,20 +81,38 @@ export async function processQuery(
       clarity = thinkResult.clarity ?? 'high'  // 默认 high，不惩罚没返回 clarity 的情况
     }
 
-    // 超纲——只在 LLM 显式声明 unsupported 时才判定，不因为"首轮没选工具"就放弃
-    if (thinkResult.unsupported) {
-      trace.startRound(round, thinkResult.thought)
-      trace.endRound('超纲或无法处理')
-      const signals: ConfidenceSignals = { toolMatch: 'low', verdictConfidence: 'low', queryClarity: clarity }
-      trace.setConfidence(signals, 'low')
+    // 超纲或首轮无 calls——升级到强模型重试一次
+    if (thinkResult.unsupported || (!thinkResult.calls?.length && round === 0)) {
+      trace.startRound(round, `[mini] ${thinkResult.thought}`)
+      trace.endRound('mini 判定超纲/无 calls，尝试升级模型')
 
-      const result = buildStructuredResult(
-        '请问您想了解哪方面的信息？\n1. 设备运行状况\n2. 维修工单进度\n3. 保养任务执行\n4. 备件库存情况',
-        [], 'text', 'low',
-      )
-      result.trace = trace.build()
-      result.sources = []
-      return result
+      // 级联：用强模型重跑同样的 messages
+      const escalated = await llm.think(messages, ESCALATION_MODEL)
+      trace.startRound(round, `[escalated→${ESCALATION_MODEL}] ${escalated.thought}`)
+
+      if (escalated.unsupported || !escalated.calls?.length) {
+        // 强模型也搞不定，真的超纲
+        trace.endRound('强模型也无法处理，确认超纲')
+        const signals: ConfidenceSignals = { toolMatch: 'low', verdictConfidence: 'low', queryClarity: clarity }
+        trace.setConfidence(signals, 'low')
+        const result = buildStructuredResult(
+          '请问您想了解哪方面的信息？\n1. 设备运行状况\n2. 维修工单进度\n3. 保养任务执行\n4. 备件库存情况',
+          [], 'text', 'low',
+        )
+        result.trace = trace.build()
+        result.sources = []
+        return result
+      }
+
+      // 强模型给出了 calls，用它的结果继续
+      trace.endRound('强模型成功规划')
+      if (escalated.intent && round === 0) {
+        intent = { ...escalated.intent, intentHash: computeIntentHash(escalated.intent.domains, escalated.intent.operation, escalated.intent.filters) }
+        clarity = escalated.clarity ?? 'high'
+        trace.setIntent(intent)
+      }
+      // 替换 thinkResult 继续执行 calls
+      Object.assign(thinkResult, escalated)
     }
 
     // finish（追查后结束）

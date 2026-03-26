@@ -130,7 +130,7 @@ export interface LLMProvider {
   route(prompt: string, tools: ToolDefinition[]): Promise<RouteResult>
   evaluate(question: string, toolChain: string[], resultSummary: string): Promise<EvaluateResult>
   summarize(data: unknown, question: string, formatHint: DisplayFormat): Promise<SummarizeResult>
-  think(messages: Array<{ role: string; content: string }>): Promise<ThinkResult>
+  think(messages: Array<{ role: string; content: string }>, modelOverride?: string): Promise<ThinkResult>
 }
 
 export type DisplayFormat = 'single_value' | 'list' | 'timeseries' | 'multi_step'

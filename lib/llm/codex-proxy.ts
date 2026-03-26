@@ -121,9 +121,9 @@ followUp 要求：用祈使句写成可直接执行的指令，如"按优先级�
     }
   }
 
-  async think(messages: Array<{ role: string; content: string }>): Promise<ThinkResult> {
+  async think(messages: Array<{ role: string; content: string }>, modelOverride?: string): Promise<ThinkResult> {
     const response = await this.client.chat.completions.create({
-      model: this.model,
+      model: modelOverride || this.model,
       temperature: 0,
       messages: messages.map(m => ({
         role: m.role as 'system' | 'user' | 'assistant',
