@@ -1,0 +1,1322 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Insight68 NL-API Platform - 项目状态报告 2026-03-27</title>
+<style>
+  :root {
+    --blue: #1F3864;
+    --blue-light: #4472C4;
+    --blue-bg: #E8EFF8;
+    --blue-accent: #2B5797;
+    --green: #28a745;
+    --green-bg: #d4edda;
+    --yellow: #e6a817;
+    --yellow-bg: #fff3cd;
+    --red: #dc3545;
+    --red-bg: #f8d7da;
+    --gray: #6c757d;
+    --gray-light: #f8f9fa;
+    --gray-border: #dee2e6;
+    --white: #ffffff;
+    --shadow: 0 2px 8px rgba(31,56,100,0.08);
+    --shadow-hover: 0 4px 16px rgba(31,56,100,0.14);
+    --radius: 8px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
+    background: #f0f4f8;
+    color: #333;
+    line-height: 1.7;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .container {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 24px 20px 60px;
+  }
+
+  /* ── Header ── */
+  .header {
+    background: linear-gradient(135deg, var(--blue) 0%, var(--blue-accent) 50%, var(--blue-light) 100%);
+    color: var(--white);
+    padding: 48px 40px 40px;
+    border-radius: var(--radius);
+    margin-bottom: 32px;
+    box-shadow: var(--shadow-hover);
+    position: relative;
+    overflow: hidden;
+  }
+  .header::after {
+    content: '';
+    position: absolute;
+    top: -60px; right: -60px;
+    width: 200px; height: 200px;
+    background: rgba(255,255,255,0.05);
+    border-radius: 50%;
+  }
+  .header h1 {
+    font-size: 28px;
+    font-weight: 700;
+    margin-bottom: 8px;
+    letter-spacing: -0.5px;
+  }
+  .header .subtitle {
+    font-size: 15px;
+    opacity: 0.85;
+    margin-bottom: 16px;
+  }
+  .header .meta {
+    display: flex;
+    gap: 24px;
+    font-size: 13px;
+    opacity: 0.7;
+    flex-wrap: wrap;
+  }
+
+  /* ── Section ── */
+  .section {
+    background: var(--white);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    margin-bottom: 24px;
+    overflow: hidden;
+  }
+  .section-header {
+    background: var(--blue);
+    color: var(--white);
+    padding: 16px 24px;
+    font-size: 18px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .section-header .part-label {
+    background: rgba(255,255,255,0.2);
+    font-size: 12px;
+    padding: 2px 10px;
+    border-radius: 12px;
+    font-weight: 500;
+  }
+  .section-body {
+    padding: 24px;
+  }
+
+  /* ── Cards ── */
+  .card-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 16px;
+    margin: 16px 0;
+  }
+  .card {
+    border: 1px solid var(--gray-border);
+    border-radius: var(--radius);
+    padding: 20px;
+    background: var(--white);
+    transition: box-shadow 0.2s;
+  }
+  .card:hover { box-shadow: var(--shadow-hover); }
+  .card h4 {
+    color: var(--blue);
+    font-size: 15px;
+    margin-bottom: 8px;
+  }
+  .card p, .card ul { font-size: 14px; color: #555; }
+  .card ul { padding-left: 18px; }
+  .card ul li { margin-bottom: 4px; }
+
+  .card-blue { border-left: 4px solid var(--blue-light); background: var(--blue-bg); }
+  .card-green { border-left: 4px solid var(--green); background: var(--green-bg); }
+  .card-yellow { border-left: 4px solid var(--yellow); background: var(--yellow-bg); }
+  .card-red { border-left: 4px solid var(--red); background: var(--red-bg); }
+
+  /* ── Tables ── */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+    margin: 12px 0;
+  }
+  thead th {
+    background: var(--blue);
+    color: var(--white);
+    padding: 10px 14px;
+    text-align: left;
+    font-weight: 600;
+    font-size: 13px;
+    white-space: nowrap;
+  }
+  tbody td {
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--gray-border);
+    vertical-align: top;
+  }
+  tbody tr:hover { background: var(--blue-bg); }
+  tbody tr:last-child td { border-bottom: none; }
+
+  /* ── Badges ── */
+  .badge {
+    display: inline-block;
+    padding: 2px 10px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+  .badge-done { background: var(--green-bg); color: #155724; }
+  .badge-partial { background: var(--yellow-bg); color: #856404; }
+  .badge-todo { background: var(--red-bg); color: #721c24; }
+  .badge-active { background: var(--blue-bg); color: var(--blue); }
+
+  /* ── Progress bar ── */
+  .progress-wrap {
+    margin: 8px 0;
+  }
+  .progress-label {
+    display: flex;
+    justify-content: space-between;
+    font-size: 13px;
+    margin-bottom: 4px;
+    font-weight: 500;
+  }
+  .progress-bar {
+    height: 10px;
+    background: #e9ecef;
+    border-radius: 6px;
+    overflow: hidden;
+  }
+  .progress-fill {
+    height: 100%;
+    border-radius: 6px;
+    transition: width 0.6s ease;
+  }
+  .progress-fill.green { background: linear-gradient(90deg, #28a745, #34ce57); }
+  .progress-fill.blue { background: linear-gradient(90deg, var(--blue-light), #5b9bd5); }
+  .progress-fill.yellow { background: linear-gradient(90deg, #e6a817, #f0c040); }
+
+  /* ── Timeline ── */
+  .timeline {
+    position: relative;
+    padding: 20px 0 10px 0;
+  }
+  .timeline::before {
+    content: '';
+    position: absolute;
+    left: 28px;
+    top: 0;
+    bottom: 0;
+    width: 3px;
+    background: linear-gradient(to bottom, var(--green), var(--blue-light), var(--gray));
+    border-radius: 2px;
+  }
+  .tl-item {
+    position: relative;
+    padding-left: 60px;
+    margin-bottom: 24px;
+  }
+  .tl-dot {
+    position: absolute;
+    left: 20px;
+    top: 4px;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    border: 3px solid var(--white);
+    box-shadow: 0 0 0 2px var(--gray);
+  }
+  .tl-dot.done { background: var(--green); box-shadow: 0 0 0 2px var(--green); }
+  .tl-dot.active { background: var(--blue-light); box-shadow: 0 0 0 2px var(--blue-light); animation: pulse 2s infinite; }
+  .tl-dot.future { background: var(--gray-light); box-shadow: 0 0 0 2px var(--gray); }
+  @keyframes pulse {
+    0%, 100% { box-shadow: 0 0 0 2px var(--blue-light); }
+    50% { box-shadow: 0 0 0 6px rgba(68,114,196,0.3); }
+  }
+  .tl-label {
+    font-weight: 700;
+    font-size: 15px;
+    color: var(--blue);
+  }
+  .tl-desc {
+    font-size: 13px;
+    color: #555;
+    margin-top: 2px;
+  }
+  .tl-meta {
+    font-size: 12px;
+    color: var(--gray);
+    margin-top: 2px;
+  }
+
+  /* ── Flow diagram ── */
+  .flow {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    align-items: center;
+    margin: 20px 0;
+  }
+  .flow-step {
+    background: var(--blue-bg);
+    border: 1px solid #b4c7e0;
+    border-radius: var(--radius);
+    padding: 12px 24px;
+    min-width: 440px;
+    max-width: 600px;
+    text-align: center;
+    font-size: 14px;
+    color: var(--blue);
+    font-weight: 500;
+    position: relative;
+  }
+  .flow-step.highlight {
+    background: var(--blue);
+    color: var(--white);
+    border-color: var(--blue);
+    font-weight: 600;
+  }
+  .flow-step .sub {
+    font-size: 12px;
+    font-weight: 400;
+    opacity: 0.8;
+    display: block;
+    margin-top: 2px;
+  }
+  .flow-arrow {
+    width: 2px;
+    height: 24px;
+    background: var(--blue-light);
+    position: relative;
+  }
+  .flow-arrow::after {
+    content: '';
+    position: absolute;
+    bottom: -4px;
+    left: -4px;
+    border-left: 5px solid transparent;
+    border-right: 5px solid transparent;
+    border-top: 6px solid var(--blue-light);
+  }
+
+  /* ── Principle cards ── */
+  .principle {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 16px;
+    padding: 16px 20px;
+    border-radius: var(--radius);
+    border: 1px solid var(--gray-border);
+    background: var(--white);
+    align-items: flex-start;
+    transition: box-shadow 0.2s;
+  }
+  .principle:hover { box-shadow: var(--shadow-hover); }
+  .principle-num {
+    flex-shrink: 0;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: var(--blue);
+    color: var(--white);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 15px;
+  }
+  .principle-body h4 {
+    font-size: 15px;
+    color: var(--blue);
+    margin-bottom: 4px;
+  }
+  .principle-body p {
+    font-size: 13px;
+    color: #555;
+    line-height: 1.6;
+  }
+  .principle-body .source {
+    font-size: 12px;
+    color: var(--gray);
+    margin-top: 4px;
+    font-style: italic;
+  }
+
+  /* ── Lesson cards ── */
+  .lesson {
+    border-left: 4px solid var(--blue-light);
+    padding: 16px 20px;
+    margin-bottom: 14px;
+    background: var(--gray-light);
+    border-radius: 0 var(--radius) var(--radius) 0;
+  }
+  .lesson h4 {
+    font-size: 14px;
+    color: var(--blue);
+    margin-bottom: 6px;
+  }
+  .lesson p {
+    font-size: 13px;
+    color: #555;
+    line-height: 1.6;
+  }
+
+  /* ── Status module list ── */
+  .module-list {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 8px;
+    margin: 12px 0;
+  }
+  .module-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 16px;
+    border-radius: 6px;
+    font-size: 14px;
+    border: 1px solid transparent;
+  }
+  .module-item.done { background: var(--green-bg); border-color: #c3e6cb; }
+  .module-item.partial { background: var(--yellow-bg); border-color: #ffeeba; }
+  .module-item.todo { background: var(--red-bg); border-color: #f5c6cb; }
+  .module-status {
+    font-size: 18px;
+    flex-shrink: 0;
+    width: 24px;
+    text-align: center;
+  }
+  .module-name { font-weight: 600; color: #333; min-width: 200px; }
+  .module-note { font-size: 13px; color: var(--gray); }
+
+  /* ── Compare table ── */
+  .compare-table td:first-child { font-weight: 600; color: var(--blue); white-space: nowrap; }
+  .compare-table .preferred { background: var(--green-bg); }
+
+  /* ── Misc ── */
+  h3 { color: var(--blue); font-size: 16px; margin: 20px 0 10px; }
+  h3:first-child { margin-top: 0; }
+  .text-muted { color: var(--gray); font-size: 13px; }
+  .mt-8 { margin-top: 8px; }
+  .mt-16 { margin-top: 16px; }
+  .mb-8 { margin-bottom: 8px; }
+  .mb-16 { margin-bottom: 16px; }
+  strong { color: #222; }
+  code {
+    background: var(--blue-bg);
+    padding: 1px 6px;
+    border-radius: 4px;
+    font-size: 13px;
+    font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+    color: var(--blue);
+  }
+
+  .summary-box {
+    background: var(--blue-bg);
+    border: 1px solid #b4c7e0;
+    border-radius: var(--radius);
+    padding: 16px 20px;
+    margin: 12px 0;
+    font-size: 14px;
+    color: var(--blue);
+    line-height: 1.7;
+  }
+
+  .divider {
+    border: none;
+    border-top: 1px solid var(--gray-border);
+    margin: 20px 0;
+  }
+
+  .footer {
+    text-align: center;
+    color: var(--gray);
+    font-size: 12px;
+    margin-top: 40px;
+    padding: 20px;
+  }
+
+  @media (max-width: 700px) {
+    .container { padding: 12px; }
+    .header { padding: 28px 20px; }
+    .section-body { padding: 16px; }
+    .flow-step { min-width: auto; max-width: 100%; }
+    .card-grid { grid-template-columns: 1fr; }
+    .module-item { flex-wrap: wrap; }
+    .module-name { min-width: auto; }
+  }
+</style>
+</head>
+<body>
+
+<div class="container">
+
+<!-- ═══════════════════════ HEADER ═══════════════════════ -->
+<div class="header">
+  <h1>Insight68 NL-API Platform</h1>
+  <div class="subtitle">企业系统 AI 自然语言交互平台 &mdash; 项目状态报告</div>
+  <div class="meta">
+    <span>日期: 2026-03-27</span>
+    <span>分支: feat/p0-platform</span>
+    <span>P0+P1 完成 | P1.5 规划中</span>
+    <span>30 Tasks / 129 Tests / 87.5% Recall</span>
+  </div>
+</div>
+
+<!-- ═══════════════════════ PART 1: 项目总览 ═══════════════════════ -->
+<div class="section">
+  <div class="section-header">
+    <span class="part-label">Part 1</span>
+    项目总览
+  </div>
+  <div class="section-body">
+
+    <h3>项目定位</h3>
+    <div class="summary-box">
+      <strong>Insight68 NL-API Platform</strong> &mdash; 自然语言操作企业系统的通用平台（C 级）。<br>
+      用户面对一个输入框，用自然语言查询、分析、操作企业数据。<br>
+      EAM（设备资产管理）是第一个落地场景，架构为"任何有 API 的企业系统"而设计。
+    </div>
+
+    <h3>技术方向</h3>
+    <div class="card-grid">
+      <div class="card card-blue">
+        <h4>LLM 路由 + MCP 确定性执行</h4>
+        <p>LLM 只做意图理解和路由，MCP 工具确定性执行。不走 Text-to-SQL。</p>
+      </div>
+      <div class="card card-blue">
+        <h4>ReAct 循环 + 自学习</h4>
+        <p>三步 think 架构（规划 &rarr; 审查放开 &rarr; finish），外部信号驱动自学习。</p>
+      </div>
+      <div class="card card-blue">
+        <h4>TypeScript 全栈</h4>
+        <p>Next.js = API Routes + React 前端，SQLite（开发）/ PG（生产）两档自适应。</p>
+      </div>
+    </div>
+
+    <h3>当前状态一句话</h3>
+    <div class="summary-box">
+      P0 + P1 全部完成（30 Task / 129 tests），通用架构零查找表下 3 次平均 Recall 87.5%。<br>
+      准确率验证阶段结束，进入 P1.5 — 从"准确率调优"转向"自学习闭环"。
+    </div>
+
+    <h3>路线图</h3>
+    <div class="timeline">
+      <div class="tl-item">
+        <div class="tl-dot done"></div>
+        <div class="tl-label">P0 &mdash; 跑通</div>
+        <div class="tl-desc">22 MCP Tools + Web UI + 9 步路由引擎</div>
+        <div class="tl-meta">13 Tasks / 53 Tests &bull; 2026-03-26 完成</div>
+      </div>
+      <div class="tl-item">
+        <div class="tl-dot done"></div>
+        <div class="tl-label">P1 &mdash; 强化</div>
+        <div class="tl-desc">ReAct Agent + 三步 think + 级联 + Benchmark Dashboard</div>
+        <div class="tl-meta">17 Tasks / 76+ Tests / 87.5% Recall &bull; 2026-03-26 完成</div>
+      </div>
+      <div class="tl-item">
+        <div class="tl-dot active"></div>
+        <div class="tl-label">P1.5 &mdash; 自学习</div>
+        <div class="tl-desc">外部信号自学习 + Skill 分离 + 工具优化</div>
+        <div class="tl-meta">当前阶段 &bull; 规划中</div>
+      </div>
+      <div class="tl-item">
+        <div class="tl-dot future"></div>
+        <div class="tl-label">P2 &mdash; 平台化</div>
+        <div class="tl-desc">工具注册抽象 + 多系统接入（MES/ERP）+ GraphQL Federation</div>
+        <div class="tl-meta">计划中</div>
+      </div>
+      <div class="tl-item">
+        <div class="tl-dot future"></div>
+        <div class="tl-label">P3 &mdash; 规模化</div>
+        <div class="tl-desc">向量预筛选（30+）+ 动态加载（50+）+ 渐进式发现（100+ 工具）</div>
+        <div class="tl-meta">远期</div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ═══════════════════════ PART 2: 当前架构 ═══════════════════════ -->
+<div class="section">
+  <div class="section-header">
+    <span class="part-label">Part 2</span>
+    当前架构
+  </div>
+  <div class="section-body">
+
+    <h3>六层 Context 架构</h3>
+    <table>
+      <thead>
+        <tr>
+          <th>层级</th>
+          <th>文件</th>
+          <th>变化频率</th>
+          <th>说明</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>Layer 1</strong>: System Prompt</td>
+          <td><code>system-prompt.md</code></td>
+          <td>永不变</td>
+          <td>你是谁 &mdash; 角色定义和基本能力声明</td>
+        </tr>
+        <tr>
+          <td><strong>Layer 2</strong>: Rules</td>
+          <td><code>rules.md</code></td>
+          <td>永不变</td>
+          <td>底线约束（禁止编造、数据安全等）</td>
+        </tr>
+        <tr>
+          <td><strong>Layer 3</strong>: Task Instructions</td>
+          <td><code>base-instructions</code> + <code>react-instructions</code> + <code>guide</code></td>
+          <td>按场景可换</td>
+          <td>5 步模板 + 参数引用 + 方法论</td>
+        </tr>
+        <tr>
+          <td><strong>Layer 4</strong>: Examples</td>
+          <td><code>few-shot-examples.json</code></td>
+          <td>偶尔变</td>
+          <td>6 个示例覆盖主要模式</td>
+        </tr>
+        <tr style="background: var(--blue-bg);">
+          <td colspan="4" style="text-align:center; font-weight:600; color:var(--blue); font-size:13px;">
+            &mdash;&mdash; 缓存边界（Layer 1-4 静态可缓存 / Layer 5-6 每次动态组装）&mdash;&mdash;
+          </td>
+        </tr>
+        <tr>
+          <td><strong>Layer 5</strong>: Dynamic Context</td>
+          <td>运行时组装</td>
+          <td>每次变</td>
+          <td>日期 + 工具描述 + verdict + 用户上下文</td>
+        </tr>
+        <tr>
+          <td><strong>Layer 6</strong>: User Input</td>
+          <td>用户查询</td>
+          <td>每次变</td>
+          <td>user message &mdash; 实际自然语言查询</td>
+        </tr>
+      </tbody>
+    </table>
+    <p class="text-muted mt-8">设计原则：静态上下文在前（可缓存），动态上下文在后 &mdash; Context Engineering 落地实践。</p>
+
+    <hr class="divider">
+
+    <h3>完整执行流程</h3>
+    <div class="flow">
+      <div class="flow-step">
+        用户查询（自然语言输入）
+      </div>
+      <div class="flow-arrow"></div>
+      <div class="flow-step highlight">
+        think 1: 规划
+        <span class="sub">5 步结构化模板（ToolGT + Step-Back + Reflexion）+ {{N.path}} 参数引用</span>
+      </div>
+      <div class="flow-arrow"></div>
+      <div class="flow-step">
+        级联策略
+        <span class="sub">mini 失败 &rarr; 自动升级 gpt-5.4（贡献最大 +16pp）</span>
+      </div>
+      <div class="flow-arrow"></div>
+      <div class="flow-step">
+        Router 按序执行 tool calls
+        <span class="sub">自动解析 {{N.path}} 引用传参，多层依赖一轮完成</span>
+      </div>
+      <div class="flow-arrow"></div>
+      <div class="flow-step highlight">
+        think 2: 审查放开（Reflexion 事实对比）
+        <span class="sub">覆盖 &rarr; finish / 不覆盖 &rarr; 放开范围补充</span>
+      </div>
+      <div class="flow-arrow"></div>
+      <div class="flow-step highlight">
+        think 3: finish
+      </div>
+      <div class="flow-arrow"></div>
+      <div class="flow-step">
+        Summarize（禁止编造数据）
+        <span class="sub">数据不足时说"数据不足"，不猜测</span>
+      </div>
+      <div class="flow-arrow"></div>
+      <div class="flow-step">
+        写 session + trace（SQLite 持久化）
+      </div>
+    </div>
+
+    <hr class="divider">
+
+    <h3>3 步 think + 5 步模板 + 参数引用 + 级联</h3>
+    <div class="card-grid">
+      <div class="card">
+        <h4>3 步 think 架构</h4>
+        <ul>
+          <li><strong>think 1 &mdash; 规划</strong>：5 步结构化思考，选择工具和参数</li>
+          <li><strong>think 2 &mdash; 审查放开</strong>：Reflexion 式事实对比，检查返回数据是否覆盖用户意图</li>
+          <li><strong>think 3 &mdash; finish</strong>：最终确认并生成回答</li>
+        </ul>
+        <p class="text-muted mt-8">追查轮限制 1-2 轮，3 轮以上 AI 会重复调失败工具</p>
+      </div>
+      <div class="card">
+        <h4>5 步结构化模板</h4>
+        <ul>
+          <li><strong>Step-Back</strong>：先理解意图不看工具，防关键词劫持</li>
+          <li><strong>ToolGT</strong>：基于意图匹配工具，域覆盖检查</li>
+          <li><strong>参数规划</strong>：{{N.path}} 引用声明依赖</li>
+          <li><strong>验证</strong>：确认每个域都有工具覆盖</li>
+          <li><strong>输出</strong>：结构化 tool_calls</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h4>参数引用 {{N.path}}</h4>
+        <ul>
+          <li>多层依赖一轮完成</li>
+          <li>Router 自动解析引用传参</li>
+          <li>例: <code>{{1.data.id}}</code> 引用第 1 个工具返回的 data.id</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h4>级联策略</h4>
+        <ul>
+          <li>默认使用 gpt-5.4-mini（快、便宜）</li>
+          <li>mini 失败自动升级 gpt-5.4</li>
+          <li>贡献最大：+16pp recall 提升</li>
+          <li>Prompt 贡献 99%，模型升级仅 +0.6pp</li>
+        </ul>
+      </div>
+    </div>
+
+    <hr class="divider">
+
+    <h3>Benchmark 数据</h3>
+    <div class="summary-box">
+      <strong>3 次平均 Recall: 87.5%</strong>（通用架构，零查找表）<br>
+      Ground Truth 修正后单次峰值: <strong>91.7%</strong><br>
+      中英 Prompt 无显著差异（87.5% vs 86.3%）
+    </div>
+
+    <div class="progress-wrap">
+      <div class="progress-label"><span>L1 &mdash; 简单查询</span><span>100%</span></div>
+      <div class="progress-bar"><div class="progress-fill green" style="width:100%"></div></div>
+    </div>
+    <div class="progress-wrap">
+      <div class="progress-label"><span>L2 &mdash; 标准查询</span><span>95%</span></div>
+      <div class="progress-bar"><div class="progress-fill green" style="width:95%"></div></div>
+    </div>
+    <div class="progress-wrap">
+      <div class="progress-label"><span>L3 &mdash; 复杂查询</span><span>~80%</span></div>
+      <div class="progress-bar"><div class="progress-fill blue" style="width:80%"></div></div>
+    </div>
+    <div class="progress-wrap">
+      <div class="progress-label"><span>L4 &mdash; 多步推理</span><span>~82%</span></div>
+      <div class="progress-bar"><div class="progress-fill blue" style="width:82%"></div></div>
+    </div>
+    <div class="progress-wrap">
+      <div class="progress-label"><span>L5 &mdash; 跨域关联</span><span>~85%</span></div>
+      <div class="progress-bar"><div class="progress-fill blue" style="width:85%"></div></div>
+    </div>
+
+    <p class="text-muted mt-8">
+      补充：Ground Truth 审查修正 8 题（缺 ID 解析步骤）+ 等效路径 6 组。GT 本身也需要审查 &mdash; 8 题 GT 跳过了 ID 解析步骤，比 AI 还差。
+    </p>
+
+  </div>
+</div>
+
+<!-- ═══════════════════════ PART 3: 架构原则 ═══════════════════════ -->
+<div class="section">
+  <div class="section-header">
+    <span class="part-label">Part 3</span>
+    已确立的架构原则（8 条）
+  </div>
+  <div class="section-body">
+
+    <p class="mb-16">以下原则在 P1 调优过程中通过实验数据和架构迭代确立，不是理论猜测。后续调优遵循这些原则，不走回头路。</p>
+
+    <div class="principle">
+      <div class="principle-num">1</div>
+      <div class="principle-body">
+        <h4>MCP 是动作，AI 是能力</h4>
+        <p>MCP 工具负责"获取数据"（确定性执行），AI 负责"分析数据"（聚合/统计/推理）。聚合和统计不做成 MCP 工具。</p>
+        <div class="source">来源：P1 调优实验 &mdash; 将统计类操作从工具中剥离后，准确率显著提升</div>
+      </div>
+    </div>
+
+    <div class="principle">
+      <div class="principle-num">2</div>
+      <div class="principle-body">
+        <h4>Guide 是方法论，YAML 是具象化</h4>
+        <p>guide/prompt 保持通用（零项目内容），YAML 工具描述是项目相关的具象化。换项目不改 guide，只换 YAML。</p>
+        <div class="source">来源：查找表 guide（88%）vs 通用 guide（60%）&mdash; 28pp 差距是"作弊分"，用级联+模板补回</div>
+      </div>
+    </div>
+
+    <div class="principle">
+      <div class="principle-num">3</div>
+      <div class="principle-body">
+        <h4>从错误中学习 > 记录正确答案</h4>
+        <p>但信号必须来自外部，AI 自评是循环论证（同一个脑子犯的错自评也发现不了）。有效信号：用户反馈、工具返回值、Ground Truth。</p>
+        <div class="source">来源：verdict（记 winner）60% 准确率下积累 40% 错误经验；AI 自评 lesson 已禁用</div>
+      </div>
+    </div>
+
+    <div class="principle">
+      <div class="principle-num">4</div>
+      <div class="principle-body">
+        <h4>优化优先级：Prompt > AI 分析 > MCP 工具</h4>
+        <p>Prompt 贡献 99%，模型升级仅 +0.6pp。mock 数据优化是片面的。优先投入 Prompt 优化。</p>
+        <div class="source">来源：8 方案对比实验 &mdash; gpt-5.4-mini 94.2% vs gpt-5.4 94.8%</div>
+      </div>
+    </div>
+
+    <div class="principle">
+      <div class="principle-num">5</div>
+      <div class="principle-body">
+        <h4>工具应同时接受业务编号和内部 ID（poka-yoke）</h4>
+        <p>让工具难以被错误使用。例如 get_repair_detail 同时支持 orderCode 和内部 ID，get_equipment_detail 同时支持 equipmentCode 和内部 ID。</p>
+        <div class="source">来源：架构原则 &mdash; 防呆设计，接真实 API 时落地</div>
+      </div>
+    </div>
+
+    <div class="principle">
+      <div class="principle-num">6</div>
+      <div class="principle-body">
+        <h4>Summarize 绝对不能编造数据</h4>
+        <p>数据不足时说"数据不足"，不猜测、不编造。宁可诚实地说不知道，也不给出错误答案。</p>
+        <div class="source">来源：P1 规则层实现 &mdash; rules.md 底线约束</div>
+      </div>
+    </div>
+
+    <div class="principle">
+      <div class="principle-num">7</div>
+      <div class="principle-body">
+        <h4>复杂度是输出不是输入 &mdash; 不预判</h4>
+        <p>统一流程自然收敛复杂度。不对查询复杂度做预判，同一个流程处理 L1-L5 所有级别查询。</p>
+        <div class="source">来源：P1 架构设计 &mdash; 分层/混合架构（90.5%/87.1%）不如扁平架构（94.2%）</div>
+      </div>
+    </div>
+
+    <div class="principle">
+      <div class="principle-num">8</div>
+      <div class="principle-body">
+        <h4>静态上下文在前（可缓存），动态上下文在后</h4>
+        <p>6 层 Context 架构的设计依据：Layer 1-4 静态可缓存，Layer 5-6 每次动态组装。Context Engineering 落地实践。</p>
+        <div class="source">来源：Context Engineering 方法论 &mdash; 缓存边界优化 token 消耗</div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ═══════════════════════ PART 4: 实现进度 ═══════════════════════ -->
+<div class="section">
+  <div class="section-header">
+    <span class="part-label">Part 4</span>
+    实现进度
+  </div>
+  <div class="section-body">
+
+    <h3>P0: 13 Task 全部完成</h3>
+    <div class="progress-wrap mb-16">
+      <div class="progress-label"><span>P0 进度</span><span>13/13 (100%)</span></div>
+      <div class="progress-bar"><div class="progress-fill green" style="width:100%"></div></div>
+    </div>
+    <table>
+      <thead>
+        <tr><th>#</th><th>模块</th><th>产出</th><th>状态</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>1</td><td>YAML 工具声明</td><td>22 个 MCP 工具声明文件</td><td><span class="badge badge-done">完成</span></td></tr>
+        <tr><td>2</td><td>yaml-loader</td><td>YAML 解析 + 工具描述生成</td><td><span class="badge badge-done">完成</span></td></tr>
+        <tr><td>3</td><td>Tool Registry</td><td>工具注册与发现</td><td><span class="badge badge-done">完成</span></td></tr>
+        <tr><td>4</td><td>MCP Client</td><td>工具调用客户端</td><td><span class="badge badge-done">完成</span></td></tr>
+        <tr><td>5</td><td>EAM MCP Server</td><td>22 个 mock handlers</td><td><span class="badge badge-done">完成</span></td></tr>
+        <tr><td>6</td><td>codex-proxy LLM Provider</td><td>LLM 抽象层 + codex-proxy 实现</td><td><span class="badge badge-done">完成</span></td></tr>
+        <tr><td>7</td><td>Prompt V4 模板</td><td>动态组装模板</td><td><span class="badge badge-done">完成</span></td></tr>
+        <tr><td>8</td><td>Prompt 组装器</td><td>多层 prompt 组装引擎</td><td><span class="badge badge-done">完成</span></td></tr>
+        <tr><td>9</td><td>置信度模块</td><td>三信号融合（匹配分+verdict+清晰度）</td><td><span class="badge badge-done">完成</span></td></tr>
+        <tr><td>10</td><td>结果呈现引擎</td><td>结构化中间格式输出</td><td><span class="badge badge-done">完成</span></td></tr>
+        <tr><td>11</td><td>9 步路由编排器</td><td>完整路由流程</td><td><span class="badge badge-done">完成</span></td></tr>
+        <tr><td>12</td><td>API Routes</td><td>Next.js API 端点</td><td><span class="badge badge-done">完成</span></td></tr>
+        <tr><td>13</td><td>Web UI</td><td>React 前端界面</td><td><span class="badge badge-done">完成</span></td></tr>
+      </tbody>
+    </table>
+    <p class="text-muted mt-8">验收测试 6/6 通过（L1x3 + L2x2 + L3x1），53 tests</p>
+
+    <hr class="divider">
+
+    <h3>P1: 17 Task 全部完成</h3>
+    <div class="progress-wrap mb-16">
+      <div class="progress-label"><span>P1 进度</span><span>17/17 (100%)</span></div>
+      <div class="progress-bar"><div class="progress-fill green" style="width:100%"></div></div>
+    </div>
+    <table>
+      <thead>
+        <tr><th>#</th><th>模块</th><th>产出</th><th>状态</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>1</td><td>ReAct Agent</td><td>三步 think 架构（规划&rarr;审查放开&rarr;finish）</td><td><span class="badge badge-done">完成</span></td></tr>
+        <tr><td>2</td><td>5 步结构化模板</td><td>ToolGT + Step-Back + Reflexion 融合</td><td><span class="badge badge-done">完成</span></td></tr>
+        <tr><td>3</td><td>参数引用</td><td>{{N.path}} 多层依赖一轮完成，router 自动传参</td><td><span class="badge badge-done">完成</span></td></tr>
+        <tr><td>4</td><td>级联策略</td><td>mini &rarr; 5.4 自动升级（+16pp）</td><td><span class="badge badge-done">完成</span></td></tr>
+        <tr><td>5</td><td>6 层 Context 架构</td><td>静态缓存 + 动态组装分层</td><td><span class="badge badge-done">完成</span></td></tr>
+        <tr><td>6</td><td>TraceCollector</td><td>执行追踪数据采集</td><td><span class="badge badge-done">完成</span></td></tr>
+        <tr><td>7</td><td>TracePanel</td><td>前端 trace 查看面板</td><td><span class="badge badge-done">完成</span></td></tr>
+        <tr><td>8</td><td>SQLite 持久化</td><td>nl_traces 表，trace 存储</td><td><span class="badge badge-done">完成</span></td></tr>
+        <tr><td>9</td><td>Benchmark Dashboard</td><td>/benchmark 路由，多次运行对比</td><td><span class="badge badge-done">完成</span></td></tr>
+        <tr><td>10</td><td>Ground Truth 体系</td><td>recall 计算 + L1-L5 分级评估</td><td><span class="badge badge-done">完成</span></td></tr>
+        <tr><td>11</td><td>GT 审查修正</td><td>8 题缺 ID 解析步骤，6 组等效路径</td><td><span class="badge badge-done">完成</span></td></tr>
+        <tr><td>12</td><td>中英 Prompt 对比</td><td>验证无显著差异</td><td><span class="badge badge-done">完成</span></td></tr>
+        <tr><td>13</td><td>域覆盖检查</td><td>[验证] 步骤确认每个域有工具</td><td><span class="badge badge-done">完成</span></td></tr>
+        <tr><td>14</td><td>Summarize 禁止编造</td><td>规则层强制约束</td><td><span class="badge badge-done">完成</span></td></tr>
+        <tr><td>15</td><td>Verdict 自学习</td><td>代码实现（验证无效后保留代码）</td><td><span class="badge badge-done">完成</span></td></tr>
+        <tr><td>16</td><td>AI 自评 Lesson</td><td>代码实现（验证无效后禁用）</td><td><span class="badge badge-done">完成</span></td></tr>
+        <tr><td>17</td><td>Thumbs UI</td><td>用户反馈 UI + API</td><td><span class="badge badge-done">完成</span></td></tr>
+      </tbody>
+    </table>
+    <p class="text-muted mt-8">76+ tests，3 次平均 Recall 87.5%，GT 修正后峰值 91.7%</p>
+
+    <hr class="divider">
+
+    <h3>按模块状态总览</h3>
+    <div class="module-list">
+      <div class="module-item done">
+        <span class="module-status">&#10003;</span>
+        <span class="module-name">ReAct Agent</span>
+        <span class="module-note">三步 think 架构完整实现</span>
+      </div>
+      <div class="module-item done">
+        <span class="module-status">&#10003;</span>
+        <span class="module-name">Trace 系统</span>
+        <span class="module-note">TraceCollector + TracePanel + SQLite 持久化</span>
+      </div>
+      <div class="module-item done">
+        <span class="module-status">&#10003;</span>
+        <span class="module-name">5 步模板</span>
+        <span class="module-note">ToolGT + Step-Back + Reflexion 融合</span>
+      </div>
+      <div class="module-item done">
+        <span class="module-status">&#10003;</span>
+        <span class="module-name">级联策略</span>
+        <span class="module-note">mini &rarr; gpt-5.4 自动升级，+16pp</span>
+      </div>
+      <div class="module-item done">
+        <span class="module-status">&#10003;</span>
+        <span class="module-name">参数引用</span>
+        <span class="module-note">{{N.path}} + router 自动解析</span>
+      </div>
+      <div class="module-item done">
+        <span class="module-status">&#10003;</span>
+        <span class="module-name">6 层 Context</span>
+        <span class="module-note">静态缓存 + 动态组装，Context Engineering 落地</span>
+      </div>
+      <div class="module-item done">
+        <span class="module-status">&#10003;</span>
+        <span class="module-name">Benchmark Dashboard</span>
+        <span class="module-note">/benchmark 路由，多次运行对比 + trace 详情</span>
+      </div>
+      <div class="module-item partial">
+        <span class="module-status">&#9888;</span>
+        <span class="module-name">Verdict 自学习</span>
+        <span class="module-note">代码在但效果无 &mdash; 60% 准确率下积累 40% 错误经验</span>
+      </div>
+      <div class="module-item partial">
+        <span class="module-status">&#9888;</span>
+        <span class="module-name">Lesson 自学习</span>
+        <span class="module-note">AI 自评已禁用 &mdash; 循环论证，同脑子评同脑子</span>
+      </div>
+      <div class="module-item partial">
+        <span class="module-status">&#9888;</span>
+        <span class="module-name">用户反馈 Lesson</span>
+        <span class="module-note">UI + API 就绪，未与 lesson 系统打通</span>
+      </div>
+      <div class="module-item partial">
+        <span class="module-status">&#9888;</span>
+        <span class="module-name">结果质量检测</span>
+        <span class="module-note">validator.ts 基础在，待扩展为"结果-问题匹配度"</span>
+      </div>
+      <div class="module-item todo">
+        <span class="module-status">&#10007;</span>
+        <span class="module-name">Skill 分离</span>
+        <span class="module-note">意图解析/工具匹配/结果校验尚未独立拆分</span>
+      </div>
+      <div class="module-item todo">
+        <span class="module-status">&#10007;</span>
+        <span class="module-name">工具接受业务编号</span>
+        <span class="module-note">poka-yoke 原则，等接真实 API 时实现</span>
+      </div>
+      <div class="module-item todo">
+        <span class="module-status">&#10007;</span>
+        <span class="module-name">用户关心点/主动推荐</span>
+        <span class="module-note">trace 分析 &rarr; 画像 &rarr; 个性化推荐（P2+ 产品功能）</span>
+      </div>
+    </div>
+
+    <h3>完成度统计</h3>
+    <div class="card-grid">
+      <div class="card card-green">
+        <h4>已完成</h4>
+        <p style="font-size:28px; font-weight:700; color:#155724;">7 / 14</p>
+        <p>核心架构模块全部就绪</p>
+      </div>
+      <div class="card card-yellow">
+        <h4>部分完成</h4>
+        <p style="font-size:28px; font-weight:700; color:#856404;">4 / 14</p>
+        <p>代码基础在，效果/打通待完善</p>
+      </div>
+      <div class="card card-red">
+        <h4>未开始</h4>
+        <p style="font-size:28px; font-weight:700; color:#721c24;">3 / 14</p>
+        <p>P1.5 / P2 阶段实现</p>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ═══════════════════════ PART 5: P1.5 规划 ═══════════════════════ -->
+<div class="section">
+  <div class="section-header">
+    <span class="part-label">Part 5</span>
+    P1.5 规划（下一阶段）
+  </div>
+  <div class="section-body">
+
+    <h3>自学习重构 &mdash; 核心问题</h3>
+    <div class="summary-box">
+      自学习难的不是学习算法，是<strong>标注</strong> &mdash; 怎么知道什么是对的什么是错的。<br>
+      已验证失败的标注方式：verdict（记 winner）、AI 自评（循环论证）、thumbs up/down（用户不爱点）。
+    </div>
+
+    <h3>3 个解法对比</h3>
+    <table class="compare-table">
+      <thead>
+        <tr>
+          <th>维度</th>
+          <th>解法 1: 高级模型蒸馏</th>
+          <th>解法 2: 多模型并行</th>
+          <th style="background:#1a5c2e;">解法 3: 工具返回值即信号 (首选)</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>原理</td>
+          <td>mini 执行后，5.4 异步评估 mini 的工具选择和回答</td>
+          <td>每个查询同时跑 2-3 个模型，用户选择即隐式标注</td>
+          <td class="preferred">工具返回值本身就是验证信号 &mdash; 有数据+匹配=对，空/不匹配=错</td>
+        </tr>
+        <tr>
+          <td>成本</td>
+          <td>每次多一次 5.4 调用（可异步批量）</td>
+          <td>计算成本翻 2-3 倍</td>
+          <td class="preferred">零成本，不需要额外模型调用</td>
+        </tr>
+        <tr>
+          <td>信号可靠性</td>
+          <td>5.4 有信息差，标注可靠</td>
+          <td>依赖用户判断力</td>
+          <td class="preferred">客观事实（数据有没有），不依赖主观判断</td>
+        </tr>
+        <tr>
+          <td>天花板</td>
+          <td>受限于 5.4 能力上限</td>
+          <td>需要真实用户流量</td>
+          <td class="preferred">无天花板限制</td>
+        </tr>
+        <tr>
+          <td>实现基础</td>
+          <td>需要新开发</td>
+          <td>需要新开发 + 前端改动</td>
+          <td class="preferred">validator.ts 已有基础</td>
+        </tr>
+        <tr>
+          <td>优先级</td>
+          <td><span class="badge badge-active">P2 补充</span></td>
+          <td><span class="badge badge-active">P2 补充</span></td>
+          <td><span class="badge badge-done">P1.5 首选</span></td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="card card-green mt-16">
+      <h4>首选方案：工具返回值即信号</h4>
+      <p>来源：PlayCard 伙伴从第三方角度指出 &mdash; "不需要另一个模型来判断对错，工具返回值就是信号"。</p>
+      <ul class="mt-8">
+        <li>扩展 validator.ts，从"数值合理性检查"升级为"结果-问题匹配度检测"</li>
+        <li>工具返回数据的字段 vs 用户问题的意图 &rarr; 是否匹配</li>
+        <li>空结果检测："真没有" vs "选错工具"</li>
+        <li>纯规则不用 LLM，检测到不匹配 &rarr; 自动写 lesson</li>
+        <li>自学习循环：执行 &rarr; 结果非空且匹配 &rarr; 自动标为正确样本 / 结果空或不匹配 &rarr; 进人工审核</li>
+      </ul>
+    </div>
+
+    <h3>结合方案（远期）</h3>
+    <div class="summary-box" style="font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace; font-size: 13px; line-height: 2;">
+      用户查询 &rarr; mini(答案A) + 5.4后台(答案B)<br>
+      前端展示 A，侧边可看 B<br>
+      用户行为 &rarr; 隐式标注 &rarr; 写 lesson<br>
+      5.4 额外标注 &rarr; 补充 lesson 质量
+    </div>
+
+    <hr class="divider">
+
+    <h3>Skill 分离方向</h3>
+    <div class="card-grid">
+      <div class="card">
+        <h4>意图解析 Skill</h4>
+        <p>Step-Back Prompting 专用 prompt，独立可调。先理解意图不看工具，防关键词劫持。</p>
+      </div>
+      <div class="card">
+        <h4>工具匹配 Skill</h4>
+        <p>ToolGT 模板专用 prompt，独立可调。基于意图匹配工具，域覆盖检查。</p>
+      </div>
+      <div class="card">
+        <h4>结果校验 Skill</h4>
+        <p>Reflexion 事实对比专用 prompt，独立可调。观察数据 vs 用户意图匹配度。</p>
+      </div>
+    </div>
+    <p class="text-muted mt-8">参考 Claude Code Skill 架构，每个 Skill 独立可调，支持单独优化和 A/B 测试。</p>
+
+    <hr class="divider">
+
+    <h3>工具优化方向</h3>
+    <table>
+      <thead>
+        <tr><th>优化项</th><th>说明</th><th>优先级</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>工具接受业务编号</strong></td>
+          <td>get_repair_detail 加 orderCode，get_equipment_detail 加 equipmentCode（poka-yoke）</td>
+          <td><span class="badge badge-active">P2</span></td>
+        </tr>
+        <tr>
+          <td><strong>dateRange 一致性</strong></td>
+          <td>get_fault_trend 加 dateRange，所有时间查询工具统一支持</td>
+          <td><span class="badge badge-active">P2</span></td>
+        </tr>
+        <tr>
+          <td><strong>查不到实体时推荐相似</strong></td>
+          <td>summarize 阶段："未找到 EQ-001，系统中有 CNC-001/CNC-002/PACK-001"</td>
+          <td><span class="badge badge-active">P2</span></td>
+        </tr>
+        <tr>
+          <td><strong>接真实 EAM API</strong></td>
+          <td>从 mock handlers 切换到真实 REST API 调用</td>
+          <td><span class="badge badge-active">P2</span></td>
+        </tr>
+      </tbody>
+    </table>
+
+    <hr class="divider">
+
+    <h3>P1.5 优先级总览</h3>
+    <table>
+      <thead>
+        <tr><th>优先级</th><th>项目</th><th>理由</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><span class="badge badge-done">最高</span></td>
+          <td>结果质量检测（工具返回值即信号）</td>
+          <td>客观信号，零成本，自动积累 lesson</td>
+        </tr>
+        <tr>
+          <td><span class="badge badge-done">最高</span></td>
+          <td>用户反馈 &rarr; Lesson 打通</td>
+          <td>最可靠的人工学习信号</td>
+        </tr>
+        <tr>
+          <td><span class="badge badge-partial">高</span></td>
+          <td>Ground Truth 自动注入</td>
+          <td>测试阶段加速调优</td>
+        </tr>
+        <tr>
+          <td><span class="badge badge-partial">高</span></td>
+          <td>Skill 分离（研究方向）</td>
+          <td>各环节独立可调</td>
+        </tr>
+        <tr>
+          <td><span class="badge badge-active">中</span></td>
+          <td>工具优化（E/F/G）</td>
+          <td>等接真实 API 时做</td>
+        </tr>
+        <tr>
+          <td><span class="badge badge-todo">低</span></td>
+          <td>前端体验（进度提示、TracePanel 优化）</td>
+          <td>体验优化，不影响核心能力</td>
+        </tr>
+      </tbody>
+    </table>
+
+  </div>
+</div>
+
+<!-- ═══════════════════════ PART 6: 长期产品方向 ═══════════════════════ -->
+<div class="section">
+  <div class="section-header">
+    <span class="part-label">Part 6</span>
+    长期产品方向
+  </div>
+  <div class="section-body">
+
+    <h3>用户关心点 + 使用习惯 + 主动推荐</h3>
+    <div class="summary-box">
+      从"被动回答"升级为"主动服务" &mdash; 高层打开就有个性化推荐，不需要想问什么。使用越多越懂你，形成粘性。这是商业价值的质变。
+    </div>
+
+    <div class="card-grid">
+      <div class="card card-blue">
+        <h4>1. 用户关心点</h4>
+        <p>从 trace 自动提取：关注哪些设备/产线、关心什么指标（故障率？保养？库存？）</p>
+      </div>
+      <div class="card card-blue">
+        <h4>2. 使用习惯</h4>
+        <p>从 trace 统计：什么时间用、查询频率、常用查询模式、偏好详细还是简洁</p>
+      </div>
+      <div class="card card-blue">
+        <h4>3. 上下文注入</h4>
+        <p>每次发问时自动注入关心点和习惯，AI 知道"这个用户关注 A 线故障率"</p>
+      </div>
+      <div class="card card-blue">
+        <h4>4. 主动推荐</h4>
+        <p>用户打开界面，AI 基于关心点主动提示："早上好，A 线今天有 2 台设备需要保养"</p>
+      </div>
+    </div>
+
+    <p class="text-muted mt-8">
+      数据来源：trace 天然就是基础 &mdash; 每次查询的意图、工具链、结果都存着。<br>
+      持久层（nl_memory_preferences）已预留，可以存画像。属于 P2+ 产品功能。
+    </p>
+
+    <hr class="divider">
+
+    <h3>MES / ERP 扩展</h3>
+    <div class="card-grid">
+      <div class="card">
+        <h4>P2: MES 系统接入</h4>
+        <ul>
+          <li>50+ 工具扩展验证</li>
+          <li>工具注册抽象 + 多系统接入</li>
+          <li>GraphQL Federation</li>
+          <li>架构为"任何有 API 的企业系统"设计</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h4>P3: 规模化扩展</h4>
+        <ul>
+          <li>30+ 工具：向量预筛选（Semantic Router）</li>
+          <li>50+ 工具：动态加载</li>
+          <li>100+ 工具：渐进式发现</li>
+        </ul>
+      </div>
+    </div>
+
+    <hr class="divider">
+
+    <h3>语义路由</h3>
+    <table>
+      <thead>
+        <tr><th>阶段</th><th>工具数</th><th>路由方式</th><th>说明</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><span class="badge badge-done">当前</span></td>
+          <td>22</td>
+          <td>全量注入 Prompt</td>
+          <td>所有工具描述放入 Context，LLM 直接匹配</td>
+        </tr>
+        <tr>
+          <td><span class="badge badge-active">P2</span></td>
+          <td>30-50</td>
+          <td>语义预筛选</td>
+          <td>Semantic Router 先缩小候选范围，再 LLM 精选</td>
+        </tr>
+        <tr>
+          <td><span class="badge badge-todo">P3</span></td>
+          <td>100+</td>
+          <td>渐进式发现</td>
+          <td>动态加载 + 分层路由 + 按需获取工具描述</td>
+        </tr>
+      </tbody>
+    </table>
+
+  </div>
+</div>
+
+<!-- ═══════════════════════ PART 7: 经验教训 ═══════════════════════ -->
+<div class="section">
+  <div class="section-header">
+    <span class="part-label">Part 7</span>
+    经验教训（2026-03-26 全天调优总结）
+  </div>
+  <div class="section-body">
+
+    <p class="mb-16">以下经验来自 P0 &rarr; P1 编码 + benchmark 体系 + Prompt 调优的全天实战，每一条都有实验数据支撑。</p>
+
+    <div class="lesson">
+      <h4>1. 自由 CoT 对工具选择不够甚至有害</h4>
+      <p>换成 5 步结构化模板（ToolGT）后效果显著提升。自由思考容易跑偏，结构化模板约束思考方向。Step-Back Prompting 先理解意图不看工具，防止关键词劫持。</p>
+    </div>
+
+    <div class="lesson">
+      <h4>2. Reflexion 式事实对比要问事实，不问判断</h4>
+      <p>观察注入不问"够不够"（是非判断），问"有什么字段/缺什么"（事实陈述）。事实陈述让 AI 自己得出结论，比直接问是非判断更准确。</p>
+    </div>
+
+    <div class="lesson">
+      <h4>3. 级联策略贡献最大（+16pp）</h4>
+      <p>mini 失败自动升级 5.4。但 Prompt 贡献 99%，模型升级仅 +0.6pp。先投入 Prompt 优化，级联是兜底。</p>
+    </div>
+
+    <div class="lesson">
+      <h4>4. 追查轮过多有害</h4>
+      <p>3 轮追查时 AI 重复调失败工具，造成无效循环。1-2 轮追查就够了。三步 think 架构固定上限。</p>
+    </div>
+
+    <div class="lesson">
+      <h4>5. Ground Truth 本身要审查</h4>
+      <p>8 题 GT 跳过了 ID 解析步骤，比 AI 还差。GT 修正后单次峰值从 87.5% 提升到 91.7%。评估体系的质量决定了调优的方向是否正确。</p>
+    </div>
+
+    <div class="lesson">
+      <h4>6. Verdict（记 winner）无效</h4>
+      <p>60% 准确率下积累的是 40% 错误经验，越学越差。正确的积累，反而没有那么重要（dingjq 原话）。自学习的关键是外部信号，不是自我积累。</p>
+    </div>
+
+    <div class="lesson">
+      <h4>7. AI 自评（Lesson）无效 &mdash; 循环论证</h4>
+      <p>同一个脑子犯的错，自评也发现不了。有效学习信号只有三种：用户反馈（thumbs down）、结果质量检测（空数据/字段不匹配）、Ground Truth（测试）。</p>
+    </div>
+
+    <div class="lesson">
+      <h4>8. 工具返回值即信号 &mdash; 最可靠的自学习方案</h4>
+      <p>来自 PlayCard 伙伴的洞察：不需要另一个模型来判断对错，工具返回值就是信号。有数据+匹配实体=大概率对，空结果/不匹配=可能错。零成本，客观，这是 Context Engineering 的 feedback loop。</p>
+    </div>
+
+    <hr class="divider">
+
+    <h3>最终成果一句话</h3>
+    <div class="summary-box" style="font-size:15px;">
+      通用架构（零查找表）下 3 次平均 <strong>Recall 87.5%</strong>（GT 修正后峰值 <strong>91.7%</strong>）<br>
+      组合：5 步模板 + 级联 + 参数引用 + 三步 think + 通用 guide + 6 层 Context 架构<br><br>
+      <strong>核心认知</strong>：从"准确率调优"转向"自学习闭环"，信号来自外部不来自 AI 自己。
+    </div>
+
+  </div>
+</div>
+
+<!-- ═══════════════════════ FOOTER ═══════════════════════ -->
+<div class="footer">
+  Insight68 NL-API Platform &mdash; Project Status Report<br>
+  Generated 2026-03-27 &bull; dingjq / Insight68
+</div>
+
+</div><!-- .container -->
+
+</body>
+</html>
