@@ -1,33 +1,67 @@
 [
   {
+    "type": "single_round",
+    "query": "系统里有多少台设备？",
+    "round0": {
+      "thought": "直接查系统总览统计即可",
+      "intent": {"domains": ["equipment"], "operation": "statistics", "filters": []},
+      "clarity": "clear",
+      "calls": [{"tool": "get_dashboard_summary", "arguments": {}}]
+    },
+    "finish": true,
+    "note": "简单查询，一轮搞定"
+  },
+  {
+    "type": "single_round",
     "query": "A线上月的维修工单有哪些？",
-    "reasoning": "产线维度查询 → 先查产线设备，再查维修工单",
-    "calls": [
-      {"tool": "query_equipment", "arguments": {"productionLineId": 1}},
-      {"tool": "query_repair_orders", "arguments": {"equipmentId": "{{step1.result.items[*].equipmentId}}", "dateRange": {"start": "2026-02-01", "end": "2026-02-28"}}}
-    ]
+    "round0": {
+      "thought": "产线维度查询，需要先查产线设备再查维修工单",
+      "intent": {"domains": ["equipment", "fault-repair"], "operation": "list", "filters": ["productionLineId", "dateRange"]},
+      "clarity": "clear",
+      "calls": [
+        {"tool": "query_equipment", "arguments": {"productionLineId": 1}},
+        {"tool": "query_repair_orders", "arguments": {"dateRange": {"start": "2026-02-01", "end": "2026-02-28"}}}
+      ]
+    },
+    "finish": true,
+    "note": "多工具首轮规划，不需要追查"
   },
   {
-    "query": "维修工单 WO-201 用了哪些备件？",
-    "reasoning": "列表→详情模式 → get_repair_detail 包含备件清单",
-    "calls": [
-      {"tool": "get_repair_detail", "arguments": {"repairOrderId": 201}}
-    ]
+    "type": "multi_round",
+    "query": "A线上月故障最多的设备，它的备件库存够不够？",
+    "round0": {
+      "thought": "先查A线设备和上月故障记录",
+      "intent": {"domains": ["equipment", "fault-repair", "spare"], "operation": "detail", "filters": ["productionLineId", "dateRange"]},
+      "clarity": "clear",
+      "calls": [
+        {"tool": "query_equipment", "arguments": {"productionLineId": 1}},
+        {"tool": "query_fault_reports", "arguments": {"dateRange": {"start": "2026-02-01", "end": "2026-02-28"}}}
+      ]
+    },
+    "observation0": "获得设备列表和故障记录，CNC-001 故障 5 次最多",
+    "round1": {
+      "thought": "已知 CNC-001 故障最多(equipmentId=101)，需要查它的备件BOM和库存",
+      "calls": [
+        {"tool": "get_equipment_spare_bom", "arguments": {"equipmentId": 101}},
+        {"tool": "get_spare_stock", "arguments": {"spareId": 401}}
+      ]
+    },
+    "finish": true,
+    "note": "首轮结果不够 → 追查一轮补充备件信息"
   },
   {
-    "query": "哪些备件库存不足？会影响哪些设备？",
-    "reasoning": "预警→BOM→设备链路",
-    "calls": [
-      {"tool": "get_spare_alerts", "arguments": {}},
-      {"tool": "get_equipment_spare_bom", "arguments": {"spareId": "{{step1.result.items[*].spareId}}"}}
-    ]
-  },
-  {
+    "type": "single_round",
     "query": "CNC-001 上季度故障和保养的交叉分析",
-    "reasoning": "跨域分析 → 分别查故障和保养，数据层面交叉",
-    "calls": [
-      {"tool": "query_fault_reports", "arguments": {"equipmentId": 101, "dateRange": {"start": "2026-01-01", "end": "2026-03-31"}}},
-      {"tool": "query_maintenance_tasks", "arguments": {"equipmentId": 101, "dateRange": {"start": "2026-01-01", "end": "2026-03-31"}}}
-    ]
+    "round0": {
+      "thought": "跨域分析，分别查故障和保养，数据层面交叉",
+      "intent": {"domains": ["fault-repair", "maintenance"], "operation": "list", "filters": ["equipmentId", "dateRange"]},
+      "clarity": "clear",
+      "calls": [
+        {"tool": "query_fault_reports", "arguments": {"equipmentId": 101, "dateRange": {"start": "2026-01-01", "end": "2026-03-31"}}},
+        {"tool": "query_maintenance_tasks", "arguments": {"equipmentId": 101, "dateRange": {"start": "2026-01-01", "end": "2026-03-31"}}}
+      ]
+    },
+    "finish": true,
+    "note": "跨域但首轮可规划完整"
   }
 ]
