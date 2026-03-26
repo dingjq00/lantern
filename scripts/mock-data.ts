@@ -188,6 +188,14 @@ export const MOCK_DATA: Record<string, unknown> = {
     ],
     pendingMaintenance: [{ id: 502, type: '保养任务', title: 'CNC-002 月度保养', priority: '中', dueDate: '2026-03-28' }],
   },
+  // === 通用聚合 ===
+  aggregate_data: {
+    groups: [
+      { key: '数控设备', value: 45 }, { key: '包装设备', value: 28 },
+      { key: '注塑设备', value: 22 }, { key: '焊接设备', value: 18 }, { key: '检测设备', value: 15 },
+    ],
+    total: 128,
+  },
 }
 
 export async function mockCallTool(name: string): Promise<ToolResult> {

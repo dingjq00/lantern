@@ -19,9 +19,9 @@ describe('assemblePrompt', () => {
     expect(systemPrompt).toContain('简单直查')
   })
 
-  it('组装结果包含 ReAct 指令', () => {
+  it('组装结果包含推理执行指令', () => {
     const { systemPrompt } = assemblePrompt('测试', tools)
-    expect(systemPrompt).toContain('ReAct')
+    expect(systemPrompt).toContain('推理与执行模式')
     expect(systemPrompt).toContain('thought')
     expect(systemPrompt).toContain('clarity')
   })

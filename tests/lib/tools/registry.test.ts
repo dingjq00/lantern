@@ -15,7 +15,7 @@ describe('ToolRegistry', () => {
   })
 
   it('加载 22 个工具', () => {
-    expect(registry.getAllTools()).toHaveLength(22)
+    expect(registry.getAllTools()).toHaveLength(23)
   })
 
   it('按名称获取工具', () => {
@@ -69,7 +69,7 @@ describe('ToolRegistry', () => {
     const intent: IntentTags = { domains: ['equipment'], operation: 'list', filters: [], intentHash: '' }
     const ranked = registry.match(intent)
     // P0 不做阈值过滤，返回全部 22 个
-    expect(ranked).toHaveLength(22)
+    expect(ranked).toHaveLength(23)
   })
 
   it('结果按 matchScore 降序排列', () => {
