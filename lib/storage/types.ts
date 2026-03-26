@@ -1,5 +1,5 @@
 // 存储层接口定义
-import type { MemorySession, MemoryVerdict, MemoryPreference, ExecutionTrace } from '@/lib/types'
+import type { MemorySession, MemoryVerdict, MemoryPreference, ExecutionTrace, Lesson } from '@/lib/types'
 
 export interface StorageInterface {
   /** 初始化数据库（建表等） */
@@ -21,6 +21,10 @@ export interface StorageInterface {
   // --- 执行追踪 ---
   insertTrace(tenantId: string, trace: ExecutionTrace, sessionId?: string): void
   getTrace(traceId: string): ExecutionTrace | null
+
+  // --- 自学习 Lessons ---
+  insertLesson(lesson: Lesson): void
+  getLessonsByIntentHash(tenantId: string, intentHash: string, limit?: number): Lesson[]
 
   /** 关闭连接 */
   close(): void

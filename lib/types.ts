@@ -258,3 +258,20 @@ export interface ValidationResult {
   message: string
   severity: 'warning' | 'error'
 }
+
+// ============================================================
+// P1: 自学习 — Lesson（从错误中学习）
+// ============================================================
+
+export interface Lesson {
+  intentHash: string
+  tenantId: string
+  query: string
+  selectedTools: string[]
+  quality: 'good' | 'partial' | 'bad'
+  errorReason?: string       // 为什么选错了
+  betterPath?: string[]      // 应该选什么
+  lesson: string             // 一句话教训总结
+  source: 'self_eval' | 'user_feedback'
+  createdAt: Date
+}

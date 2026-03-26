@@ -3,7 +3,7 @@ import Database from 'better-sqlite3'
 import path from 'path'
 import fs from 'fs'
 import type { StorageInterface } from './types'
-import type { MemorySession, MemoryVerdict, MemoryPreference, ExecutionTrace } from '@/lib/types'
+import type { MemorySession, MemoryVerdict, MemoryPreference, ExecutionTrace, Lesson } from '@/lib/types'
 
 export class SQLiteStorage implements StorageInterface {
   private db: Database.Database
@@ -161,6 +161,49 @@ export class SQLiteStorage implements StorageInterface {
     const stmt = this.db.prepare('SELECT trace_json FROM nl_traces WHERE trace_id = ?')
     const row = stmt.get(traceId) as { trace_json: string } | undefined
     return row ? JSON.parse(row.trace_json) : null
+  }
+
+  // --- 自学习 Lessons ---
+
+  insertLesson(lesson: Lesson): void {
+    const stmt = this.db.prepare(`
+      INSERT INTO nl_lessons (intent_hash, tenant_id, query, selected_tools, quality, error_reason, better_path, lesson, source, created_at)
+      VALUES (@intentHash, @tenantId, @query, @selectedTools, @quality, @errorReason, @betterPath, @lesson, @source, @createdAt)
+    `)
+    stmt.run({
+      intentHash: lesson.intentHash,
+      tenantId: lesson.tenantId,
+      query: lesson.query,
+      selectedTools: JSON.stringify(lesson.selectedTools),
+      quality: lesson.quality,
+      errorReason: lesson.errorReason ?? null,
+      betterPath: lesson.betterPath ? JSON.stringify(lesson.betterPath) : null,
+      lesson: lesson.lesson,
+      source: lesson.source,
+      createdAt: lesson.createdAt.toISOString(),
+    })
+  }
+
+  getLessonsByIntentHash(tenantId: string, intentHash: string, limit = 3): Lesson[] {
+    const stmt = this.db.prepare(`
+      SELECT * FROM nl_lessons
+      WHERE tenant_id = ? AND intent_hash = ? AND quality != 'good'
+      ORDER BY created_at DESC
+      LIMIT ?
+    `)
+    const rows = stmt.all(tenantId, intentHash, limit) as Record<string, unknown>[]
+    return rows.map(row => ({
+      intentHash: row.intent_hash as string,
+      tenantId: row.tenant_id as string,
+      query: row.query as string,
+      selectedTools: JSON.parse(row.selected_tools as string),
+      quality: row.quality as Lesson['quality'],
+      errorReason: row.error_reason as string | undefined,
+      betterPath: row.better_path ? JSON.parse(row.better_path as string) : undefined,
+      lesson: row.lesson as string,
+      source: row.source as Lesson['source'],
+      createdAt: new Date(row.created_at as string),
+    }))
   }
 
   close(): void {

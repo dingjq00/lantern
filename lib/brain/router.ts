@@ -146,10 +146,14 @@ export async function processQuery(
         const r = allResults.find(ar => ar.tool === c.tool)
         return { tool: c.tool, result: r?.data ?? 'error' }
       })
-      // 观察消息：数据 + 原始问题 + verdict 推荐（如果有）
+      // 观察消息：数据 + 原始问题 + 历史教训（如果有）
       let obsMessage = `观察结果: ${JSON.stringify(obsData)}\n\n用户原始问题是: "${query}"\n请判断：以上数据能完整回答用户的问题吗？如果缺少信息，继续补充调用；如果足够，输出 {"thought": "...", "finish": true}`
-      if (verdict && round === 0) {
-        obsMessage += `\n\n参考：历史上类似查询用 ${verdict.toolChain.join(' → ')} 效果较好（评分 ${verdict.avgScore.toFixed(1)}）`
+      if (round === 0 && intent?.intentHash) {
+        const lessons = storage.getLessonsByIntentHash(tenantId, intent.intentHash, 3)
+        if (lessons.length > 0) {
+          const lessonText = lessons.map(l => `- "${l.query}": ${l.lesson}`).join('\n')
+          obsMessage += `\n\n历史教训（类似查询曾犯过的错误）:\n${lessonText}`
+        }
       }
       messages.push({ role: 'user', content: obsMessage })
     }
@@ -193,9 +197,9 @@ export async function processQuery(
     }
     storage.insertSession(session)
     storage.insertTrace(tenantId, trace.build(), session.sessionId)
-    // 异步触发 verdict 更新（不阻塞响应）
+    // 异步自评 + lesson 生成（不阻塞响应）
     if (intent?.intentHash) {
-      maybeUpdateVerdict(storage, llm, tenantId, intent.intentHash).catch(() => {})
+      generateLesson(llm, storage, tenantId, query, intent.intentHash, allResults.map(r => r.tool), summary.answer).catch(() => {})
     }
   } catch { /* 存储失败不影响响应 */ }
 
@@ -210,4 +214,57 @@ export async function processQuery(
   result.sources = uniqueSources
   result.trace = trace.build()
   return result
+}
+
+/**
+ * 异步自评：AI 判断自己选的工具对不对，不对就生成 lesson
+ */
+async function generateLesson(
+  llm: LLMProvider,
+  storage: StorageInterface,
+  tenantId: string,
+  query: string,
+  intentHash: string,
+  selectedTools: string[],
+  answer: string,
+): Promise<void> {
+  const evalPrompt = `你是一个质量评审员。评估以下工具路由结果：
+
+用户问题: "${query}"
+选择的工具: ${selectedTools.join(', ')}
+回答摘要: "${answer.slice(0, 200)}"
+
+请判断：
+1. 工具选择是否正确？能否回答用户的问题？
+2. 如果不够好，哪里错了？应该用什么工具？
+
+返回 JSON:
+{"quality": "good|partial|bad", "errorReason": "错误原因(如果有)", "betterPath": ["应该用的工具(如果有)"], "lesson": "一句话教训总结"}`
+
+  const result = await llm.think([
+    { role: 'system', content: evalPrompt },
+    { role: 'user', content: '请评估' },
+  ])
+
+  try {
+    // think() 返回 ThinkResult，但我们用它做自评，从 thought 里解析 JSON
+    const evalText = result.thought
+    const evalData = JSON.parse(evalText)
+
+    const lesson: import('@/lib/types').Lesson = {
+      intentHash,
+      tenantId,
+      query,
+      selectedTools,
+      quality: evalData.quality ?? 'partial',
+      errorReason: evalData.errorReason,
+      betterPath: evalData.betterPath,
+      lesson: evalData.lesson ?? '无教训',
+      source: 'self_eval',
+      createdAt: new Date(),
+    }
+    storage.insertLesson(lesson)
+  } catch {
+    // 解析失败不影响主流程
+  }
 }

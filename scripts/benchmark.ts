@@ -141,7 +141,8 @@ async function main() {
   const toolsDir = path.join(__dirname, '../tools')
   const registry = new ToolRegistry(loadTools(toolsDir))
   const llm = new CodexProxyProvider()
-  const storage = new SQLiteStorage(':memory:')
+  // 用持久化 db，这样能读到冷启动的 verdict + 积累新的 session
+  const storage = new SQLiteStorage('./data/insight68.db')
   storage.initialize()
 
 
