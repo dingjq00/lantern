@@ -4,6 +4,7 @@ import { computeConfidence } from './confidence'
 import { detectDisplayFormat, buildStructuredResult } from './result-presenter'
 import { computeIntentHash } from './intent'
 import { TraceCollector } from './trace'
+import { maybeUpdateVerdict } from './verdict'
 import type { ToolRegistry } from '@/lib/tools/registry'
 import type { StorageInterface } from '@/lib/storage/types'
 import type {
@@ -145,7 +146,12 @@ export async function processQuery(
         const r = allResults.find(ar => ar.tool === c.tool)
         return { tool: c.tool, result: r?.data ?? 'error' }
       })
-      messages.push({ role: 'user', content: `观察结果: ${JSON.stringify(obsData)}\n\n用户原始问题是: "${query}"\n请判断：以上数据能完整回答用户的问题吗？如果缺少信息，继续补充调用；如果足够，输出 {"thought": "...", "finish": true}` })
+      // 观察消息：数据 + 原始问题 + verdict 推荐（如果有）
+      let obsMessage = `观察结果: ${JSON.stringify(obsData)}\n\n用户原始问题是: "${query}"\n请判断：以上数据能完整回答用户的问题吗？如果缺少信息，继续补充调用；如果足够，输出 {"thought": "...", "finish": true}`
+      if (verdict && round === 0) {
+        obsMessage += `\n\n参考：历史上类似查询用 ${verdict.toolChain.join(' → ')} 效果较好（评分 ${verdict.avgScore.toFixed(1)}）`
+      }
+      messages.push({ role: 'user', content: obsMessage })
     }
 
     // finish 在同一轮（首轮 calls + finish）
@@ -187,6 +193,10 @@ export async function processQuery(
     }
     storage.insertSession(session)
     storage.insertTrace(tenantId, trace.build(), session.sessionId)
+    // 异步触发 verdict 更新（不阻塞响应）
+    if (intent?.intentHash) {
+      maybeUpdateVerdict(storage, llm, tenantId, intent.intentHash).catch(() => {})
+    }
   } catch { /* 存储失败不影响响应 */ }
 
   const result = buildStructuredResult(
