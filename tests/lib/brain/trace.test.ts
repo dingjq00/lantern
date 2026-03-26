@@ -1,0 +1,60 @@
+import { describe, it, expect } from 'vitest'
+import { TraceCollector } from '@/lib/brain/trace'
+
+describe('TraceCollector', () => {
+  it('创建 trace 并记录 round', () => {
+    const tc = new TraceCollector('测试查询')
+    tc.startRound(0, '分析问题')
+    tc.addCall({ tool: 'get_dashboard_summary', arguments: {}, result: { total: 128 }, status: 'success', durationMs: 300 })
+    tc.endRound('获得结果')
+    const trace = tc.build()
+    expect(trace.traceId).toBeTruthy()
+    expect(trace.query).toBe('测试查询')
+    expect(trace.rounds).toHaveLength(1)
+    expect(trace.rounds[0].round).toBe(0)
+    expect(trace.rounds[0].thought).toBe('分析问题')
+    expect(trace.rounds[0].calls).toHaveLength(1)
+    expect(trace.rounds[0].calls[0].tool).toBe('get_dashboard_summary')
+    expect(trace.rounds[0].observation).toBe('获得结果')
+  })
+
+  it('多轮追查记录', () => {
+    const tc = new TraceCollector('复杂查询')
+    tc.startRound(0, '首轮规划')
+    tc.addCall({ tool: 'query_equipment', arguments: {}, result: {}, status: 'success', durationMs: 200 })
+    tc.endRound('需要追查')
+    tc.startRound(1, '追查备件')
+    tc.addCall({ tool: 'get_spare_stock', arguments: {}, result: {}, status: 'success', durationMs: 150 })
+    tc.endRound('信息充足')
+    const trace = tc.build()
+    expect(trace.rounds).toHaveLength(2)
+    expect(trace.rounds[0].round).toBe(0)
+    expect(trace.rounds[1].round).toBe(1)
+  })
+
+  it('设置 intent/verdict/confidence/validation/sources', () => {
+    const tc = new TraceCollector('测试')
+    tc.startRound(0, '思考')
+    tc.endRound('观察')
+    tc.setIntent({ domains: ['equipment'], operation: 'list', filters: [], intentHash: 'abc' })
+    tc.setVerdict(null)
+    tc.setConfidence({ toolMatch: 'high', verdictConfidence: 'low', queryClarity: 'high' }, 'medium')
+    tc.addValidation({ type: 'empty_result', message: '无数据', severity: 'warning' })
+    tc.addSource('query_equipment', '设备查询')
+    const trace = tc.build()
+    expect(trace.intent?.domains).toEqual(['equipment'])
+    expect(trace.verdict).toBeNull()
+    expect(trace.finalConfidence).toBe('medium')
+    expect(trace.validation).toHaveLength(1)
+    expect(trace.sources).toHaveLength(1)
+  })
+
+  it('build 自动填充 endTime', () => {
+    const tc = new TraceCollector('测试')
+    tc.startRound(0, '思考')
+    tc.endRound('完成')
+    const trace = tc.build()
+    expect(trace.endTime).toBeDefined()
+    expect(trace.endTime!).toBeGreaterThanOrEqual(trace.startTime)
+  })
+})
