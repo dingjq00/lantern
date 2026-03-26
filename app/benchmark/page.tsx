@@ -63,7 +63,7 @@ export default function BenchmarkDashboard() {
           {selectedRun && (
             <div className="flex items-center gap-3">
               <button onClick={() => { setSelectedRun(null); setCompareRun(null) }}
-                className="px-4 py-2 text-sm bg-white border border-gray-200 rounded-lg hover:bg-gray-50">
+                className="px-4 py-2 text-sm text-gray-700 bg-white border border-gray-200 rounded-lg hover:bg-gray-50">
                 ← 返回列表
               </button>
               <select
