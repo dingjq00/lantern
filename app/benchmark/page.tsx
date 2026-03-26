@@ -61,10 +61,27 @@ export default function BenchmarkDashboard() {
             <p className="text-sm text-gray-500">实验追踪 · 历史对比 · 逐题分析</p>
           </div>
           {selectedRun && (
-            <button onClick={() => { setSelectedRun(null); setCompareRun(null); setCompareMode(false) }}
-              className="px-4 py-2 text-sm bg-white border border-gray-200 rounded-lg hover:bg-gray-50">
-              ← 返回列表
-            </button>
+            <div className="flex items-center gap-3">
+              <button onClick={() => { setSelectedRun(null); setCompareRun(null) }}
+                className="px-4 py-2 text-sm bg-white border border-gray-200 rounded-lg hover:bg-gray-50">
+                ← 返回列表
+              </button>
+              <select
+                value={compareRun?.runId ?? ''}
+                onChange={e => { if (e.target.value) loadRun(e.target.value, true); else setCompareRun(null) }}
+                className="px-3 py-2 text-sm border border-gray-200 rounded-lg bg-white text-gray-700"
+              >
+                <option value="">选择对比运行...</option>
+                {runs.filter(r => r.runId !== selectedRun.runId).map(r => (
+                  <option key={r.runId} value={r.runId}>
+                    {new Date(r.timestamp).toLocaleString('zh-CN')} — {(r.recall * 100).toFixed(1)}% {r.notes || ''}
+                  </option>
+                ))}
+              </select>
+              {compareRun && (
+                <span className="text-xs text-blue-600">对比中: {(compareRun.summary.recall * 100).toFixed(1)}%</span>
+              )}
+            </div>
           )}
         </div>
 
@@ -109,9 +126,8 @@ export default function BenchmarkDashboard() {
                       </td>
                       <td className="px-4 py-3 text-center" onClick={() => loadRun(run.runId)}>{run.totalQuestions}</td>
                       <td className="px-4 py-3 text-gray-500 text-xs" onClick={() => loadRun(run.runId)}>{run.notes || '-'}</td>
-                      <td className="px-4 py-3 text-center">
-                        <button onClick={() => { setCompareMode(true); loadRun(run.runId, true) }}
-                          className="text-xs text-blue-600 hover:text-blue-800">对比</button>
+                      <td className="px-4 py-3 text-center" onClick={() => loadRun(run.runId)}>
+                        <span className="text-xs text-blue-600">查看 →</span>
                       </td>
                     </tr>
                   ))}
