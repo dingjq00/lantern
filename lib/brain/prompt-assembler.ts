@@ -59,21 +59,29 @@ export function assemblePrompt(
   const base = getBaseInstructions().replace('{{currentDate}}', today)
   const react = getReactInstructions()
 
-  // 2. 动态工具描述（包含完整 YAML 元数据供 AI 推理）
+  // 2. 工具索引（精简，帮 AI 快速定位域和工具）
+  const domainGroups = new Map<string, typeof tools>()
+  for (const t of tools) {
+    for (const d of t.domains) {
+      if (!domainGroups.has(d)) domainGroups.set(d, [])
+      domainGroups.get(d)!.push(t)
+    }
+  }
+  const toolIndex = [...domainGroups.entries()].map(([domain, domainTools]) => {
+    const unique = [...new Map(domainTools.map(t => [t.name, t])).values()]
+    const lines = unique.map(t => `  - ${t.name} (${t.operation}): ${t.description.split('。')[0]}`)
+    return `**${domain}**\n${lines.join('\n')}`
+  }).join('\n')
+
+  // 3. 工具详细描述（参数 + 适用场景 + 衔接关系）
   const toolDescriptions = tools.map(t => {
     const params = Object.entries(t.inputSchema.properties)
       .map(([k, v]) => `    - ${k} (${v.type}): ${v.description || ''}`)
       .join('\n')
-    const lines = [
-      `### ${t.name}`,
-      t.description,
-      `  域: ${t.domains.join(', ')} | 操作: ${t.operation}`,
-      `  参数:\n${params || '    (无参数)'}`,
-      `  适用: ${t.whenToUse}`,
-      `  不适用: ${t.whenNotToUse}`,
-    ]
-    if (t.feedsInto.length > 0) lines.push(`  可衔接: ${t.feedsInto.join(', ')}`)
-    if (t.dependsOn.length > 0) lines.push(`  依赖: ${t.dependsOn.join(', ')}`)
+    const lines = [`### ${t.name}`, `  ${t.whenToUse}`]
+    lines.push(`  参数:\n${params || '    (无参数)'}`)
+    if (t.feedsInto.length > 0) lines.push(`  → 可衔接: ${t.feedsInto.join(', ')}`)
+    if (t.whenNotToUse) lines.push(`  ✗ ${t.whenNotToUse}`)
     return lines.join('\n')
   }).join('\n\n')
 
@@ -96,12 +104,14 @@ export function assemblePrompt(
   const domains = [...new Set(tools.flatMap(t => t.domains))]
   const systemContext = `\n## 当前系统\n系统: ${systems.join(', ').toUpperCase()} | 数据域: ${domains.join(', ')} | 工具数: ${tools.length}\n`
 
-  // 6. 组装
+  // 6. 组装（索引在前帮助快速定位，详细描述在后供精确匹配）
   const sections = [
     base,
     systemContext,
     react,
-    '\n## 可用工具清单\n\n',
+    '\n## 工具索引（按域分类，先看这里定位）\n\n',
+    toolIndex,
+    '\n\n## 工具详细说明\n\n',
     toolDescriptions,
     '\n\n',
     guide,
