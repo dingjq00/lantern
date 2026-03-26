@@ -6,8 +6,6 @@ import type { ToolDefinition, MemoryVerdict } from '@/lib/types'
 const PROMPTS_DIR = path.join(process.cwd(), 'prompts')
 
 // 懒加载缓存（六层架构）
-// PROMPT_LANG=en 切换英文指令，工具描述和示例查询保持中文
-const LANG = process.env.PROMPT_LANG === 'en' ? '.en' : ''
 let systemPromptText: string | null = null
 let rulesText: string | null = null
 let baseInstructions: string | null = null
@@ -20,27 +18,27 @@ function loadFile(name: string): string {
 }
 
 function getSystemPromptText(): string {
-  if (!systemPromptText) systemPromptText = loadFile(`system-prompt${LANG}.md`)
+  if (!systemPromptText) systemPromptText = loadFile(`system-prompt.md`)
   return systemPromptText
 }
 
 function getRules(): string {
-  if (!rulesText) rulesText = loadFile(`rules${LANG}.md`)
+  if (!rulesText) rulesText = loadFile(`rules.md`)
   return rulesText
 }
 
 function getBaseInstructions(): string {
-  if (!baseInstructions) baseInstructions = loadFile(`base-instructions${LANG}.md`)
+  if (!baseInstructions) baseInstructions = loadFile(`base-instructions.md`)
   return baseInstructions
 }
 
 function getReactInstructions(): string {
-  if (!reactInstructions) reactInstructions = loadFile(`react-instructions${LANG}.md`)
+  if (!reactInstructions) reactInstructions = loadFile(`react-instructions.md`)
   return reactInstructions
 }
 
 function getToolSelectionGuide(): string {
-  if (!toolSelectionGuide) toolSelectionGuide = loadFile(`tool-selection-guide${LANG}.md`)
+  if (!toolSelectionGuide) toolSelectionGuide = loadFile(`tool-selection-guide.md`)
   return toolSelectionGuide
 }
 
