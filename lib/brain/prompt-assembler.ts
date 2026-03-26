@@ -5,7 +5,9 @@ import type { ToolDefinition, MemoryVerdict } from '@/lib/types'
 
 const PROMPTS_DIR = path.join(process.cwd(), 'prompts')
 
-// 懒加载缓存
+// 懒加载缓存（六层架构）
+let systemPromptText: string | null = null
+let rulesText: string | null = null
 let baseInstructions: string | null = null
 let reactInstructions: string | null = null
 let toolSelectionGuide: string | null = null
@@ -13,6 +15,16 @@ let fewShotExamples: unknown[] | null = null
 
 function loadFile(name: string): string {
   return fs.readFileSync(path.join(PROMPTS_DIR, name), 'utf-8')
+}
+
+function getSystemPromptText(): string {
+  if (!systemPromptText) systemPromptText = loadFile('system-prompt.md')
+  return systemPromptText
+}
+
+function getRules(): string {
+  if (!rulesText) rulesText = loadFile('rules.md')
+  return rulesText
 }
 
 function getBaseInstructions(): string {
@@ -53,16 +65,17 @@ export function assemblePrompt(
     ? { memoryContext: memoryContextOrOptions }
     : memoryContextOrOptions ?? {}
 
-  // ============ 静态层（不变，可缓存）============
-  // 放在 system message 开头，attention 权重最高，缓存命中率最大化
+  // ============ 六层架构：静态在前（可缓存），动态在后 ============
 
-  // 角色 + 核心规则
-  const base = getBaseInstructions()  // 不再嵌入 {{currentDate}}，日期移到动态层
-  // 行为模式
+  // Layer 1: System Prompt — 你是谁（永不变）
+  const sysPrompt = getSystemPromptText()
+  // Layer 2: Rules — 底线约束（永不变，attention 权重高）
+  const rules = getRules()
+  // Layer 3: Task Instructions — 这类任务怎么做（按场景可换）
+  const base = getBaseInstructions()
   const react = getReactInstructions()
-  // 选择方法论
   const guide = getToolSelectionGuide()
-  // Few-shot 示例
+  // Layer 4: Examples — 示例（偶尔变）
   const examples = getFewShotExamples()
   const exampleText = examples.map((ex: any, i: number) => {
     const lines = [`**示例 ${i + 1}**: "${ex.query}"`]
@@ -88,23 +101,23 @@ export function assemblePrompt(
     return `- **${t.name}**: ${t.description}\n${params || '  (无参数)'}`
   }).join('\n')
 
-  // ============ 组装：静态在前，动态在后 ============
+  // ============ 组装：六层顺序 ============
   const sections = [
-    // --- 静态（可缓存）---
-    base,
-    '\n',
-    react,
-    '\n\n',
-    guide,
-    '\n\n## 编排示例\n\n',
-    exampleText,
-    // --- 缓存边界 ---
+    // Layer 1: System Prompt（你是谁）
+    sysPrompt,
+    // Layer 2: Rules（底线，最靠前，attention 权重最高）
+    rules,
+    // Layer 3: Task Instructions（怎么做）
+    base, '\n', react, '\n\n', guide,
+    // Layer 4: Examples（偶尔变）
+    '\n\n## 编排示例\n\n', exampleText,
+    // ——— 缓存边界 ———
     '\n\n---\n',
-    // --- 动态（每次变）---
+    // Layer 5: Dynamic Context（每次变）
     `\n## 当前环境\n系统: ${systems.join(', ').toUpperCase()} | 数据域: ${domains.join(', ')} | 工具数: ${tools.length} | 日期: ${today}\n`,
-    '\n## 可用工具\n\n',
-    toolDescriptions,
+    '\n## 可用工具\n\n', toolDescriptions,
   ]
+  // Layer 6: User Input → 在 userMessage 里，不在 system prompt 里
 
   // 动态注入（verdict、用户上下文）
   if (options.verdict && options.verdict.toolChain.length > 0) {
