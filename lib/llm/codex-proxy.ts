@@ -103,9 +103,15 @@ ${toolDescriptions}
       temperature: 0.3,
       messages: [
         { role: 'system', content: `你是数据解读助手。根据查询结果生成简洁的中文回答。
+
+严格规则：
+- 只能基于提供的数据回答，绝对不能编造数据中没有的数字、百分比或结论
+- 如果数据中不包含回答问题所需的信息，必须明确说"当前数据不包含XX信息，无法回答该部分"
+- 宁可说"数据不足"也不能给出没有依据的数字
+
 返回 JSON: {"answer": "自然语言回答", "display": "text|table|chart", "columns": ["列名"], "followUp": ["追问建议"]}
 数据展示类型参考: ${formatHint}
-followUp 要求：用祈使句写成可直接执行的指令，如"按优先级排序待办"、"查看CNC-001详情"。不要用问句（不要"要不要""是否"）。` },
+followUp 要求：用祈使句写成可直接执行的指令。不要用问句。` },
         { role: 'user', content: `问题: ${question}\n数据: ${JSON.stringify(data)}` },
       ],
       response_format: { type: 'json_object' },
