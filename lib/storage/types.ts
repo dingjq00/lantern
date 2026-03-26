@@ -1,5 +1,5 @@
 // 存储层接口定义
-import type { MemorySession, MemoryVerdict, MemoryPreference } from '@/lib/types'
+import type { MemorySession, MemoryVerdict, MemoryPreference, ExecutionTrace } from '@/lib/types'
 
 export interface StorageInterface {
   /** 初始化数据库（建表等） */
@@ -8,6 +8,7 @@ export interface StorageInterface {
   // --- 会话层 ---
   insertSession(session: MemorySession): void
   getSessionsByIntentHash(tenantId: string, intentHash: string, limit?: number): MemorySession[]
+  updateSessionFeedback(tenantId: string, sessionId: string, feedback: 'up' | 'down'): void
 
   // --- 经验层 ---
   getVerdict(tenantId: string, intentHash: string): MemoryVerdict | null
@@ -16,6 +17,10 @@ export interface StorageInterface {
   // --- 持久层 ---
   getPreference(tenantId: string, userId: string): MemoryPreference | null
   setPreference(pref: MemoryPreference): void
+
+  // --- 执行追踪 ---
+  insertTrace(tenantId: string, trace: ExecutionTrace, sessionId?: string): void
+  getTrace(traceId: string): ExecutionTrace | null
 
   /** 关闭连接 */
   close(): void

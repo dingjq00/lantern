@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { SQLiteStorage } from '@/lib/storage/sqlite'
-import type { MemorySession, MemoryVerdict, MemoryPreference } from '@/lib/types'
+import type { MemorySession, MemoryVerdict, MemoryPreference, ExecutionTrace } from '@/lib/types'
 
 function makeSession(overrides: Partial<MemorySession> = {}): MemorySession {
   return {
@@ -130,5 +130,53 @@ describe('SQLiteStorage', () => {
   it('不存在的 preference 返回 null', () => {
     const result = storage.getPreference('default', 'nobody')
     expect(result).toBeNull()
+  })
+
+  // --- Feedback ---
+
+  it('updateSessionFeedback 更新 feedback 字段', () => {
+    storage.insertSession(makeSession())
+    storage.updateSessionFeedback('default', 'sess-001', 'up')
+    const sessions = storage.getSessionsByIntentHash('default', 'hash-abc')
+    expect(sessions[0].feedback).toBe('up')
+  })
+
+  it('updateSessionFeedback 覆盖更新', () => {
+    storage.insertSession(makeSession())
+    storage.updateSessionFeedback('default', 'sess-001', 'up')
+    storage.updateSessionFeedback('default', 'sess-001', 'down')
+    const sessions = storage.getSessionsByIntentHash('default', 'hash-abc')
+    expect(sessions[0].feedback).toBe('down')
+  })
+
+  // --- Trace ---
+
+  it('插入并查询 trace', () => {
+    const trace: ExecutionTrace = {
+      traceId: 'trace-001',
+      query: '系统有多少设备',
+      startTime: Date.now(),
+      endTime: Date.now() + 1000,
+      rounds: [{
+        round: 0,
+        thought: '用 get_dashboard_summary',
+        calls: [{ tool: 'get_dashboard_summary', arguments: {}, result: { total: 128 }, status: 'success', durationMs: 300 }],
+        observation: '获得设备总数',
+      }],
+      confidence: { toolMatch: 'high', verdictConfidence: 'low', queryClarity: 'high' },
+      finalConfidence: 'medium',
+      validation: [],
+      sources: [{ tool: 'get_dashboard_summary', description: '系统总览' }],
+    }
+    storage.insertTrace('default', trace, 'sess-001')
+    const result = storage.getTrace('trace-001')
+    expect(result).not.toBeNull()
+    expect(result!.traceId).toBe('trace-001')
+    expect(result!.rounds).toHaveLength(1)
+    expect(result!.rounds[0].calls[0].tool).toBe('get_dashboard_summary')
+  })
+
+  it('不存在的 trace 返回 null', () => {
+    expect(storage.getTrace('nonexistent')).toBeNull()
   })
 })

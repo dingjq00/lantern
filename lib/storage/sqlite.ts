@@ -3,7 +3,7 @@ import Database from 'better-sqlite3'
 import path from 'path'
 import fs from 'fs'
 import type { StorageInterface } from './types'
-import type { MemorySession, MemoryVerdict, MemoryPreference } from '@/lib/types'
+import type { MemorySession, MemoryVerdict, MemoryPreference, ExecutionTrace } from '@/lib/types'
 
 export class SQLiteStorage implements StorageInterface {
   private db: Database.Database
@@ -17,13 +17,15 @@ export class SQLiteStorage implements StorageInterface {
   }
 
   initialize(): void {
-    const migrationPath = path.join(__dirname, 'migrations', '001-init.sql')
-    const sql = fs.readFileSync(migrationPath, 'utf-8')
-    // PRAGMA 不能在 exec 里和其他语句一起跑，单独执行
     this.db.pragma('journal_mode = WAL')
-    // 去掉 PRAGMA 行后执行建表
-    const ddl = sql.replace(/^PRAGMA.*$/gm, '').trim()
-    this.db.exec(ddl)
+    // 按顺序加载所有 migration
+    const migrationsDir = path.join(__dirname, 'migrations')
+    const files = fs.readdirSync(migrationsDir).filter(f => f.endsWith('.sql')).sort()
+    for (const file of files) {
+      const sql = fs.readFileSync(path.join(migrationsDir, file), 'utf-8')
+      const ddl = sql.replace(/^PRAGMA.*$/gm, '').trim()
+      this.db.exec(ddl)
+    }
   }
 
   // --- 会话层 ---
@@ -59,6 +61,14 @@ export class SQLiteStorage implements StorageInterface {
     `)
     const rows = stmt.all(tenantId, intentHash, limit) as Record<string, unknown>[]
     return rows.map(rowToSession)
+  }
+
+  updateSessionFeedback(tenantId: string, sessionId: string, feedback: 'up' | 'down'): void {
+    const stmt = this.db.prepare(`
+      UPDATE nl_memory_sessions SET feedback = ?
+      WHERE tenant_id = ? AND session_id = ?
+    `)
+    stmt.run(feedback, tenantId, sessionId)
   }
 
   // --- 经验层 ---
@@ -128,6 +138,29 @@ export class SQLiteStorage implements StorageInterface {
       createdAt: pref.createdAt.toISOString(),
       updatedAt: pref.updatedAt.toISOString(),
     })
+  }
+
+  // --- 执行追踪 ---
+
+  insertTrace(tenantId: string, trace: ExecutionTrace, sessionId?: string): void {
+    const stmt = this.db.prepare(`
+      INSERT INTO nl_traces (trace_id, tenant_id, session_id, query, trace_json, created_at)
+      VALUES (@traceId, @tenantId, @sessionId, @query, @traceJson, @createdAt)
+    `)
+    stmt.run({
+      traceId: trace.traceId,
+      tenantId,
+      sessionId: sessionId ?? null,
+      query: trace.query,
+      traceJson: JSON.stringify(trace),
+      createdAt: new Date().toISOString(),
+    })
+  }
+
+  getTrace(traceId: string): ExecutionTrace | null {
+    const stmt = this.db.prepare('SELECT trace_json FROM nl_traces WHERE trace_id = ?')
+    const row = stmt.get(traceId) as { trace_json: string } | undefined
+    return row ? JSON.parse(row.trace_json) : null
   }
 
   close(): void {
