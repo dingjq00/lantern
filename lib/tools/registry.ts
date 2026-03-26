@@ -34,8 +34,8 @@ export class ToolRegistry {
       })
     }
 
-    // matchScore desc → quality desc
-    ranked.sort((a, b) => b.matchScore - a.matchScore || b.quality - a.quality)
+    // matchScore desc
+    ranked.sort((a, b) => b.matchScore - a.matchScore)
     return ranked
   }
 

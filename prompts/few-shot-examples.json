@@ -62,5 +62,36 @@
     },
     "finish": true,
     "note": "首轮用引用查第一个备件，审查轮补全其他备件 — 3 次 think"
+  },
+  {
+    "type": "single_round",
+    "query": "上月故障最多的设备，它的保养是否按计划执行？",
+    "round0": {
+      "thought": "[意图] 跨两个域：fault-repair 查故障 + maintenance 查保养。两个域都必须覆盖 [候选] query_fault_reports, query_maintenance_tasks [审查] query_fault_reports 按时间查故障列表可统计各设备故障数；query_maintenance_tasks 按设备查保养任务可判断执行情况 [规划] 并行查两个域 [验证] 故障列表（找最多的设备）+ 保养任务（判断是否按计划）= 覆盖两个域",
+      "intent": {"domains": ["fault-repair", "maintenance"], "operation": "statistics", "filters": ["dateRange"]},
+      "clarity": "clear",
+      "calls": [
+        {"tool": "query_fault_reports", "arguments": {"dateRange": {"start": "2026-02-01", "end": "2026-02-28"}}},
+        {"tool": "query_maintenance_tasks", "arguments": {"dateRange": {"start": "2026-02-01", "end": "2026-02-28"}}}
+      ]
+    },
+    "finish": true,
+    "note": "跨域问题必须每个域都选工具，不能只选一个域"
+  },
+  {
+    "type": "single_round",
+    "query": "上月维修成本最高的设备，巡检有没有发现异常？",
+    "round0": {
+      "thought": "[意图] 跨两个域：fault-repair 查维修成本 + patrol 查巡检异常 [候选] query_repair_orders, get_repair_detail, query_anomaly_records [审查] query_repair_orders 返回工单列表（编号/状态），get_repair_detail 返回备件+工时=成本明细，query_anomaly_records 返回异常记录。注意：repair_orders 只有列表概要，成本明细必须用 repair_detail 补全 [规划] 三个工具链：工单列表→工单详情（含成本）+ 异常记录 [验证] 维修成本（repair_detail）+ 异常记录（anomaly_records）= 覆盖两个域",
+      "intent": {"domains": ["fault-repair", "patrol"], "operation": "detail", "filters": ["dateRange"]},
+      "clarity": "clear",
+      "calls": [
+        {"tool": "query_repair_orders", "arguments": {"dateRange": {"start": "2026-02-01", "end": "2026-02-28"}}},
+        {"tool": "get_repair_detail", "arguments": {"repairOrderId": "{{0.items[0].repairOrderId}}"}},
+        {"tool": "query_anomaly_records", "arguments": {}}
+      ]
+    },
+    "finish": true,
+    "note": "主体(repair_orders)→明细(repair_detail)链路 + 跨域(anomaly_records)，一次规划完整"
   }
 ]
