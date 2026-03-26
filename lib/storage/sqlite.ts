@@ -19,7 +19,7 @@ export class SQLiteStorage implements StorageInterface {
   initialize(): void {
     this.db.pragma('journal_mode = WAL')
     // 按顺序加载所有 migration
-    const migrationsDir = path.join(__dirname, 'migrations')
+    const migrationsDir = path.join(process.cwd(), 'lib', 'storage', 'migrations')
     const files = fs.readdirSync(migrationsDir).filter(f => f.endsWith('.sql')).sort()
     for (const file of files) {
       const sql = fs.readFileSync(path.join(migrationsDir, file), 'utf-8')

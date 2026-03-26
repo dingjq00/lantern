@@ -12,6 +12,7 @@ export async function GET() {
     const runs = getStorage().getBenchmarkRuns()
     return NextResponse.json(runs)
   } catch (error) {
-    return NextResponse.json({ error: '获取运行记录失败' }, { status: 500 })
+    console.error('Benchmark runs API error:', error)
+    return NextResponse.json({ error: '获取运行记录失败', detail: String(error) }, { status: 500 })
   }
 }
