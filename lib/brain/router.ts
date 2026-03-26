@@ -12,7 +12,7 @@ import type {
   IntentTags, ConfidenceSignals, ConfidenceLevel, MemorySession,
 } from '@/lib/types'
 
-const MAX_CHASE_ROUNDS = 3
+const MAX_CHASE_ROUNDS = 1  // 首轮规划 + 一轮追查（放开尝试），不再多轮
 const ESCALATION_MODEL = process.env.LLM_ESCALATION_MODEL || 'gpt-5.4'
 
 interface RouterDeps {
