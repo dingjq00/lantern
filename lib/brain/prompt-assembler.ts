@@ -59,12 +59,22 @@ export function assemblePrompt(
   const base = getBaseInstructions().replace('{{currentDate}}', today)
   const react = getReactInstructions()
 
-  // 2. 动态工具描述
+  // 2. 动态工具描述（包含完整 YAML 元数据供 AI 推理）
   const toolDescriptions = tools.map(t => {
     const params = Object.entries(t.inputSchema.properties)
       .map(([k, v]) => `    - ${k} (${v.type}): ${v.description || ''}`)
       .join('\n')
-    return `### ${t.name}\n${t.description}\n  参数:\n${params || '    (无参数)'}`
+    const lines = [
+      `### ${t.name}`,
+      t.description,
+      `  域: ${t.domains.join(', ')} | 操作: ${t.operation}`,
+      `  参数:\n${params || '    (无参数)'}`,
+      `  适用: ${t.whenToUse}`,
+      `  不适用: ${t.whenNotToUse}`,
+    ]
+    if (t.feedsInto.length > 0) lines.push(`  可衔接: ${t.feedsInto.join(', ')}`)
+    if (t.dependsOn.length > 0) lines.push(`  依赖: ${t.dependsOn.join(', ')}`)
+    return lines.join('\n')
   }).join('\n\n')
 
   // 3. 工具选择指南
@@ -81,10 +91,15 @@ export function assemblePrompt(
     return lines.join('\n')
   }).join('\n\n')
 
-  // 5. 组装
+  // 5. 系统上下文（从工具声明推断）
+  const systems = [...new Set(tools.map(t => t.system))]
+  const domains = [...new Set(tools.flatMap(t => t.domains))]
+  const systemContext = `\n## 当前系统\n系统: ${systems.join(', ').toUpperCase()} | 数据域: ${domains.join(', ')} | 工具数: ${tools.length}\n`
+
+  // 6. 组装
   const sections = [
     base,
-    '\n',
+    systemContext,
     react,
     '\n## 可用工具清单\n\n',
     toolDescriptions,

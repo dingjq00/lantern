@@ -15,8 +15,8 @@ describe('assemblePrompt', () => {
 
   it('组装结果包含工具选择指南', () => {
     const { systemPrompt } = assemblePrompt('测试', tools)
-    expect(systemPrompt).toContain('工具选择指南')
-    expect(systemPrompt).toContain('简单直查')
+    expect(systemPrompt).toContain('工具选择方法')
+    expect(systemPrompt).toContain('分析用户意图')
   })
 
   it('组装结果包含推理执行指令', () => {
