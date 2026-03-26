@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
-import { computeIntentHash } from '@/lib/brain/intent'
+import { computeIntentHash, extractIntentFromThinkResult } from '@/lib/brain/intent'
+import type { ThinkResult } from '@/lib/types'
 
 describe('computeIntentHash', () => {
   it('相同结构意图产生相同 hash', () => {
@@ -24,5 +25,26 @@ describe('computeIntentHash', () => {
     const h = computeIntentHash(['equipment'], 'list', [])
     expect(h.length).toBeGreaterThan(0)
     expect(h.length).toBeLessThanOrEqual(16)
+  })
+})
+
+describe('extractIntentFromThinkResult', () => {
+  it('从 ThinkResult 提取 intent + clarity', () => {
+    const result: ThinkResult = {
+      thought: '测试',
+      intent: { domains: ['equipment'], operation: 'list', filters: ['status'], intentHash: '' },
+      clarity: 'high',
+    }
+    const { intent, clarity } = extractIntentFromThinkResult(result)
+    expect(intent.domains).toEqual(['equipment'])
+    expect(intent.intentHash.length).toBe(16)
+    expect(clarity).toBe('high')
+  })
+
+  it('无 intent 时返回空 intent + medium clarity', () => {
+    const result: ThinkResult = { thought: '测试' }
+    const { intent, clarity } = extractIntentFromThinkResult(result)
+    expect(intent.domains).toEqual([])
+    expect(clarity).toBe('medium')
   })
 })
