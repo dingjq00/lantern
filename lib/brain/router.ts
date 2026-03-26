@@ -165,15 +165,13 @@ export async function processQuery(
         const r = allResults.find(ar => ar.tool === c.tool)
         return { tool: c.tool, result: r?.data ?? 'error' }
       })
-      // 观察消息：数据 + 原始问题 + 历史教训（如果有）
-      let obsMessage = `观察结果: ${JSON.stringify(obsData)}\n\n用户原始问题是: "${query}"\n请判断：以上数据能完整回答用户的问题吗？如果缺少信息，继续补充调用；如果足够，输出 {"thought": "...", "finish": true}`
-      if (round === 0 && intent?.intentHash) {
-        const lessons = storage.getLessonsByIntentHash(tenantId, intent.intentHash, 3)
-        if (lessons.length > 0) {
-          const lessonText = lessons.map(l => `- "${l.query}": ${l.lesson}`).join('\n')
-          obsMessage += `\n\n历史教训（类似查询曾犯过的错误）:\n${lessonText}`
-        }
-      }
+      // 观察注入（Reflexion 式事实对比）
+      const dataFields = obsData.flatMap(d => {
+        if (d.result && typeof d.result === 'object' && !Array.isArray(d.result)) return Object.keys(d.result as Record<string, unknown>)
+        if (d.result && typeof d.result === 'object' && Array.isArray((d.result as any)?.items)) return ['items[...]']
+        return ['(数据)']
+      })
+      const obsMessage = `观察结果: ${JSON.stringify(obsData)}\n\n事实对比:\n- 用户问: "${query}"\n- 已获得字段: ${[...new Set(dataFields)].join(', ')}\n\n按 5 步模板继续推理。如果已覆盖用户问题则 finish。`
       messages.push({ role: 'user', content: obsMessage })
     }
 
