@@ -15,7 +15,7 @@ const TEST_CASES: Array<{ id: string; query: string; level: string; expectedTool
   // L1
   { id: 'T01', query: '现在系统里一共有多少台设备？', level: 'L1', expectedTools: ['get_dashboard_summary'] },
   { id: 'T02', query: '当前有几个待审核的故障报修？', level: 'L1', expectedTools: ['get_dashboard_summary'] },
-  { id: 'T03', query: '设备 EQ-001 的详细信息是什么？', level: 'L1', expectedTools: ['get_equipment_detail'] },
+  { id: 'T03', query: '设备 EQ-001 的详细信息是什么？', level: 'L1', expectedTools: ['query_equipment', 'get_equipment_detail'] },
   { id: 'T04', query: '各状态的设备数量分布是怎样的？', level: 'L1', expectedTools: ['get_equipment_status_distribution'] },
   { id: 'T05', query: '最近 30 天的故障趋势怎么样？', level: 'L1', expectedTools: ['get_fault_trend'] },
   { id: 'T06', query: '巡检异常的整体统计指标是什么？', level: 'L1', expectedTools: ['get_anomaly_statistics'] },
@@ -26,23 +26,23 @@ const TEST_CASES: Array<{ id: string; query: string; level: string; expectedTool
   // L2
   { id: 'T11', query: '上月故障最多的设备是哪台？', level: 'L2', expectedTools: ['query_fault_reports'] },
   { id: 'T12', query: '维修工单 WO-001 用了哪些备件？', level: 'L2', expectedTools: ['query_repair_orders', 'get_repair_detail'] },
-  { id: 'T13', query: '设备 EQ-002 的保养任务执行情况怎样？', level: 'L2', expectedTools: ['query_maintenance_tasks'] },
+  { id: 'T13', query: '设备 EQ-002 的保养任务执行情况怎样？', level: 'L2', expectedTools: ['query_equipment', 'query_maintenance_tasks'] },
   { id: 'T14', query: '近 7 天完成了几个巡检任务？', level: 'L2', expectedTools: ['query_patrol_tasks'] },
   { id: 'T15', query: '当前维修中的设备都是哪些？', level: 'L2', expectedTools: ['query_equipment'] },
-  { id: 'T16', query: '备件 SP-001 都用在哪些设备上？', level: 'L2', expectedTools: ['get_equipment_spare_bom'] },
-  { id: 'T17', query: '设备 EQ-001 最近一次保养是什么时候？', level: 'L2', expectedTools: ['query_maintenance_tasks'] },
+  { id: 'T16', query: '备件 SP-001 都用在哪些设备上？', level: 'L2', expectedTools: ['query_spare_parts', 'get_equipment_spare_bom'] },
+  { id: 'T17', query: '设备 EQ-001 最近一次保养是什么时候？', level: 'L2', expectedTools: ['query_equipment', 'query_maintenance_tasks'] },
   { id: 'T18', query: '本月新增了多少故障报修？', level: 'L2', expectedTools: ['query_fault_reports'] },
-  { id: 'T19', query: '设备 EQ-003 的全生命周期事件有哪些？', level: 'L2', expectedTools: ['get_equipment_lifecycle'] },
+  { id: 'T19', query: '设备 EQ-003 的全生命周期事件有哪些？', level: 'L2', expectedTools: ['query_equipment', 'get_equipment_lifecycle'] },
   { id: 'T20', query: '近 30 天巡检发现最多异常的设备是哪台？', level: 'L2', expectedTools: ['get_patrol_analytics'] },
   // L3
   { id: 'T21', query: 'A 线上月维修用了哪些备件？', level: 'L3', expectedTools: ['query_equipment', 'query_repair_orders', 'get_repair_detail'] },
-  { id: 'T22', query: '设备 EQ-003 的 BOM 里哪些备件库存不足？', level: 'L3', expectedTools: ['get_equipment_spare_bom', 'get_spare_stock'] },
+  { id: 'T22', query: '设备 EQ-003 的 BOM 里哪些备件库存不足？', level: 'L3', expectedTools: ['query_equipment', 'get_equipment_spare_bom', 'get_spare_stock'] },
   { id: 'T23', query: '上月维修时参考了哪些知识文档？', level: 'L3', expectedTools: ['query_repair_orders', 'get_repair_detail'] },
   { id: 'T24', query: 'B 线上个月巡检发现了几次异常？', level: 'L3', expectedTools: ['query_equipment', 'query_anomaly_records'] },
   { id: 'T25', query: '最近维修用量最大的备件，关联了哪些设备？', level: 'L3', expectedTools: ['query_repair_orders', 'get_repair_detail', 'get_equipment_spare_bom'] },
   { id: 'T26', query: 'A 线设备的保养计划执行率是多少？', level: 'L3', expectedTools: ['query_equipment', 'query_maintenance_tasks'] },
-  { id: 'T27', query: '维修工单 WO-005 的出库单涉及了哪些仓库？', level: 'L3', expectedTools: ['get_repair_detail', 'query_spare_transactions'] },
-  { id: 'T28', query: '设备 EQ-001 最近一次故障的维修花了多少工时？', level: 'L3', expectedTools: ['query_fault_reports', 'get_repair_detail'] },
+  { id: 'T27', query: '维修工单 WO-005 的出库单涉及了哪些仓库？', level: 'L3', expectedTools: ['query_repair_orders', 'get_repair_detail', 'query_spare_transactions'] },
+  { id: 'T28', query: '设备 EQ-001 最近一次故障的维修花了多少工时？', level: 'L3', expectedTools: ['query_equipment', 'query_fault_reports', 'get_repair_detail'] },
   // L4
   { id: 'T29', query: '故障率最高的设备，保养是否按计划执行？', level: 'L4', expectedTools: ['query_fault_reports', 'query_maintenance_tasks'] },
   { id: 'T30', query: '上月维修成本最高的设备，它的巡检有没有发现过异常？', level: 'L4', expectedTools: ['query_repair_orders', 'get_repair_detail', 'query_anomaly_records'] },
@@ -96,6 +96,12 @@ const EQUIVALENT_PATHS: Record<string, string[]> = {
   query_anomaly_records: ['get_anomaly_statistics'],
   // get_equipment_lifecycle 包含维修/保养历史，可部分替代 query_maintenance_tasks
   get_equipment_lifecycle: ['query_maintenance_tasks'],
+  // get_governance_dashboard drilldown 可替代 query_fault_reports（设备级故障统计）
+  get_governance_dashboard: ['query_fault_reports', 'query_maintenance_tasks'],
+  // query_spare_transactions 可替代 query_repair_orders（从备件流转角度查维修用量）
+  query_spare_transactions: ['query_repair_orders', 'get_repair_detail'],
+  // query_spare_parts 可替代 get_repair_detail（从备件角度定位备件 ID）
+  query_spare_parts: ['get_repair_detail'],
   // get_fault_trend 和 query_fault_reports 在故障统计上有重叠
   get_fault_trend: ['query_fault_reports'],
   // query_patrol_tasks 和 get_patrol_analytics 在巡检统计上有重叠
