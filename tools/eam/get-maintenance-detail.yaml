@@ -1,5 +1,5 @@
 name: get_maintenance_detail
-description: 获取保养任务详情，包括任务基本信息和执行记录（各检查项的完成情况）。
+description: 获取保养任务的执行记录（各检查项的完成情况）。query_maintenance_tasks 只返回任务列表（状态/计划日期），不含检查项明细，需要本工具补全。
 version: "1.0"
 system: eam
 domains: [maintenance]

@@ -1,5 +1,5 @@
 name: get_spare_stock
-description: 查询备件库存。可按备件ID查各仓库库存明细，也可按仓库ID查该仓库所有备件库存。
+description: 查询备件的库存数量和安全库存。get_equipment_spare_bom 返回设备需要哪些备件，但不含库存数量，需要本工具查库存是否充足。
 version: "1.0"
 system: eam
 domains: [spare]
