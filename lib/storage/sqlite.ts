@@ -166,6 +166,10 @@ export class SQLiteStorage implements StorageInterface {
   // --- 自学习 Lessons ---
 
   insertLesson(lesson: Lesson): void {
+    // 同 intent_hash + tenant_id 只保留最新一条，upsert
+    // 先删旧的同 source 记录，再 insert
+    this.db.prepare(`DELETE FROM nl_lessons WHERE tenant_id = ? AND intent_hash = ? AND source = ?`)
+      .run(lesson.tenantId, lesson.intentHash, lesson.source)
     const stmt = this.db.prepare(`
       INSERT INTO nl_lessons (intent_hash, tenant_id, query, selected_tools, quality, error_reason, better_path, lesson, source, created_at)
       VALUES (@intentHash, @tenantId, @query, @selectedTools, @quality, @errorReason, @betterPath, @lesson, @source, @createdAt)

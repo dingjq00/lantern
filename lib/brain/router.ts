@@ -197,10 +197,7 @@ export async function processQuery(
     }
     storage.insertSession(session)
     storage.insertTrace(tenantId, trace.build(), session.sessionId)
-    // 异步自评 + lesson 生成（不阻塞响应）
-    if (intent?.intentHash) {
-      generateLesson(llm, storage, tenantId, query, intent.intentHash, allResults.map(r => r.tool), summary.answer).catch(() => {})
-    }
+    // lesson 由外部信号触发（用户反馈/结果质量检测），不做 AI 自评
   } catch { /* 存储失败不影响响应 */ }
 
   const result = buildStructuredResult(
@@ -227,43 +224,45 @@ async function generateLesson(
   intentHash: string,
   selectedTools: string[],
   answer: string,
+  availableToolNames: string[],
 ): Promise<void> {
-  const evalPrompt = `你是一个质量评审员。评估以下工具路由结果：
+  const evalPrompt = `评估工具路由结果。必须使用下方工具列表中的具体工具名。
+
+可用工具: ${availableToolNames.join(', ')}
 
 用户问题: "${query}"
-选择的工具: ${selectedTools.join(', ')}
-回答摘要: "${answer.slice(0, 200)}"
+选择的工具: ${selectedTools.join(', ') || '(无)'}
+回答摘要: "${answer.slice(0, 150)}"
 
-请判断：
-1. 工具选择是否正确？能否回答用户的问题？
-2. 如果不够好，哪里错了？应该用什么工具？
-
-返回 JSON:
-{"quality": "good|partial|bad", "errorReason": "错误原因(如果有)", "betterPath": ["应该用的工具(如果有)"], "lesson": "一句话教训总结"}`
+返回严格 JSON（不要其他文字）:
+{"quality":"good或partial或bad","errorReason":"选错的原因","betterPath":["应该用的具体工具名"],"lesson":"选了X不对因为Y，应该用Z"}`
 
   const result = await llm.think([
     { role: 'system', content: evalPrompt },
-    { role: 'user', content: '请评估' },
+    { role: 'user', content: '评估' },
   ])
 
   try {
-    // think() 返回 ThinkResult，但我们用它做自评，从 thought 里解析 JSON
     const evalText = result.thought
     const evalData = JSON.parse(evalText)
+    if (!evalData.quality) return
 
     const lesson: import('@/lib/types').Lesson = {
       intentHash,
       tenantId,
       query,
       selectedTools,
-      quality: evalData.quality ?? 'partial',
+      quality: evalData.quality,
       errorReason: evalData.errorReason,
       betterPath: evalData.betterPath,
-      lesson: evalData.lesson ?? '无教训',
+      lesson: evalData.lesson ?? '',
       source: 'self_eval',
       createdAt: new Date(),
     }
-    storage.insertLesson(lesson)
+    // 只存有价值的教训（partial 或 bad）
+    if (lesson.quality !== 'good') {
+      storage.insertLesson(lesson)
+    }
   } catch {
     // 解析失败不影响主流程
   }
