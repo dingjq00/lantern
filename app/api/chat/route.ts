@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { processQuery } from '@/lib/brain/router'
 import { ToolRegistry } from '@/lib/tools/registry'
 import { CodexProxyProvider } from '@/lib/llm/codex-proxy'
+import { SQLiteStorage } from '@/lib/storage/sqlite'
 import { MCPClient } from '@/lib/tools/mcp-client'
 import { loadTools } from '@/lib/tools/yaml-loader'
 import path from 'path'
@@ -11,6 +12,7 @@ import type { ToolResult } from '@/lib/types'
 let registry: ToolRegistry | null = null
 let llm: CodexProxyProvider | null = null
 let mcpClient: MCPClient | null = null
+let storage: SQLiteStorage | null = null
 
 function getRegistry(): ToolRegistry {
   if (!registry) {
@@ -23,6 +25,14 @@ function getRegistry(): ToolRegistry {
 function getLLM(): CodexProxyProvider {
   if (!llm) llm = new CodexProxyProvider()
   return llm
+}
+
+function getStorage(): SQLiteStorage {
+  if (!storage) {
+    storage = new SQLiteStorage()
+    storage.initialize()
+  }
+  return storage
 }
 
 function getMCPClient(): MCPClient {
@@ -51,9 +61,15 @@ export async function POST(request: NextRequest) {
     const result = await processQuery(query.trim(), {
       registry: getRegistry(),
       llm: getLLM(),
+      storage: getStorage(),
       callTool,
       history,
     })
+
+    // 生产模式不返回 trace（减少响应体积）
+    if (process.env.NODE_ENV === 'production') {
+      delete result.trace
+    }
 
     return NextResponse.json(result)
   } catch (error) {

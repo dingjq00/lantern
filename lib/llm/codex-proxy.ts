@@ -14,7 +14,7 @@ const ThinkResultSchema = z.object({
   clarity: z.enum(['clear', 'ambiguous', 'unsupported']).optional(),
   calls: z.array(z.object({
     tool: z.string(),
-    arguments: z.record(z.unknown()),
+    arguments: z.record(z.string(), z.unknown()),
   })).optional(),
   finish: z.boolean().optional(),
   unsupported: z.boolean().optional(),
