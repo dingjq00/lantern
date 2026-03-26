@@ -98,6 +98,8 @@ interface BenchmarkResult {
   latencyMs: number
   confidence: string
   hasSources: boolean
+  trace?: any  // 完整 ExecutionTrace
+  answer: string
   error?: string
 }
 
@@ -144,6 +146,7 @@ async function main() {
         actualTools, expectedTools: tc.expectedTools, recall, precision,
         rounds: result.trace?.rounds.length ?? 0, latencyMs,
         confidence: result.confidence, hasSources: (result.sources?.length ?? 0) > 0,
+        trace: result.trace, answer: result.answer,
       }
       results.push(r)
       const recallStr = recall === 1 ? '✅' : `⚠️${(recall * 100).toFixed(0)}%`
@@ -154,7 +157,7 @@ async function main() {
         id: tc.id, query: tc.query, level: tc.level, success: false,
         actualTools: [], expectedTools: tc.expectedTools, recall: 0, precision: 0,
         rounds: 0, latencyMs: Date.now() - start, confidence: 'low', hasSources: false,
-        error: (err as Error).message.slice(0, 50),
+        answer: '', error: (err as Error).message.slice(0, 50),
       })
       console.log(`[${done}/${TEST_CASES.length}] ${tc.id} ${tc.level} ❌ ${tc.query.slice(0, 25)}...`)
     }
@@ -223,7 +226,201 @@ async function main() {
   console.log(`延迟 P50: ${latencies[Math.floor(latencies.length * 0.5)]}ms P95: ${latencies[Math.floor(latencies.length * 0.95)]}ms`)
 
   storage.close()
-  console.log('\n=== Benchmark 完成 ===')
+
+  // ======== HTML 报告 ========
+  const reportPath = path.join(__dirname, '../data/benchmark-report.html')
+  const fs = await import('fs')
+  const reportDir = path.dirname(reportPath)
+  if (!fs.existsSync(reportDir)) fs.mkdirSync(reportDir, { recursive: true })
+
+  const html = generateReport(results, { avgRecall, avgPrecision, perfectRecall, confDist, withSources })
+  fs.writeFileSync(reportPath, html, 'utf-8')
+  console.log(`\nHTML 报告已生成: ${reportPath}`)
+  console.log('=== Benchmark 完成 ===')
+}
+
+function generateReport(
+  results: BenchmarkResult[],
+  stats: { avgRecall: number; avgPrecision: number; perfectRecall: number; confDist: Record<string, number>; withSources: number },
+): string {
+  const successful = results.filter(r => r.success)
+  const levels = ['L1', 'L2', 'L3', 'L4', 'L5']
+
+  function renderTrace(trace: any): string {
+    if (!trace) return '<em>无 trace</em>'
+    return trace.rounds.map((r: any) => `
+      <div class="round">
+        <div class="round-header">轮次 ${r.round} — ${r.round === 0 ? '首轮规划' : '追查轮 ' + r.round}</div>
+        <div class="trace-item"><span class="icon">💭</span> <b>思考:</b> ${escHtml(r.thought)}</div>
+        ${r.calls.map((c: any) => `
+          <div class="trace-item">
+            <span class="icon">🔧</span> <b>${escHtml(c.tool)}</b>
+            <span class="args">(${escHtml(JSON.stringify(c.arguments))})</span>
+            <span class="${c.status === 'success' ? 'ok' : 'fail'}">→ ${c.durationMs}ms ${c.status === 'success' ? '✅' : '❌'}</span>
+            <details><summary>返回数据</summary><pre>${escHtml(JSON.stringify(c.result, null, 2))}</pre></details>
+          </div>
+        `).join('')}
+        <div class="trace-item"><span class="icon">👁</span> <b>观察:</b> ${escHtml(r.observation)}</div>
+      </div>
+    `).join('')
+  }
+
+  function escHtml(s: string): string {
+    return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+  }
+
+  const rows = results.map(r => {
+    const recallClass = r.recall === 1 ? 'pass' : r.recall >= 0.5 ? 'partial' : 'fail'
+    const missing = r.expectedTools.filter(t => !r.actualTools.includes(t))
+    const extra = r.actualTools.filter(t => !r.expectedTools.includes(t))
+    return `
+    <tr class="result-row ${recallClass}" data-level="${r.level}" data-status="${recallClass}">
+      <td>${r.id}</td>
+      <td>${r.level}</td>
+      <td class="query">${escHtml(r.query)}</td>
+      <td class="recall-cell">${(r.recall * 100).toFixed(0)}%</td>
+      <td>${r.rounds}</td>
+      <td>${r.latencyMs}ms</td>
+      <td>
+        <details>
+          <summary>展开详情</summary>
+          <div class="detail-box">
+            <div><b>回答:</b> ${escHtml(r.answer.slice(0, 200))}</div>
+            <div class="tools-compare">
+              <div><b>期望工具:</b> ${r.expectedTools.map(t => `<span class="tool expected">${t}</span>`).join(' ')}</div>
+              <div><b>实际工具:</b> ${r.actualTools.map(t => `<span class="tool ${r.expectedTools.includes(t) ? 'hit' : 'extra'}">${t}</span>`).join(' ') || '<em>无</em>'}</div>
+              ${missing.length ? `<div class="miss"><b>漏选:</b> ${missing.map(t => `<span class="tool miss-tool">${t}</span>`).join(' ')}</div>` : ''}
+              ${extra.length ? `<div class="extra-info"><b>多选:</b> ${extra.map(t => `<span class="tool extra-tool">${t}</span>`).join(' ')}</div>` : ''}
+            </div>
+            <div class="trace-section">
+              <b>执行追踪:</b>
+              ${renderTrace(r.trace)}
+            </div>
+            ${r.trace?.intent ? `<div><b>意图:</b> ${r.trace.intent.domains.join('/')} / ${r.trace.intent.operation} / [${r.trace.intent.filters.join(', ')}]</div>` : ''}
+            <div><b>置信度:</b> ${r.confidence}</div>
+          </div>
+        </details>
+      </td>
+    </tr>`
+  }).join('\n')
+
+  const levelStats = levels.map(level => {
+    const items = results.filter(r => r.level === level)
+    const succ = items.filter(r => r.success)
+    const lvlRecall = succ.length ? succ.reduce((s, r) => s + r.recall, 0) / succ.length : 0
+    const perfect = succ.filter(r => r.recall === 1).length
+    return `<tr><td>${level}</td><td>${(lvlRecall * 100).toFixed(1)}%</td><td>${perfect}/${items.length}</td><td>${items.length}</td></tr>`
+  }).join('\n')
+
+  return `<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>Benchmark Report — Insight68</title>
+<style>
+  :root { --blue: #1F3864; --green: #22C55E; --amber: #F59E0B; --red: #EF4444; }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Segoe UI', system-ui, sans-serif; max-width: 1200px; margin: 0 auto; padding: 24px; color: #1a1a1a; font-size: 14px; }
+  h1 { color: var(--blue); font-size: 24px; margin-bottom: 8px; }
+  h2 { color: var(--blue); font-size: 18px; margin: 24px 0 12px; }
+  .summary { display: flex; gap: 16px; flex-wrap: wrap; margin: 16px 0; }
+  .stat-card { background: #f8f9fa; border-radius: 8px; padding: 16px 20px; min-width: 140px; }
+  .stat-card .value { font-size: 28px; font-weight: 700; color: var(--blue); }
+  .stat-card .label { font-size: 12px; color: #666; margin-top: 4px; }
+  .filters { margin: 16px 0; display: flex; gap: 8px; flex-wrap: wrap; }
+  .filters button { padding: 4px 12px; border: 1px solid #ddd; border-radius: 16px; background: #fff; cursor: pointer; font-size: 12px; }
+  .filters button.active { background: var(--blue); color: #fff; border-color: var(--blue); }
+  table { width: 100%; border-collapse: collapse; }
+  thead tr { background: var(--blue); color: #fff; }
+  th { padding: 8px 12px; text-align: left; font-size: 13px; }
+  td { padding: 8px 12px; border-bottom: 1px solid #eee; font-size: 13px; vertical-align: top; }
+  tbody tr:hover { background: #f0f4ff; }
+  .pass .recall-cell { color: var(--green); font-weight: 600; }
+  .partial .recall-cell { color: var(--amber); font-weight: 600; }
+  .fail .recall-cell { color: var(--red); font-weight: 600; }
+  .query { max-width: 280px; }
+  details summary { cursor: pointer; color: var(--blue); font-size: 12px; }
+  .detail-box { margin-top: 8px; padding: 12px; background: #f8f9fa; border-radius: 8px; font-size: 12px; line-height: 1.8; }
+  .tool { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; margin: 2px; font-family: monospace; }
+  .tool.expected { background: #e8eff8; color: var(--blue); }
+  .tool.hit { background: #dcfce7; color: #166534; }
+  .tool.extra { background: #fef3c7; color: #92400e; }
+  .tool.miss-tool { background: #fee2e2; color: #991b1b; }
+  .tool.extra-tool { background: #fef3c7; color: #92400e; }
+  .round { border: 1px solid #e5e7eb; border-radius: 6px; margin: 8px 0; overflow: hidden; }
+  .round-header { background: #f3f4f6; padding: 6px 10px; font-weight: 600; font-size: 12px; }
+  .trace-item { padding: 4px 10px; font-size: 12px; }
+  .trace-item .icon { margin-right: 4px; }
+  .trace-item .args { color: #888; margin-left: 4px; font-size: 11px; }
+  .trace-item .ok { color: var(--green); }
+  .trace-item .fail { color: var(--red); }
+  .trace-item pre { background: #1e1e1e; color: #d4d4d4; padding: 8px; border-radius: 4px; overflow-x: auto; font-size: 11px; max-height: 200px; }
+  .miss { color: var(--red); }
+  .level-table { margin: 12px 0; }
+  .level-table td, .level-table th { padding: 6px 16px; }
+</style>
+</head>
+<body>
+
+<h1>Benchmark Report — Insight68 Platform</h1>
+<p style="color:#666">生成时间: ${new Date().toLocaleString('zh-CN')} | ${results.length} 题 | Ground Truth 对比</p>
+
+<div class="summary">
+  <div class="stat-card"><div class="value">${(stats.avgRecall * 100).toFixed(1)}%</div><div class="label">平均 Recall</div></div>
+  <div class="stat-card"><div class="value">${(stats.avgPrecision * 100).toFixed(1)}%</div><div class="label">平均 Precision</div></div>
+  <div class="stat-card"><div class="value">${stats.perfectRecall}/${successful.length}</div><div class="label">完美召回</div></div>
+  <div class="stat-card"><div class="value">${stats.withSources}/${successful.length}</div><div class="label">Sources 覆盖</div></div>
+</div>
+
+<h2>按等级统计</h2>
+<table class="level-table">
+  <thead><tr><th>等级</th><th>Recall</th><th>完美召回</th><th>题数</th></tr></thead>
+  <tbody>${levelStats}</tbody>
+</table>
+
+<h2>详细结果</h2>
+
+<div class="filters">
+  <button class="active" onclick="filterAll()">全部</button>
+  <button onclick="filterStatus('fail')">❌ 失败 (recall&lt;50%)</button>
+  <button onclick="filterStatus('partial')">⚠️ 部分 (50-99%)</button>
+  <button onclick="filterStatus('pass')">✅ 通过 (100%)</button>
+  <button onclick="filterLevel('L1')">L1</button>
+  <button onclick="filterLevel('L2')">L2</button>
+  <button onclick="filterLevel('L3')">L3</button>
+  <button onclick="filterLevel('L4')">L4</button>
+  <button onclick="filterLevel('L5')">L5</button>
+</div>
+
+<table>
+  <thead><tr><th>ID</th><th>等级</th><th>查询</th><th>Recall</th><th>轮次</th><th>延迟</th><th>详情</th></tr></thead>
+  <tbody>${rows}</tbody>
+</table>
+
+<script>
+function filterAll() {
+  document.querySelectorAll('.result-row').forEach(r => r.style.display = '')
+  setActive(0)
+}
+function filterStatus(s) {
+  document.querySelectorAll('.result-row').forEach(r => {
+    r.style.display = r.dataset.status === s ? '' : 'none'
+  })
+  setActive(s === 'fail' ? 1 : s === 'partial' ? 2 : 3)
+}
+function filterLevel(l) {
+  document.querySelectorAll('.result-row').forEach(r => {
+    r.style.display = r.dataset.level === l ? '' : 'none'
+  })
+  setActive({'L1':4,'L2':5,'L3':6,'L4':7,'L5':8}[l])
+}
+function setActive(idx) {
+  document.querySelectorAll('.filters button').forEach((b,i) => b.classList.toggle('active', i === idx))
+}
+</script>
+
+</body>
+</html>`
 }
 
 main().catch(console.error)
