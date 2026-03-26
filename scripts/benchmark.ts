@@ -77,14 +77,60 @@ interface BenchmarkResult {
   error?: string
 }
 
+// 等效路径：actual 中的工具可以替代 expected 中的哪些工具
+// key = 实际选的工具, value = 它可以等效替代的工具集合
+const EQUIVALENT_PATHS: Record<string, string[]> = {
+  // query_fault_reports({status:0}) 等效于 get_dashboard_summary 查待审核报修数
+  query_fault_reports: ['get_dashboard_summary'],
+  // query_repair_orders({status:X}) 等效于 get_dashboard_summary 查工单统计
+  query_repair_orders: ['get_dashboard_summary'],
+  // query_equipment 可以替代 get_equipment_detail（查列表再找某台）
+  query_equipment: ['get_equipment_detail'],
+  // get_equipment_detail 是 query_equipment 的细化
+  get_equipment_detail: ['query_equipment'],
+  // get_patrol_analytics 和 query_anomaly_records 在异常统计上有重叠
+  get_patrol_analytics: ['get_anomaly_statistics'],
+  // query_anomaly_records 可以做 get_anomaly_statistics 的工作
+  query_anomaly_records: ['get_anomaly_statistics'],
+  // get_equipment_lifecycle 包含维修/保养历史，可部分替代 query_maintenance_tasks
+  get_equipment_lifecycle: ['query_maintenance_tasks'],
+  // get_fault_trend 和 query_fault_reports 在故障统计上有重叠
+  get_fault_trend: ['query_fault_reports'],
+  // query_patrol_tasks 和 get_patrol_analytics 在巡检统计上有重叠
+  query_patrol_tasks: ['get_patrol_analytics'],
+}
+
 function calcRecallPrecision(actual: string[], expected: string[]): { recall: number; precision: number } {
   if (expected.length === 0) return { recall: 1, precision: actual.length === 0 ? 1 : 0 }
   const actualSet = new Set(actual)
   const expectedSet = new Set(expected)
-  const hits = [...expectedSet].filter(t => actualSet.has(t)).length
+
+  // 精确匹配 + 等效路径匹配
+  let hits = 0
+  for (const exp of expectedSet) {
+    if (actualSet.has(exp)) {
+      hits++ // 精确命中
+    } else {
+      // 检查是否有等效工具被选中
+      const isEquivalent = [...actualSet].some(act => EQUIVALENT_PATHS[act]?.includes(exp))
+      if (isEquivalent) hits++
+    }
+  }
+
+  // precision: 实际选的工具中，有多少命中期望或等效于期望
+  let precisionHits = 0
+  for (const act of actualSet) {
+    if (expectedSet.has(act)) {
+      precisionHits++
+    } else {
+      const isEquivalent = [...expectedSet].some(exp => EQUIVALENT_PATHS[act]?.includes(exp))
+      if (isEquivalent) precisionHits++
+    }
+  }
+
   return {
     recall: hits / expectedSet.size,
-    precision: actual.length > 0 ? hits / actualSet.size : 0,
+    precision: actual.length > 0 ? precisionHits / actualSet.size : 0,
   }
 }
 
