@@ -5,10 +5,10 @@ import { ToolRegistry } from '../lib/tools/registry'
 import { CodexProxyProvider } from '../lib/llm/codex-proxy'
 import { SQLiteStorage } from '../lib/storage/sqlite'
 import { loadTools } from '../lib/tools/yaml-loader'
+import { mockCallTool } from './mock-data'
 import path from 'path'
-import type { ToolResult } from '../lib/types'
 
-const CONCURRENCY = 5
+const CONCURRENCY = 10
 
 // 完整 40 题 + G2 Ground Truth
 const TEST_CASES: Array<{ id: string; query: string; level: string; expectedTools: string[] }> = [
@@ -59,32 +59,6 @@ const TEST_CASES: Array<{ id: string; query: string; level: string; expectedTool
   { id: 'T40', query: '近 6 个月巡检异常率变化趋势，有没有季节性规律？', level: 'L5', expectedTools: ['get_patrol_analytics', 'query_anomaly_records'] },
 ]
 
-// Mock data
-const mockData: Record<string, unknown> = {
-  get_dashboard_summary: { totalEquipment: 128, runningCount: 98, faultCount: 8, pendingOrders: 5, pendingMaintenance: 12, pendingFaults: 3 },
-  query_equipment: { total: 128, items: [{ equipmentId: 101, name: 'CNC-001', status: 1, productionLine: 'A线' }] },
-  get_equipment_detail: { equipmentId: 101, name: 'CNC-001', kpi: { faultCount: 3, maintenanceRate: 92.5 } },
-  get_equipment_status_distribution: { distribution: [{ status: '运行中', count: 98 }], total: 128 },
-  get_equipment_lifecycle: { events: [{ date: '2023-06-15', type: '购置' }] },
-  query_fault_reports: { total: 15, items: [{ faultReportId: 301, equipmentName: 'CNC-001', faultType: '机械故障' }] },
-  query_repair_orders: { total: 12, items: [{ repairOrderId: 201, equipmentName: 'CNC-001', status: '已关闭' }] },
-  get_repair_detail: { repairOrder: { repairOrderId: 201 }, sparesUsed: [{ spareName: '主轴轴承', quantity: 2 }], knowledgeRefs: [{ title: '维修规范' }] },
-  get_fault_trend: { days: 30, totalFaults: 23, avgPerDay: 0.77, trend: [] },
-  query_maintenance_tasks: { total: 8, items: [{ taskId: 501, equipmentName: 'CNC-001', status: '已完成' }] },
-  get_maintenance_detail: { task: { taskId: 501 }, executionRecords: [] },
-  query_patrol_tasks: { total: 20, items: [{ taskId: 701, status: '已完成' }] },
-  get_patrol_analytics: { completionRate: 94.5, anomalyRate: 3.2, totalTasks: 180 },
-  query_anomaly_records: { total: 6, items: [{ anomalyId: 801, equipmentName: 'CNC-001' }] },
-  get_anomaly_statistics: { totalCount: 45, pendingCount: 8, processRate: 82.2 },
-  query_spare_parts: { total: 350, items: [{ spareId: 401, name: '主轴轴承' }] },
-  get_spare_stock: { items: [{ spareId: 401, spareName: '主轴轴承', quantity: 15, safetyStock: 10 }] },
-  get_equipment_spare_bom: { items: [{ equipmentName: 'CNC-001', spareName: '主轴轴承', quantity: 2 }] },
-  query_spare_transactions: { total: 25, items: [{ type: 'stock_out', spareName: '主轴轴承' }] },
-  get_spare_alerts: { alertCount: 3, items: [{ spareName: '传动带', currentStock: 2, safetyStock: 10 }] },
-  get_governance_dashboard: { healthScore: 87.5, dataQualityScore: 92.1 },
-  get_todo_list: { pendingFaults: [{ title: '变频器报警' }], pendingOrders: [{ title: '导轨润滑' }], pendingMaintenance: [] },
-}
-
 interface BenchmarkResult {
   id: string
   query: string
@@ -124,9 +98,6 @@ async function main() {
   const storage = new SQLiteStorage(':memory:')
   storage.initialize()
 
-  async function mockCallTool(name: string): Promise<ToolResult> {
-    return { data: mockData[name] ?? { message: 'mock' }, status: 'success' }
-  }
 
   const results: BenchmarkResult[] = []
   let done = 0

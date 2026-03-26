@@ -6,8 +6,8 @@ import { CodexProxyProvider } from '../lib/llm/codex-proxy'
 import { SQLiteStorage } from '../lib/storage/sqlite'
 import { loadTools } from '../lib/tools/yaml-loader'
 import { maybeUpdateVerdict } from '../lib/brain/verdict'
+import { mockCallTool } from './mock-data'
 import path from 'path'
-import type { ToolResult } from '../lib/types'
 
 // 40 题测试集 + 部分同义改写（冷启动阈值 3）
 const TEST_QUERIES = [
@@ -58,36 +58,6 @@ async function main() {
   const llm = new CodexProxyProvider()
   const storage = new SQLiteStorage('./data/insight68.db')
   storage.initialize()
-
-  // Mock callTool（冷启动不需要真实 MCP Server）
-  const mockData: Record<string, unknown> = {
-    get_dashboard_summary: { totalEquipment: 128, runningCount: 98, faultCount: 8, pendingOrders: 5, pendingMaintenance: 12, pendingFaults: 3 },
-    query_equipment: { total: 128, items: [{ equipmentId: 101, name: 'CNC-001', status: 1, productionLine: 'A线' }] },
-    get_equipment_detail: { equipmentId: 101, name: 'CNC-001', kpi: { faultCount: 3, maintenanceRate: 92.5 } },
-    get_equipment_status_distribution: { distribution: [{ status: '运行中', count: 98 }], total: 128 },
-    query_fault_reports: { total: 15, items: [{ faultReportId: 301, equipmentName: 'CNC-001', faultType: '机械故障' }] },
-    query_repair_orders: { total: 12, items: [{ repairOrderId: 201, equipmentName: 'CNC-001', status: '已关闭' }] },
-    get_repair_detail: { repairOrder: { repairOrderId: 201 }, sparesUsed: [{ spareName: '主轴轴承', quantity: 2 }] },
-    get_fault_trend: { days: 30, totalFaults: 23, avgPerDay: 0.77, trend: [] },
-    query_maintenance_tasks: { total: 8, items: [{ taskId: 501, equipmentName: 'CNC-001', status: '已完成' }] },
-    get_maintenance_detail: { task: { taskId: 501 }, executionRecords: [] },
-    query_patrol_tasks: { total: 20, items: [] },
-    get_patrol_analytics: { completionRate: 94.5, anomalyRate: 3.2, totalTasks: 180 },
-    query_anomaly_records: { total: 6, items: [{ anomalyId: 801, equipmentName: 'CNC-001' }] },
-    get_anomaly_statistics: { totalCount: 45, pendingCount: 8, processRate: 82.2 },
-    query_spare_parts: { total: 350, items: [{ spareId: 401, name: '主轴轴承' }] },
-    get_spare_stock: { items: [{ spareId: 401, spareName: '主轴轴承', quantity: 15, safetyStock: 10 }] },
-    get_equipment_spare_bom: { items: [{ equipmentName: 'CNC-001', spareName: '主轴轴承', quantity: 2 }] },
-    query_spare_transactions: { total: 25, items: [] },
-    get_spare_alerts: { alertCount: 3, items: [{ spareName: '传动带', currentStock: 2, safetyStock: 10 }] },
-    get_governance_dashboard: { healthScore: 87.5, dataQualityScore: 92.1 },
-    get_todo_list: { pendingFaults: [{ title: '变频器报警' }], pendingOrders: [{ title: '导轨润滑' }], pendingMaintenance: [] },
-    get_equipment_lifecycle: { events: [] },
-  }
-
-  async function mockCallTool(name: string): Promise<ToolResult> {
-    return { data: mockData[name] ?? { message: 'mock' }, status: 'success' }
-  }
 
   // 并发批跑（限制并发数，避免打爆 codex-proxy）
   const CONCURRENCY = 5
