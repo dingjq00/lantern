@@ -228,8 +228,6 @@ export default function BenchmarkDashboard() {
 function ResultRow({ result: r, compareResult: cr, index }: { result: any; compareResult?: any; index: number }) {
   const [open, setOpen] = useState(false)
   const recallColor = r.recall === 1 ? '#22C55E' : r.recall >= 0.5 ? '#F59E0B' : '#EF4444'
-  const missing = r.expectedTools.filter((t: string) => !r.actualTools.includes(t))
-  const extra = r.actualTools.filter((t: string) => !r.expectedTools.includes(t))
 
   return (
     <>
@@ -251,73 +249,92 @@ function ResultRow({ result: r, compareResult: cr, index }: { result: any; compa
       </tr>
       {open && (
         <tr>
-          <td colSpan={cr !== undefined ? 8 : 7} className="px-4 py-4 bg-gray-50">
-            <div className="space-y-3 text-xs text-gray-800">
-              {/* 回答 */}
-              <div><span className="font-semibold">回答:</span> {r.answer?.slice(0, 200)}</div>
-
-              {/* 工具对比 */}
-              <div className="flex flex-wrap gap-1">
-                <span className="font-semibold mr-1">期望:</span>
-                {r.expectedTools.map((t: string) => (
-                  <span key={t} className="px-2 py-0.5 rounded bg-blue-100 text-blue-800">{t}</span>
-                ))}
-              </div>
-              <div className="flex flex-wrap gap-1">
-                <span className="font-semibold mr-1">实际:</span>
-                {r.actualTools.map((t: string) => (
-                  <span key={t} className={`px-2 py-0.5 rounded ${r.expectedTools.includes(t) ? 'bg-green-100 text-green-800' : 'bg-amber-100 text-amber-800'}`}>{t}</span>
-                ))}
-                {r.actualTools.length === 0 && <span className="text-gray-400">(无)</span>}
-              </div>
-              {missing.length > 0 && (
-                <div className="text-red-600">漏选: {missing.join(', ')}</div>
-              )}
-              {extra.length > 0 && (
-                <div className="text-amber-600">多选: {extra.join(', ')}</div>
-              )}
-
-              {/* Trace */}
-              {r.trace?.rounds && (
-                <div className="mt-2 space-y-2">
-                  <div className="font-semibold">执行追踪:</div>
-                  {r.trace.rounds.map((round: any, ri: number) => (
-                    <div key={ri} className="border border-gray-200 rounded-lg overflow-hidden">
-                      <div className="px-3 py-1.5 bg-gray-100 font-semibold text-gray-700">
-                        轮次 {round.round} — {round.round === 0 ? '首轮规划' : `追查轮 ${round.round}`}
-                      </div>
-                      <div className="px-3 py-2 space-y-1">
-                        <div>💭 <span className="font-semibold">思考:</span> {round.thought}</div>
-                        {round.calls?.map((c: any, ci: number) => (
-                          <div key={ci}>
-                            🔧 <span className="font-semibold">{c.tool}</span>
-                            <span className="text-gray-400 ml-1">({JSON.stringify(c.arguments)})</span>
-                            <span className={`ml-2 ${c.status === 'success' ? 'text-green-600' : 'text-red-500'}`}>
-                              → {c.durationMs}ms {c.status === 'success' ? '✅' : '❌'}
-                            </span>
-                            <details className="ml-6 mt-1">
-                              <summary className="text-gray-400 cursor-pointer">返回数据</summary>
-                              <pre className="bg-gray-900 text-gray-200 p-2 rounded mt-1 overflow-x-auto max-h-40">
-                                {JSON.stringify(c.result, null, 2)}
-                              </pre>
-                            </details>
-                          </div>
-                        ))}
-                        <div>👁 <span className="font-semibold">观察:</span> {round.observation}</div>
-                      </div>
-                    </div>
-                  ))}
-                  {/* 元信息 */}
-                  <div className="text-gray-500 space-y-0.5">
-                    {r.trace.intent && <div>意图: {r.trace.intent.domains?.join('/')} / {r.trace.intent.operation}</div>}
-                    <div>置信度: {r.confidence}</div>
-                  </div>
+          <td colSpan={cr !== undefined ? 8 : 7} className="px-2 py-3 bg-gray-50">
+            {cr ? (
+              /* 对比模式：左右两列 */
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <div className="text-xs font-semibold text-blue-700 mb-2 px-2">当前运行 — Recall {(r.recall * 100).toFixed(0)}%</div>
+                  <RunDetailPanel result={r} />
                 </div>
-              )}
-            </div>
+                <div>
+                  <div className="text-xs font-semibold text-purple-700 mb-2 px-2">对比运行 — Recall {(cr.recall * 100).toFixed(0)}%</div>
+                  <RunDetailPanel result={cr} />
+                </div>
+              </div>
+            ) : (
+              /* 单运行模式 */
+              <RunDetailPanel result={r} />
+            )}
           </td>
         </tr>
       )}
     </>
+  )
+}
+
+function RunDetailPanel({ result: r }: { result: any }) {
+  const missing = r.expectedTools.filter((t: string) => !r.actualTools.includes(t))
+  const extra = r.actualTools.filter((t: string) => !r.expectedTools.includes(t))
+
+  return (
+    <div className="space-y-2 text-xs text-gray-800 bg-white rounded-lg border border-gray-200 p-3">
+      {/* 回答 */}
+      <div><span className="font-semibold">回答:</span> {r.answer?.slice(0, 200)}</div>
+
+      {/* 工具对比 */}
+      <div className="flex flex-wrap gap-1">
+        <span className="font-semibold mr-1">期望:</span>
+        {r.expectedTools.map((t: string) => (
+          <span key={t} className="px-2 py-0.5 rounded bg-blue-100 text-blue-800">{t}</span>
+        ))}
+      </div>
+      <div className="flex flex-wrap gap-1">
+        <span className="font-semibold mr-1">实际:</span>
+        {r.actualTools.map((t: string) => (
+          <span key={t} className={`px-2 py-0.5 rounded ${r.expectedTools.includes(t) ? 'bg-green-100 text-green-800' : 'bg-amber-100 text-amber-800'}`}>{t}</span>
+        ))}
+        {r.actualTools.length === 0 && <span className="text-gray-400">(无)</span>}
+      </div>
+      {missing.length > 0 && <div className="text-red-600">漏选: {missing.join(', ')}</div>}
+      {extra.length > 0 && <div className="text-amber-600">多选: {extra.join(', ')}</div>}
+
+      {/* Trace */}
+      {r.trace?.rounds && (
+        <div className="mt-2 space-y-2">
+          <div className="font-semibold">执行追踪:</div>
+          {r.trace.rounds.map((round: any, ri: number) => (
+            <div key={ri} className="border border-gray-200 rounded-lg overflow-hidden">
+              <div className="px-3 py-1.5 bg-gray-100 font-semibold text-gray-700">
+                轮次 {round.round} — {round.round === 0 ? '首轮规划' : `追查轮 ${round.round}`}
+              </div>
+              <div className="px-3 py-2 space-y-1">
+                <div>💭 <span className="font-semibold">思考:</span> {round.thought}</div>
+                {round.calls?.map((c: any, ci: number) => (
+                  <div key={ci}>
+                    🔧 <span className="font-semibold">{c.tool}</span>
+                    <span className="text-gray-400 ml-1">({JSON.stringify(c.arguments)})</span>
+                    <span className={`ml-2 ${c.status === 'success' ? 'text-green-600' : 'text-red-500'}`}>
+                      → {c.durationMs}ms {c.status === 'success' ? '✅' : '❌'}
+                    </span>
+                    <details className="ml-6 mt-1">
+                      <summary className="text-gray-400 cursor-pointer">返回数据</summary>
+                      <pre className="bg-gray-900 text-gray-200 p-2 rounded mt-1 overflow-x-auto max-h-32 text-[11px]">
+                        {JSON.stringify(c.result, null, 2)}
+                      </pre>
+                    </details>
+                  </div>
+                ))}
+                <div>👁 <span className="font-semibold">观察:</span> {round.observation}</div>
+              </div>
+            </div>
+          ))}
+          <div className="text-gray-500 space-y-0.5">
+            {r.trace.intent && <div>意图: {r.trace.intent.domains?.join('/')} / {r.trace.intent.operation}</div>}
+            <div>置信度: {r.confidence}</div>
+          </div>
+        </div>
+      )}
+    </div>
   )
 }
