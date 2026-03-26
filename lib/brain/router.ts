@@ -1,85 +1,203 @@
-// 路由主编排器 — 9 步流程
-// 1.意图提取 2.工具匹配 3.记忆注入 4.Prompt组装 5.LLM路由 6.置信度判断 7.工具执行 8.结果呈现 9.异步日志
+// 路由主编排器 — P1: ReAct 循环（批量调用 + 按需追查）
 import { assemblePrompt } from './prompt-assembler'
 import { computeConfidence } from './confidence'
 import { detectDisplayFormat, buildStructuredResult } from './result-presenter'
+import { computeIntentHash } from './intent'
+import { TraceCollector } from './trace'
 import type { ToolRegistry } from '@/lib/tools/registry'
-import type { LLMProvider, StructuredResult, ToolResult } from '@/lib/types'
+import type { StorageInterface } from '@/lib/storage/types'
+import type {
+  LLMProvider, StructuredResult, ToolResult, ThinkResult,
+  IntentTags, ConfidenceSignals, ConfidenceLevel, MemorySession,
+} from '@/lib/types'
+
+const MAX_CHASE_ROUNDS = 3
 
 interface RouterDeps {
   registry: ToolRegistry
   llm: LLMProvider
+  storage: StorageInterface
   callTool: (name: string, args: Record<string, unknown>) => Promise<ToolResult>
   history?: Array<{ role: string; content: string }>
+  tenantId?: string
+  userId?: string
 }
 
 /**
- * 核心路由入口 — 9 步编排
- * P0 简化: Step 1 跳过独立意图提取, Step 2 返回全部工具, Step 3 无记忆
+ * 核心路由入口 — P1 ReAct 循环
+ * 统一流程，无需预判复杂度：规划→执行→观察→决定是否追查
  */
 export async function processQuery(
   query: string,
   deps: RouterDeps,
 ): Promise<StructuredResult> {
-  const { registry, llm, callTool, history } = deps
+  const { registry, llm, storage, callTool, history } = deps
+  const tenantId = deps.tenantId ?? 'default'
+  const userId = deps.userId ?? 'anonymous'
 
-  // Step 1: 意图提取 (P0: 跳过，由 LLM 内部理解)
-  // Step 2: 工具匹配 (P0: 返回全部工具)
+  const trace = new TraceCollector(query)
   const allTools = registry.getAllTools()
+  const allResults: Array<{ tool: string; data: unknown }> = []
+  const sources: Array<{ tool: string; description: string }> = []
 
-  // Step 3: 记忆注入 — 将对话历史作为上下文
+  // 对话历史上下文
   const historyContext = history && history.length > 1
     ? history.slice(0, -1).map(m => `${m.role === 'user' ? '用户' : '系统'}: ${m.content}`).join('\n')
     : undefined
 
-  // Step 4: Prompt 动态组装
-  const { systemPrompt, userMessage } = assemblePrompt(query, allTools, historyContext)
+  // 查 verdict（先用空 hash，首轮 think 后更新）
+  let intent: IntentTags | undefined
+  let clarity: ConfidenceLevel = 'medium'
+  let verdict = null as ReturnType<StorageInterface['getVerdict']>
 
-  // Step 5: LLM 路由
-  const routeResult = await llm.route(
-    `${systemPrompt}\n\n用户查询: ${userMessage}`,
-    allTools,
-  )
+  // 组装 Prompt
+  const { systemPrompt } = assemblePrompt(query, allTools, { memoryContext: historyContext, verdict })
+  const messages: Array<{ role: string; content: string }> = [
+    { role: 'system', content: systemPrompt },
+    { role: 'user', content: query },
+  ]
 
-  // Step 6: 置信度判断
-  const confidence = computeConfidence(routeResult.confidenceSignals)
+  // ReAct 循环
+  let round = 0
+  let finished = false
 
-  if (confidence === 'low' || routeResult.calls.length === 0) {
-    return buildStructuredResult(
-      '请问您想了解哪方面的信息？\n1. 设备运行状况\n2. 维修工单进度\n3. 保养任务执行\n4. 备件库存情况',
-      [],
-      'text',
-      'low',
-    )
+  while (!finished && round <= MAX_CHASE_ROUNDS) {
+    // think
+    const thinkResult = await llm.think(messages)
+
+    // 首轮提取 intent
+    if (round === 0 && thinkResult.intent) {
+      intent = {
+        ...thinkResult.intent,
+        intentHash: computeIntentHash(thinkResult.intent.domains, thinkResult.intent.operation, thinkResult.intent.filters),
+      }
+      clarity = thinkResult.clarity ?? 'medium'
+      trace.setIntent(intent)
+
+      // 用真正的 intent_hash 查 verdict
+      verdict = storage.getVerdict(tenantId, intent.intentHash)
+      trace.setVerdict(verdict)
+    }
+
+    // 超纲
+    if (thinkResult.unsupported || (thinkResult.finish && (!thinkResult.calls || thinkResult.calls.length === 0) && round === 0)) {
+      trace.startRound(round, thinkResult.thought)
+      trace.endRound('超纲或无法处理')
+      const signals: ConfidenceSignals = { toolMatch: 'low', verdictConfidence: 'low', queryClarity: clarity }
+      trace.setConfidence(signals, 'low')
+
+      const result = buildStructuredResult(
+        '请问您想了解哪方面的信息？\n1. 设备运行状况\n2. 维修工单进度\n3. 保养任务执行\n4. 备件库存情况',
+        [], 'text', 'low',
+      )
+      result.trace = trace.build()
+      result.sources = []
+      return result
+    }
+
+    // finish（追查后结束）
+    if (thinkResult.finish && round > 0) {
+      trace.startRound(round, thinkResult.thought)
+      trace.endRound('信息充足，结束')
+      break
+    }
+
+    // 执行 calls
+    if (thinkResult.calls && thinkResult.calls.length > 0) {
+      trace.startRound(round, thinkResult.thought)
+
+      for (const call of thinkResult.calls) {
+        const startMs = Date.now()
+        let toolResult: ToolResult
+        try {
+          toolResult = await registry.execute(call.tool, call.arguments, callTool)
+        } catch (err) {
+          toolResult = { data: null, status: 'error', errorLevel: 1 }
+        }
+        const durationMs = Date.now() - startMs
+
+        trace.addCall({
+          tool: call.tool,
+          arguments: call.arguments,
+          result: toolResult.data,
+          status: toolResult.status === 'error' ? 'error' : 'success',
+          durationMs,
+        })
+
+        if (toolResult.status !== 'error') {
+          allResults.push({ tool: call.tool, data: toolResult.data })
+          const toolDef = registry.getTool(call.tool)
+          if (toolDef) {
+            sources.push({ tool: call.tool, description: toolDef.description })
+          }
+        }
+      }
+
+      // 观察总结
+      const observation = allResults.length > 0
+        ? `已获得 ${allResults.length} 个工具的结果`
+        : '工具调用失败'
+      trace.endRound(observation)
+
+      // 把本轮结果注入消息上下文
+      messages.push({ role: 'assistant', content: JSON.stringify(thinkResult) })
+      const obsData = thinkResult.calls.map(c => {
+        const r = allResults.find(ar => ar.tool === c.tool)
+        return { tool: c.tool, result: r?.data ?? 'error' }
+      })
+      messages.push({ role: 'user', content: `观察: ${JSON.stringify(obsData)}` })
+    }
+
+    // finish 在同一轮（首轮 calls + finish）
+    if (thinkResult.finish) {
+      finished = true
+    }
+
+    round++
   }
 
-  // Step 7: 工具执行（按顺序执行所有 calls）
-  const toolResults: Array<{ tool: string; result: ToolResult }> = []
-  for (const call of routeResult.calls) {
-    const result = await registry.execute(call.tool, call.arguments, callTool)
-    toolResults.push({ tool: call.tool, result })
-  }
+  // 置信度计算
+  const verdictConfidence: ConfidenceLevel = !verdict ? 'low'
+    : verdict.sampleCount >= 10 ? 'high'
+    : verdict.sampleCount >= 3 ? 'medium' : 'low'
+  const signals: ConfidenceSignals = { toolMatch: 'high', verdictConfidence, queryClarity: clarity }
+  const finalConfidence = computeConfidence(signals)
+  trace.setConfidence(signals, finalConfidence)
 
-  // 合并所有工具结果
-  const mergedData = toolResults.map(r => r.result.data)
-  const firstData = mergedData[0]
-  const formatHint = detectDisplayFormat(mergedData.length === 1 ? firstData : mergedData)
+  // LLM 总结
+  const mergedData = allResults.map(r => r.data)
+  const firstData = mergedData.length === 1 ? mergedData[0] : mergedData
+  const formatHint = detectDisplayFormat(firstData)
+  const summary = await llm.summarize(firstData, query, formatHint)
 
-  // Step 8: 结果呈现 — LLM 总结
-  const summary = await llm.summarize(
-    mergedData.length === 1 ? firstData : mergedData,
-    query,
-    formatHint,
-  )
+  // 去重 sources
+  const uniqueSources = sources.filter((s, i) => sources.findIndex(x => x.tool === s.tool) === i)
 
-  // Step 9: 异步日志 (P0: 略，后续加)
+  // 写 session（异步，不阻塞响应）
+  try {
+    const session: MemorySession = {
+      sessionId: trace.build().traceId,
+      userId, tenantId, query,
+      intentHash: intent?.intentHash ?? '',
+      toolChain: allResults.map(r => r.tool),
+      resultSummary: summary.answer.slice(0, 200),
+      routingDecision: { rounds: round, confidence: finalConfidence },
+      createdAt: new Date(),
+      expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+    }
+    storage.insertSession(session)
+    storage.insertTrace(tenantId, trace.build(), session.sessionId)
+  } catch { /* 存储失败不影响响应 */ }
 
-  return buildStructuredResult(
+  const result = buildStructuredResult(
     summary.answer,
     mergedData.map(d => (typeof d === 'object' && d !== null ? d : { value: d }) as Record<string, unknown>),
     summary.display || 'text',
-    confidence,
+    finalConfidence,
     summary.columns,
     summary.followUp,
   )
+  result.sources = uniqueSources
+  result.trace = trace.build()
+  return result
 }
