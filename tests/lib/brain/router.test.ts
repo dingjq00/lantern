@@ -113,6 +113,32 @@ describe('processQuery ReAct', { timeout: 30_000 }, () => {
     storage.close()
   })
 
+  it('工具调用失败 — 错误作为 observation 注入', async () => {
+    storage = getStorage()
+    const failCallTool = async (name: string): Promise<ToolResult> => {
+      if (name === 'query_equipment') throw new Error('timeout')
+      return { data: mockData[name] ?? {}, status: 'success' }
+    }
+    const llm = createMockLLM([
+      {
+        thought: '查设备', intent: { domains: ['equipment'], operation: 'list', filters: [], intentHash: '' },
+        clarity: 'high', calls: [{ tool: 'query_equipment', arguments: {} }],
+      },
+      // 错误后 LLM 选择替代方案
+      {
+        thought: '设备查询失败，改用总览',
+        calls: [{ tool: 'get_dashboard_summary', arguments: {} }],
+      },
+      { thought: '够了', finish: true },
+    ])
+    const result = await processQuery('查设备', { registry, llm, storage, callTool: failCallTool })
+    expect(result.answer).toBeTruthy()
+    // trace 应该记录了失败的调用
+    const failedCall = result.trace!.rounds[0].calls.find(c => c.status === 'error')
+    expect(failedCall).toBeDefined()
+    storage.close()
+  })
+
   it('trace 包含 sources', async () => {
     storage = getStorage()
     const llm = createMockLLM([{
