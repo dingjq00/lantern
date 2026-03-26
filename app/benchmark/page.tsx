@@ -81,7 +81,7 @@ export default function BenchmarkDashboard() {
                 暂无运行记录。运行 <code className="bg-gray-100 px-2 py-1 rounded">npx tsx scripts/benchmark.ts</code> 生成。
               </div>
             ) : (
-              <table className="w-full text-sm">
+              <table className="w-full text-sm text-gray-900">
                 <thead>
                   <tr className="bg-blue-800 text-white">
                     <th className="px-4 py-3 text-left">时间</th>
@@ -179,7 +179,7 @@ export default function BenchmarkDashboard() {
 
             {/* 结果列表 */}
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-              <table className="w-full text-sm">
+              <table className="w-full text-sm text-gray-900">
                 <thead>
                   <tr className="bg-blue-800 text-white">
                     <th className="px-3 py-2 text-left w-12">ID</th>
@@ -236,7 +236,7 @@ function ResultRow({ result: r, compareResult: cr, index }: { result: any; compa
       {open && (
         <tr>
           <td colSpan={cr !== undefined ? 8 : 7} className="px-4 py-4 bg-gray-50">
-            <div className="space-y-3 text-xs">
+            <div className="space-y-3 text-xs text-gray-800">
               {/* 回答 */}
               <div><span className="font-semibold">回答:</span> {r.answer?.slice(0, 200)}</div>
 
