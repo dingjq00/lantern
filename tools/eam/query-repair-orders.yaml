@@ -36,5 +36,5 @@ examples:
     arguments: { status: 3 }
   - query: 上月所有维修工单
     arguments: { dateRange: { start: "2026-02-01", end: "2026-02-28" } }
-when_to_use: 需要查询维修工单列表、统计工单数量时
-when_not_to_use: 需要单个工单完整详情（备件+工时）用 get_repair_detail
+when_to_use: 查维修工单列表；统计各状态工单数量；查某设备的维修记录；查外协/内部维修工单；查某时间段的维修情况；查维修频次最高的设备
+when_not_to_use: 需要单个工单的备件/工时/知识详情用 get_repair_detail

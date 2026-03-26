@@ -34,5 +34,5 @@ examples:
     arguments: { status: 0 }
   - query: 巡检发现的异常按设备汇总
     arguments: { source: "巡检", grouped: true }
-when_to_use: 需要查询异常记录列表、按条件筛选异常时
-when_not_to_use: 仅需要异常统计指标用 get_anomaly_statistics
+when_to_use: 查异常记录明细列表；按设备/来源/严重程度筛选异常；查巡检或保养发现的具体异常；分析异常趋势时需要明细数据支撑
+when_not_to_use: 只需要异常总数/处理率等汇总指标用 get_anomaly_statistics

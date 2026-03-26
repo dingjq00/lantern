@@ -24,5 +24,5 @@ examples:
     arguments: { repairOrderId: 201 }
   - query: 这次报修的维修详情
     arguments: { faultReportId: 301 }
-when_to_use: 需要查看维修工单完整信息（备件+工时+知识）时
-when_not_to_use: 只需要工单列表时用 query_repair_orders
+when_to_use: 查维修工单的备件使用清单；查维修花了多少工时；查维修参考了哪些知识文档；查维修成本明细；任何涉及"用了哪些备件""维修工时""维修费用"的问题
+when_not_to_use: 只需要工单列表（编号/状态/时间）用 query_repair_orders

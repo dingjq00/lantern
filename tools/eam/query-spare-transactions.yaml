@@ -34,5 +34,5 @@ input_schema:
 examples:
   - query: 上月备件出库记录
     arguments: { type: "stock_out", dateRange: { start: "2026-02-01", end: "2026-02-28" } }
-when_to_use: 需要查备件出入库流水、追踪备件流转时
-when_not_to_use: 需要查维修工单用了哪些备件用 get_repair_detail
+when_to_use: 查备件出入库流水记录；追踪某备件的领用/归还/报废历史；查某维修工单的出库单涉及哪些仓库
+when_not_to_use: 查维修工单用了哪些备件用 get_repair_detail（更直接）；查备件消耗趋势/环比用 query_repair_orders + get_repair_detail（从维修工单角度统计更准确）

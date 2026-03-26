@@ -20,5 +20,5 @@ input_schema:
 examples:
   - query: CNC-001 从购置到现在经历了什么？
     arguments: { equipmentId: 101 }
-when_to_use: 需要查看设备完整历史时间线时
-when_not_to_use: 只需要当前状态用 get_equipment_detail
+when_to_use: 查看设备的全生命周期事件/历史时间线；查设备经历了什么（购置、验收、故障、维修、保养、变动等所有历史事件）
+when_not_to_use: 只需要设备当前状态和 KPI 用 get_equipment_detail；只需要设备列表用 query_equipment

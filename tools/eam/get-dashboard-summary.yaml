@@ -18,5 +18,5 @@ examples:
     arguments: {}
   - query: 给我一个全局概览
     arguments: {}
-when_to_use: 需要系统整体概览、全局统计数字时
-when_not_to_use: 仅查设备状态分布用 get_equipment_status_distribution；仅查治理指标用 get_governance_dashboard
+when_to_use: 查系统整体概览（设备总数、运行中/故障/报废数量）；查待处理的报修/工单/保养数量；回答"有多少"类的全局统计问题
+when_not_to_use: 查各状态设备的具体分布用 get_equipment_status_distribution；查治理指标用 get_governance_dashboard；查待办事项明细用 get_todo_list

@@ -39,5 +39,5 @@ examples:
     arguments: { dateRange: { start: "2026-03-23", end: "2026-03-29" } }
   - query: CNC-001 的保养执行情况
     arguments: { equipmentId: 101 }
-when_to_use: 需要查询保养任务列表、统计保养执行情况时
-when_not_to_use: 需要单个任务的执行记录用 get_maintenance_detail
+when_to_use: 查询保养任务列表；查某台设备的保养情况/保养记录/保养执行率；查某时间段的保养计划完成情况；判断设备保养是否按计划执行
+when_not_to_use: 需要单个保养任务的执行记录明细（各检查项完成情况）用 get_maintenance_detail；查设备基本信息用 query_equipment
