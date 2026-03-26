@@ -1,53 +1,65 @@
-// Prompt V4 动态组装器
+// Prompt 动态组装器 — P1: 支持 ReAct 格式 + verdict 注入
 import fs from 'fs'
 import path from 'path'
-import type { ToolDefinition } from '@/lib/types'
+import type { ToolDefinition, MemoryVerdict } from '@/lib/types'
 
 const PROMPTS_DIR = path.join(process.cwd(), 'prompts')
 
 // 懒加载缓存
 let baseInstructions: string | null = null
+let reactInstructions: string | null = null
 let toolSelectionGuide: string | null = null
-let fewShotExamples: Array<{ query: string; reasoning: string; calls: unknown[] }> | null = null
+let fewShotExamples: unknown[] | null = null
+
+function loadFile(name: string): string {
+  return fs.readFileSync(path.join(PROMPTS_DIR, name), 'utf-8')
+}
 
 function getBaseInstructions(): string {
-  if (!baseInstructions) {
-    baseInstructions = fs.readFileSync(path.join(PROMPTS_DIR, 'base-instructions.md'), 'utf-8')
-  }
+  if (!baseInstructions) baseInstructions = loadFile('base-instructions.md')
   return baseInstructions
 }
 
+function getReactInstructions(): string {
+  if (!reactInstructions) reactInstructions = loadFile('react-instructions.md')
+  return reactInstructions
+}
+
 function getToolSelectionGuide(): string {
-  if (!toolSelectionGuide) {
-    toolSelectionGuide = fs.readFileSync(path.join(PROMPTS_DIR, 'tool-selection-guide.md'), 'utf-8')
-  }
+  if (!toolSelectionGuide) toolSelectionGuide = loadFile('tool-selection-guide.md')
   return toolSelectionGuide
 }
 
-function getFewShotExamples(): typeof fewShotExamples {
-  if (!fewShotExamples) {
-    fewShotExamples = JSON.parse(
-      fs.readFileSync(path.join(PROMPTS_DIR, 'few-shot-examples.json'), 'utf-8')
-    )
-  }
+function getFewShotExamples(): unknown[] {
+  if (!fewShotExamples) fewShotExamples = JSON.parse(loadFile('few-shot-examples.json'))
   return fewShotExamples!
 }
 
+export interface AssembleOptions {
+  memoryContext?: string
+  verdict?: MemoryVerdict | null
+}
+
 /**
- * 组装完整 Prompt V4
- * @returns systemPrompt (给 LLM 的 system message) + userMessage (用户原始查询)
+ * 组装完整 Prompt（P1: ReAct 格式）
  */
 export function assemblePrompt(
   query: string,
   tools: ToolDefinition[],
-  memoryContext?: string,
+  memoryContextOrOptions?: string | AssembleOptions,
 ): { systemPrompt: string; userMessage: string } {
+  // 兼容 P0 签名（第三参数是 string）和 P1 签名（第三参数是 options）
+  const options: AssembleOptions = typeof memoryContextOrOptions === 'string'
+    ? { memoryContext: memoryContextOrOptions }
+    : memoryContextOrOptions ?? {}
+
   const today = new Date().toISOString().split('T')[0]
 
-  // 1. 基础指令（替换日期占位符）
+  // 1. 基础指令 + ReAct 指令
   const base = getBaseInstructions().replace('{{currentDate}}', today)
+  const react = getReactInstructions()
 
-  // 2. 动态生成工具描述
+  // 2. 动态工具描述
   const toolDescriptions = tools.map(t => {
     const params = Object.entries(t.inputSchema.properties)
       .map(([k, v]) => `    - ${k} (${v.type}): ${v.description || ''}`)
@@ -58,25 +70,37 @@ export function assemblePrompt(
   // 3. 工具选择指南
   const guide = getToolSelectionGuide()
 
-  // 4. Few-shot 示例
-  const examples = getFewShotExamples()!
-  const exampleText = examples.map((ex, i) =>
-    `**示例 ${i + 1}**: "${ex.query}"\n思路: ${ex.reasoning}\n\`\`\`json\n${JSON.stringify({ calls: ex.calls }, null, 2)}\n\`\`\``
-  ).join('\n\n')
+  // 4. Few-shot 示例（ReAct 格式）
+  const examples = getFewShotExamples()
+  const exampleText = examples.map((ex: any, i: number) => {
+    const lines = [`**示例 ${i + 1}**: "${ex.query}"`]
+    if (ex.note) lines.push(`说明: ${ex.note}`)
+    lines.push(`首轮输出:\n\`\`\`json\n${JSON.stringify(ex.round0, null, 2)}\n\`\`\``)
+    if (ex.observation0) lines.push(`观察: ${ex.observation0}`)
+    if (ex.round1) lines.push(`追查轮输出:\n\`\`\`json\n${JSON.stringify(ex.round1, null, 2)}\n\`\`\``)
+    return lines.join('\n')
+  }).join('\n\n')
 
   // 5. 组装
   const sections = [
     base,
-    '\n## 可用工具清单\n',
-    toolDescriptions,
     '\n',
+    react,
+    '\n## 可用工具清单\n\n',
+    toolDescriptions,
+    '\n\n',
     guide,
-    '\n## 编排示例\n\n',
+    '\n\n## 编排示例\n\n',
     exampleText,
   ]
 
-  if (memoryContext) {
-    sections.push(`\n\n## 用户上下文\n${memoryContext}`)
+  // verdict 推荐路径注入
+  if (options.verdict && options.verdict.toolChain.length > 0) {
+    sections.push(`\n\n## 历史推荐路径\n以下工具链在过去类似查询中表现较好（仅供参考，可自行调整）：\n${options.verdict.toolChain.join(' → ')}（评分 ${options.verdict.avgScore.toFixed(1)}，${options.verdict.sampleCount} 次样本）`)
+  }
+
+  if (options.memoryContext) {
+    sections.push(`\n\n## 用户上下文\n${options.memoryContext}`)
   }
 
   return {
