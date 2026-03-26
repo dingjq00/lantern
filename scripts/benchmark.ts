@@ -82,6 +82,8 @@ interface BenchmarkResult {
 const EQUIVALENT_PATHS: Record<string, string[]> = {
   // query_fault_reports({status:0}) 等效于 get_dashboard_summary 查待审核报修数
   query_fault_reports: ['get_dashboard_summary'],
+  // get_todo_list 的 pendingFaults 等效于 get_dashboard_summary 查待审核报修
+  get_todo_list: ['get_dashboard_summary'],
   // query_repair_orders({status:X}) 等效于 get_dashboard_summary 查工单统计
   query_repair_orders: ['get_dashboard_summary'],
   // query_equipment 可以替代 get_equipment_detail（查列表再找某台）
