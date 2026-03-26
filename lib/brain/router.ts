@@ -12,7 +12,7 @@ import type {
   IntentTags, ConfidenceSignals, ConfidenceLevel, MemorySession,
 } from '@/lib/types'
 
-const MAX_CHASE_ROUNDS = 1  // 首轮规划 + 一轮追查（放开尝试），不再多轮
+const MAX_CHASE_ROUNDS = 2  // ①规划 → ②审查放开 → ③finish，最多 3 次 think
 const ESCALATION_MODEL = process.env.LLM_ESCALATION_MODEL || 'gpt-5.4'
 
 interface RouterDeps {
@@ -122,23 +122,29 @@ export async function processQuery(
       break
     }
 
-    // 执行 calls
+    // 执行 calls（支持 {{N.path}} 参数引用，按序执行并传递结果）
     if (thinkResult.calls && thinkResult.calls.length > 0) {
       trace.startRound(round, thinkResult.thought)
+      const roundResults: unknown[] = []  // 本轮各 call 的结果，用于引用解析
 
-      for (const call of thinkResult.calls) {
+      for (let ci = 0; ci < thinkResult.calls.length; ci++) {
+        const call = thinkResult.calls[ci]
+        // 解析参数中的 {{N.path}} 引用
+        const resolvedArgs = resolveArgRefs(call.arguments, roundResults)
+
         const startMs = Date.now()
         let toolResult: ToolResult
         try {
-          toolResult = await registry.execute(call.tool, call.arguments, callTool)
+          toolResult = await registry.execute(call.tool, resolvedArgs, callTool)
         } catch (err) {
           toolResult = { data: null, status: 'error', errorLevel: 1 }
         }
         const durationMs = Date.now() - startMs
+        roundResults.push(toolResult.data)
 
         trace.addCall({
           tool: call.tool,
-          arguments: call.arguments,
+          arguments: resolvedArgs,
           result: toolResult.data,
           status: toolResult.status === 'error' ? 'error' : 'success',
           durationMs,
@@ -282,5 +288,46 @@ async function generateLesson(
     }
   } catch {
     // 解析失败不影响主流程
+  }
+}
+
+/**
+ * 解析参数中的 {{N.path}} 引用
+ * 例如 {{0.items[0].equipmentId}} → 从第 0 个 call 的结果中取 items[0].equipmentId
+ */
+function resolveArgRefs(args: Record<string, unknown>, results: unknown[]): Record<string, unknown> {
+  const resolved: Record<string, unknown> = {}
+  for (const [key, value] of Object.entries(args)) {
+    if (typeof value === 'string' && value.startsWith('{{') && value.endsWith('}}')) {
+      const ref = value.slice(2, -2).trim()
+      resolved[key] = navigatePath(ref, results)
+    } else if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
+      resolved[key] = resolveArgRefs(value as Record<string, unknown>, results)
+    } else {
+      resolved[key] = value
+    }
+  }
+  return resolved
+}
+
+function navigatePath(ref: string, results: unknown[]): unknown {
+  try {
+    const parts = ref.split('.')
+    const callIndex = parseInt(parts[0])
+    if (isNaN(callIndex) || callIndex >= results.length || !results[callIndex]) return ref
+    let value: unknown = results[callIndex]
+    for (const part of parts.slice(1)) {
+      if (value === null || value === undefined) return ref
+      const arrayMatch = part.match(/^(\w+)\[(\d+)\]$/)
+      if (arrayMatch) {
+        value = (value as Record<string, unknown>)[arrayMatch[1]]
+        if (Array.isArray(value)) value = value[parseInt(arrayMatch[2])]
+      } else {
+        value = (value as Record<string, unknown>)[part]
+      }
+    }
+    return value ?? ref
+  } catch {
+    return ref  // 解析失败返回原始引用字符串
   }
 }

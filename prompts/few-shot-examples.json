@@ -3,57 +3,34 @@
     "type": "single_round",
     "query": "系统里有多少台设备？",
     "round0": {
-      "thought": "直接查系统总览统计即可",
+      "thought": "[意图] 查设备总数，属于统计类 [候选] get_dashboard_summary [审查] dashboard 直接返回设备总数 [规划] 一个工具搞定 [验证] 覆盖",
       "intent": {"domains": ["equipment"], "operation": "statistics", "filters": []},
       "clarity": "clear",
       "calls": [{"tool": "get_dashboard_summary", "arguments": {}}]
     },
     "finish": true,
-    "note": "简单查询，一轮搞定"
+    "note": "简单查询，2 次 think（规划+finish）"
   },
   {
     "type": "single_round",
-    "query": "A线上月的维修工单有哪些？",
+    "query": "设备 EQ-001 最近一次保养是什么时候？",
     "round0": {
-      "thought": "产线维度查询，需要先查产线设备再查维修工单",
-      "intent": {"domains": ["equipment", "fault-repair"], "operation": "list", "filters": ["productionLineId", "dateRange"]},
+      "thought": "[意图] 查某台设备的保养记录，涉及 equipment 定位 + maintenance 查询 [候选] query_equipment, query_maintenance_tasks [审查] query_equipment 用关键字定位设备ID，query_maintenance_tasks 按设备查保养任务列表含时间 [规划] 先查设备再查保养，用引用传 ID [验证] 设备ID+保养任务列表=能找到最近一次保养时间",
+      "intent": {"domains": ["equipment", "maintenance"], "operation": "detail", "filters": ["keyword"]},
       "clarity": "clear",
       "calls": [
-        {"tool": "query_equipment", "arguments": {"productionLineId": 1}},
-        {"tool": "query_repair_orders", "arguments": {"dateRange": {"start": "2026-02-01", "end": "2026-02-28"}}}
+        {"tool": "query_equipment", "arguments": {"keyword": "EQ-001"}},
+        {"tool": "query_maintenance_tasks", "arguments": {"equipmentId": "{{0.items[0].equipmentId}}"}}
       ]
     },
     "finish": true,
-    "note": "多工具首轮规划，不需要追查"
-  },
-  {
-    "type": "multi_round",
-    "query": "A线上月故障最多的设备，它的备件库存够不够？",
-    "round0": {
-      "thought": "先查A线设备和上月故障记录",
-      "intent": {"domains": ["equipment", "fault-repair", "spare"], "operation": "detail", "filters": ["productionLineId", "dateRange"]},
-      "clarity": "clear",
-      "calls": [
-        {"tool": "query_equipment", "arguments": {"productionLineId": 1}},
-        {"tool": "query_fault_reports", "arguments": {"dateRange": {"start": "2026-02-01", "end": "2026-02-28"}}}
-      ]
-    },
-    "observation0": "获得设备列表和故障记录，CNC-001 故障 5 次最多",
-    "round1": {
-      "thought": "已知 CNC-001 故障最多(equipmentId=101)，需要查它的备件BOM和库存",
-      "calls": [
-        {"tool": "get_equipment_spare_bom", "arguments": {"equipmentId": 101}},
-        {"tool": "get_spare_stock", "arguments": {"spareId": 401}}
-      ]
-    },
-    "finish": true,
-    "note": "首轮结果不够 → 追查一轮补充备件信息"
+    "note": "有依赖的工具用 {{0.xxx}} 引用，一轮完成"
   },
   {
     "type": "single_round",
     "query": "CNC-001 上季度故障和保养的交叉分析",
     "round0": {
-      "thought": "跨域分析，分别查故障和保养，数据层面交叉",
+      "thought": "[意图] 跨域分析故障+保养，涉及 fault-repair 和 maintenance [候选] query_fault_reports, query_maintenance_tasks [审查] 两个工具都支持 equipmentId+dateRange，可直接查 [规划] 并行查两个域 [验证] 故障列表+保养列表=可做交叉分析",
       "intent": {"domains": ["fault-repair", "maintenance"], "operation": "list", "filters": ["equipmentId", "dateRange"]},
       "clarity": "clear",
       "calls": [
@@ -62,6 +39,28 @@
       ]
     },
     "finish": true,
-    "note": "跨域但首轮可规划完整"
+    "note": "无依赖的并行查询，一轮完成"
+  },
+  {
+    "type": "multi_round",
+    "query": "维修工单 WO-201 用了哪些备件？这些备件的库存够不够？",
+    "round0": {
+      "thought": "[意图] 查维修工单的备件+库存，涉及 fault-repair 和 spare [候选] get_repair_detail, get_spare_stock [审查] get_repair_detail 返回备件清单含 spareId，get_spare_stock 按 spareId 查库存 [规划] 先查工单详情拿到备件清单，再查各备件库存 [验证] 工单备件+库存=覆盖",
+      "intent": {"domains": ["fault-repair", "spare"], "operation": "detail", "filters": ["repairOrderId"]},
+      "clarity": "clear",
+      "calls": [
+        {"tool": "get_repair_detail", "arguments": {"repairOrderId": 201}},
+        {"tool": "get_spare_stock", "arguments": {"spareId": "{{0.sparesUsed[0].spareId}}"}}
+      ]
+    },
+    "observation0": "获得工单详情和第一个备件的库存，但可能有多个备件需要查",
+    "round1": {
+      "thought": "[意图] 首轮只查了第一个备件库存，如有多个备件需要补全 [审查] 如果 sparesUsed 有多个，需要逐个查 [规划] 补充其他备件的库存查询",
+      "calls": [
+        {"tool": "get_spare_stock", "arguments": {"spareId": 402}}
+      ]
+    },
+    "finish": true,
+    "note": "首轮用引用查第一个备件，审查轮补全其他备件 — 3 次 think"
   }
 ]

@@ -28,7 +28,7 @@ describe('assemblePrompt', () => {
 
   it('组装结果包含 few-shot 示例（ReAct 格式）', () => {
     const { systemPrompt } = assemblePrompt('测试', tools)
-    expect(systemPrompt).toContain('A线上月的维修工单')
+    expect(systemPrompt).toContain('系统里有多少台设备')
     expect(systemPrompt).toContain('首轮输出')
   })
 
