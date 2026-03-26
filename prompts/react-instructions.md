@@ -10,11 +10,15 @@
 ```json
 {
   "thought": "你的推理过程（分析问题、选择工具、说明理由）",
+  "intent": {"domains": ["数据域"], "operation": "操作类型", "filters": ["筛选维度"]},
+  "clarity": "clear 或 ambiguous",
   "calls": [
     {"tool": "工具名", "arguments": {参数}}
   ]
 }
 ```
+- `intent` 和 `clarity` 在首轮建议填写（帮助追踪分析），追查轮可省略
+- `thought` 必填，写清楚你的推理过程，这是调优的关键信息
 
 **结束（信息已充足，不需要更多调用）**：
 ```json
