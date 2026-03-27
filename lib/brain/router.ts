@@ -92,13 +92,20 @@ export async function processQuery(
       trace.startRound(round, `[escalated→${ESCALATION_MODEL}] ${escalated.thought}`)
 
       if (escalated.unsupported || !escalated.calls?.length) {
-        // 强模型也搞不定，真的超纲
+        // 强模型也搞不定——用 AI 推理生成上下文相关的回复，不用写死文本
         trace.endRound('强模型也无法处理，确认超纲')
         const signals: ConfidenceSignals = { toolMatch: 'low', verdictConfidence: 'low', queryClarity: clarity }
         trace.setConfidence(signals, 'low')
+        const unsupportedSummary = await llm.summarize(
+          { unsupported: true, aiAnalysis: escalated.thought },
+          query,
+          'single_value',
+        )
         const result = buildStructuredResult(
-          '请问您想了解哪方面的信息？\n1. 设备运行状况\n2. 维修工单进度\n3. 保养任务执行\n4. 备件库存情况',
+          unsupportedSummary.answer || '当前系统暂不支持该查询，请换个方式描述或咨询相关部门。',
           [], 'text', 'low',
+          undefined,
+          unsupportedSummary.followUp,
         )
         result.trace = trace.build()
         result.sources = []

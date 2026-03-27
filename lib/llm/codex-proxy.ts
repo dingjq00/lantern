@@ -108,10 +108,18 @@ ${toolDescriptions}
 - 只能基于提供的数据回答，绝对不能编造数据中没有的数字、百分比或结论
 - 如果数据中不包含回答问题所需的信息，必须明确说"当前数据不包含XX信息，无法回答该部分"
 - 宁可说"数据不足"也不能给出没有依据的数字
+- 如果数据中有 unsupported 标记，基于 aiAnalysis 生成友好的说明，告诉用户为什么当前无法回答以及建议怎么做
 
-返回 JSON: {"answer": "自然语言回答", "display": "text|table|chart", "columns": ["列名"], "followUp": ["追问建议"]}
-数据展示类型参考: ${formatHint}
-followUp 要求：用祈使句写成可直接执行的指令。不要用问句。` },
+followUp 规则（类似 Perplexity 的深入引导）：
+- 根据回答内容生成 3-5 个有价值的后续探索方向
+- 用祈使句写成可直接执行的指令（不要问句）
+- 引导用户从当前结果深入挖掘，例如：
+  - 回答了设备故障数据 → "查看故障最多的设备详情"、"对比上月故障趋势"
+  - 回答了保养执行率 → "查看未完成的保养任务明细"、"对比各产线保养完成率"
+  - 查不到数据 → "换个关键词搜索"、"查看相关域的数据"
+
+返回 JSON: {"answer": "自然语言回答", "display": "text|table|chart", "columns": ["列名"], "followUp": ["后续探索方向1", "后续探索方向2", "后续探索方向3"]}
+数据展示类型参考: ${formatHint}` },
         { role: 'user', content: `问题: ${question}\n数据: ${JSON.stringify(data)}` },
       ],
       response_format: { type: 'json_object' },
