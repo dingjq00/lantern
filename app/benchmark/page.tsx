@@ -332,6 +332,12 @@ function RunDetailPanel({ result: r }: { result: any }) {
           <div className="text-gray-500 space-y-0.5">
             {r.trace.intent && <div>意图: {r.trace.intent.domains?.join('/')} / {r.trace.intent.operation}</div>}
             <div>置信度: {r.confidence}</div>
+            {(r as any).lessonEval && (
+              <div className={`mt-1 px-2 py-1 rounded ${(r as any).lessonEval.quality === 'good' ? 'bg-green-50 text-green-700' : (r as any).lessonEval.quality === 'bad' ? 'bg-red-50 text-red-700' : 'bg-amber-50 text-amber-700'}`}>
+                Subagent 评估: {(r as any).lessonEval.quality === 'good' ? '✅' : (r as any).lessonEval.quality === 'bad' ? '❌' : '⚠️'} {(r as any).lessonEval.reason}
+                {(r as any).lessonEval.lesson && <div>教训: {(r as any).lessonEval.lesson}</div>}
+              </div>
+            )}
           </div>
         </div>
       )}

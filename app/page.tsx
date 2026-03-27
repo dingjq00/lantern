@@ -42,7 +42,8 @@ export default function Home() {
         followUp: data.followUp,
         sources: data.sources,
         trace: data.trace,
-      }
+        lessonEval: data.lessonEval,
+      } as any
       setMessages(prev => [...prev, assistantMsg])
     } catch {
       setMessages(prev => [...prev, {

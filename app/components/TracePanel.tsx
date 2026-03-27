@@ -4,9 +4,10 @@ import type { ExecutionTrace } from '@/lib/types'
 
 interface TracePanelProps {
   trace: ExecutionTrace
+  lessonEval?: { quality: string; reason: string; lesson: string }
 }
 
-export function TracePanel({ trace }: TracePanelProps) {
+export function TracePanel({ trace, lessonEval }: TracePanelProps) {
   const [open, setOpen] = useState(false)
   const totalMs = (trace.endTime ?? Date.now()) - trace.startTime
   const roundCount = trace.rounds.length
@@ -62,6 +63,12 @@ export function TracePanel({ trace }: TracePanelProps) {
               置信度: toolMatch={trace.confidence.toolMatch} verdict={trace.confidence.verdictConfidence} clarity={trace.confidence.queryClarity}
               → 最终={trace.finalConfidence}
             </div>
+            {lessonEval && (
+              <div className={`px-2 py-1 rounded text-xs ${lessonEval.quality === 'good' ? 'bg-green-50 text-green-700' : lessonEval.quality === 'bad' ? 'bg-red-50 text-red-700' : 'bg-amber-50 text-amber-700'}`}>
+                质量评估: {lessonEval.quality === 'good' ? '✅ 通过' : lessonEval.quality === 'bad' ? '❌ 不通过' : '⚠️ 部分'} — {lessonEval.reason}
+                {lessonEval.lesson && <div className="mt-0.5">教训: {lessonEval.lesson}</div>}
+              </div>
+            )}
             {trace.validation.length > 0 && (
               <div className="text-amber-600">
                 验证警告: {trace.validation.map(v => v.message).join('; ')}

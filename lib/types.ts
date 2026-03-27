@@ -26,6 +26,7 @@ export interface StructuredResult {
   confidence: ConfidenceLevel
   sources?: Array<{ tool: string; description: string }>
   trace?: ExecutionTrace
+  lessonEval?: { quality: string; reason: string; lesson: string }  // subagent 评估结果
 }
 
 export type ConfidenceLevel = 'high' | 'medium' | 'low'

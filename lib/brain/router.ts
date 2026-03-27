@@ -3,7 +3,7 @@ import { assemblePrompt } from './prompt-assembler'
 import { computeConfidence } from './confidence'
 import { detectDisplayFormat, buildStructuredResult } from './result-presenter'
 import { computeIntentHash } from './intent'
-import { checkRelevance, extractDataFields } from './relevance-checker'
+import { extractDataFields } from './relevance-checker'
 import { evaluateWithSubagent } from './subagent-evaluator'
 import { TraceCollector } from './trace'
 import type { ToolRegistry } from '@/lib/tools/registry'
@@ -228,46 +228,32 @@ export async function processQuery(
     }
     storage.insertSession(session)
     storage.insertTrace(tenantId, trace.build(), session.sessionId)
+  } catch { /* 存储失败不影响响应 */ }
 
-    // 并列异步评估（不阻塞响应）：层 1 规则 + 层 2 subagent
-    const toolsDomains = allResults.flatMap(r => {
-      const td = registry.getTool(r.tool)
-      return td ? td.domains : []
-    })
+  // subagent 评估（和 result 一起返回，前端可展示）
+  let lessonEval: { quality: string; reason: string; lesson: string } | undefined
+  try {
     const dataFields = extractDataFields(mergedData.length === 1 ? mergedData[0] : mergedData)
     const dataSample = JSON.stringify(mergedData).slice(0, 300)
+    const subagentResult = await evaluateWithSubagent(llm, query, dataFields.join(', '), dataSample)
+    lessonEval = { quality: subagentResult.quality, reason: subagentResult.reason, lesson: subagentResult.lesson }
 
-    // 层 1: 关联性检测（同步，零成本）
-    const relevanceResult = checkRelevance(query, intent, [...new Set(toolsDomains)], dataFields)
-    // 层 2: subagent 评估（异步，1 次 LLM）
-    evaluateWithSubagent(llm, query, dataFields.join(', '), dataSample).then(subagentResult => {
-      // 两个结果都写入 lesson（实验阶段，对比效果）
-      const intentHash = intent?.intentHash ?? ''
-      if (relevanceResult.recommendation !== 'pass') {
+    // 写 lesson
+    if (subagentResult.quality !== 'good' && intent?.intentHash) {
+      try {
         storage.insertLesson({
-          intentHash, tenantId, query,
-          selectedTools: allResults.map(r => r.tool),
-          quality: relevanceResult.recommendation === 'fail' ? 'bad' : 'partial',
-          errorReason: relevanceResult.reason,
-          lesson: `[层1-规则] ${relevanceResult.reason}`,
-          source: 'self_eval' as const,
-          createdAt: new Date(),
-        })
-      }
-      if (subagentResult.quality !== 'good') {
-        storage.insertLesson({
-          intentHash, tenantId, query,
+          intentHash: intent.intentHash, tenantId, query,
           selectedTools: allResults.map(r => r.tool),
           quality: subagentResult.quality,
           errorReason: subagentResult.reason,
           betterPath: subagentResult.missing.length > 0 ? subagentResult.missing : undefined,
-          lesson: `[层2-subagent] ${subagentResult.lesson}`,
+          lesson: `[subagent] ${subagentResult.lesson}`,
           source: 'self_eval' as const,
           createdAt: new Date(),
         })
-      }
-    }).catch(() => {})
-  } catch { /* 存储失败不影响响应 */ }
+      } catch { /* 写入失败不影响响应 */ }
+    }
+  } catch { /* 评估失败不影响响应 */ }
 
   const result = buildStructuredResult(
     summary.answer,
@@ -279,6 +265,7 @@ export async function processQuery(
   )
   result.sources = uniqueSources
   result.trace = trace.build()
+  result.lessonEval = lessonEval
   return result
 }
 
