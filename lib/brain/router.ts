@@ -3,12 +3,13 @@ import { assemblePrompt } from './prompt-assembler'
 import { computeConfidence } from './confidence'
 import { detectDisplayFormat, buildStructuredResult } from './result-presenter'
 import { computeIntentHash } from './intent'
+import { checkRelevance, extractDataFields } from './relevance-checker'
+import { evaluateWithSubagent } from './subagent-evaluator'
 import { TraceCollector } from './trace'
-import { maybeUpdateVerdict } from './verdict'
 import type { ToolRegistry } from '@/lib/tools/registry'
 import type { StorageInterface } from '@/lib/storage/types'
 import type {
-  LLMProvider, StructuredResult, ToolResult, ThinkResult,
+  LLMProvider, StructuredResult, ToolResult,
   IntentTags, ConfidenceSignals, ConfidenceLevel, MemorySession,
 } from '@/lib/types'
 
@@ -220,7 +221,45 @@ export async function processQuery(
     }
     storage.insertSession(session)
     storage.insertTrace(tenantId, trace.build(), session.sessionId)
-    // lesson 由外部信号触发（用户反馈/结果质量检测），不做 AI 自评
+
+    // 并列异步评估（不阻塞响应）：层 1 规则 + 层 2 subagent
+    const toolsDomains = allResults.flatMap(r => {
+      const td = registry.getTool(r.tool)
+      return td ? td.domains : []
+    })
+    const dataFields = extractDataFields(mergedData.length === 1 ? mergedData[0] : mergedData)
+    const dataSample = JSON.stringify(mergedData).slice(0, 300)
+
+    // 层 1: 关联性检测（同步，零成本）
+    const relevanceResult = checkRelevance(query, intent, [...new Set(toolsDomains)], dataFields)
+    // 层 2: subagent 评估（异步，1 次 LLM）
+    evaluateWithSubagent(llm, query, dataFields.join(', '), dataSample).then(subagentResult => {
+      // 两个结果都写入 lesson（实验阶段，对比效果）
+      const intentHash = intent?.intentHash ?? ''
+      if (relevanceResult.recommendation !== 'pass') {
+        storage.insertLesson({
+          intentHash, tenantId, query,
+          selectedTools: allResults.map(r => r.tool),
+          quality: relevanceResult.recommendation === 'fail' ? 'bad' : 'partial',
+          errorReason: relevanceResult.reason,
+          lesson: `[层1-规则] ${relevanceResult.reason}`,
+          source: 'self_eval' as const,
+          createdAt: new Date(),
+        })
+      }
+      if (subagentResult.quality !== 'good') {
+        storage.insertLesson({
+          intentHash, tenantId, query,
+          selectedTools: allResults.map(r => r.tool),
+          quality: subagentResult.quality,
+          errorReason: subagentResult.reason,
+          betterPath: subagentResult.missing.length > 0 ? subagentResult.missing : undefined,
+          lesson: `[层2-subagent] ${subagentResult.lesson}`,
+          source: 'self_eval' as const,
+          createdAt: new Date(),
+        })
+      }
+    }).catch(() => {})
   } catch { /* 存储失败不影响响应 */ }
 
   const result = buildStructuredResult(
@@ -234,61 +273,6 @@ export async function processQuery(
   result.sources = uniqueSources
   result.trace = trace.build()
   return result
-}
-
-/**
- * 异步自评：AI 判断自己选的工具对不对，不对就生成 lesson
- */
-async function generateLesson(
-  llm: LLMProvider,
-  storage: StorageInterface,
-  tenantId: string,
-  query: string,
-  intentHash: string,
-  selectedTools: string[],
-  answer: string,
-  availableToolNames: string[],
-): Promise<void> {
-  const evalPrompt = `评估工具路由结果。必须使用下方工具列表中的具体工具名。
-
-可用工具: ${availableToolNames.join(', ')}
-
-用户问题: "${query}"
-选择的工具: ${selectedTools.join(', ') || '(无)'}
-回答摘要: "${answer.slice(0, 150)}"
-
-返回严格 JSON（不要其他文字）:
-{"quality":"good或partial或bad","errorReason":"选错的原因","betterPath":["应该用的具体工具名"],"lesson":"选了X不对因为Y，应该用Z"}`
-
-  const result = await llm.think([
-    { role: 'system', content: evalPrompt },
-    { role: 'user', content: '评估' },
-  ])
-
-  try {
-    const evalText = result.thought
-    const evalData = JSON.parse(evalText)
-    if (!evalData.quality) return
-
-    const lesson: import('@/lib/types').Lesson = {
-      intentHash,
-      tenantId,
-      query,
-      selectedTools,
-      quality: evalData.quality,
-      errorReason: evalData.errorReason,
-      betterPath: evalData.betterPath,
-      lesson: evalData.lesson ?? '',
-      source: 'self_eval',
-      createdAt: new Date(),
-    }
-    // 只存有价值的教训（partial 或 bad）
-    if (lesson.quality !== 'good') {
-      storage.insertLesson(lesson)
-    }
-  } catch {
-    // 解析失败不影响主流程
-  }
 }
 
 /**
