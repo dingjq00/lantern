@@ -24,15 +24,19 @@ export function computeIntentHash(
 
 /**
  * P1: 从 ThinkResult 第一轮输出提取结构化意图 + clarity
+ * clarity 默认 'high' — 不惩罚没返回 clarity 的情况
+ * （LLM 层 mapClarity 已将 clear→high, ambiguous→medium, unsupported→low）
  */
 export function extractIntentFromThinkResult(result: ThinkResult): {
-  intent: IntentTags
+  intent: IntentTags | undefined
   clarity: ConfidenceLevel
 } {
-  const raw = result.intent ?? { domains: [], operation: '', filters: [] }
-  const intentHash = computeIntentHash(raw.domains, raw.operation, raw.filters)
+  if (!result.intent) {
+    return { intent: undefined, clarity: result.clarity ?? 'high' }
+  }
+  const intentHash = computeIntentHash(result.intent.domains, result.intent.operation, result.intent.filters)
   return {
-    intent: { ...raw, intentHash },
-    clarity: result.clarity ?? 'medium',
+    intent: { ...result.intent, intentHash },
+    clarity: result.clarity ?? 'high',
   }
 }

@@ -1,8 +1,8 @@
 // 路由主编排器 — P1: ReAct 循环（批量调用 + 按需追查）
 import { assemblePrompt } from './prompt-assembler'
-import { computeConfidence } from './confidence'
+import { computeConfidence, computeVerdictConfidence } from './confidence'
 import { detectDisplayFormat, buildStructuredResult } from './result-presenter'
-import { computeIntentHash } from './intent'
+import { extractIntentFromThinkResult } from './intent'
 import { extractDataFields } from './relevance-checker'
 import { evaluateWithSubagent } from './subagent-evaluator'
 import { TraceCollector } from './trace'
@@ -42,6 +42,7 @@ export async function processQuery(
   const allTools = registry.getAllTools()
   const allResults: Array<{ tool: string; data: unknown }> = []
   const sources: Array<{ tool: string; description: string }> = []
+  let totalCallsAttempted = 0
 
   // 对话历史上下文
   const historyContext = history && history.length > 1
@@ -70,16 +71,14 @@ export async function processQuery(
 
     // 首轮提取 intent（可选——LLM 可能返回也可能不返回）
     if (round === 0) {
-      if (thinkResult.intent) {
-        intent = {
-          ...thinkResult.intent,
-          intentHash: computeIntentHash(thinkResult.intent.domains, thinkResult.intent.operation, thinkResult.intent.filters),
-        }
+      const extracted = extractIntentFromThinkResult(thinkResult)
+      clarity = extracted.clarity
+      if (extracted.intent) {
+        intent = extracted.intent
         trace.setIntent(intent)
         verdict = storage.getVerdict(tenantId, intent.intentHash)
         trace.setVerdict(verdict)
       }
-      clarity = thinkResult.clarity ?? 'high'  // 默认 high，不惩罚没返回 clarity 的情况
     }
 
     // 超纲或首轮无 calls——升级到强模型重试一次
@@ -114,10 +113,13 @@ export async function processQuery(
 
       // 强模型给出了 calls，用它的结果继续
       trace.endRound('强模型成功规划')
-      if (escalated.intent && round === 0) {
-        intent = { ...escalated.intent, intentHash: computeIntentHash(escalated.intent.domains, escalated.intent.operation, escalated.intent.filters) }
-        clarity = escalated.clarity ?? 'high'
-        trace.setIntent(intent)
+      if (round === 0) {
+        const extracted = extractIntentFromThinkResult(escalated)
+        clarity = extracted.clarity
+        if (extracted.intent) {
+          intent = extracted.intent
+          trace.setIntent(intent)
+        }
       }
       // 替换 thinkResult 继续执行 calls
       Object.assign(thinkResult, escalated)
@@ -133,6 +135,7 @@ export async function processQuery(
     // 执行 calls（支持 {{N.path}} 参数引用，按序执行并传递结果）
     if (thinkResult.calls && thinkResult.calls.length > 0) {
       trace.startRound(round, thinkResult.thought)
+      totalCallsAttempted += thinkResult.calls.length
       const roundResults: unknown[] = []  // 本轮各 call 的结果，用于引用解析
 
       for (let ci = 0; ci < thinkResult.calls.length; ci++) {
@@ -175,10 +178,11 @@ export async function processQuery(
 
       // 把本轮结果注入消息上下文，引导 AI 判断是否充足
       messages.push({ role: 'assistant', content: JSON.stringify(thinkResult) })
-      const obsData = thinkResult.calls.map(c => {
-        const r = allResults.find(ar => ar.tool === c.tool)
-        return { tool: c.tool, result: r?.data ?? 'error' }
-      })
+      // 用本轮 roundResults（index-aligned），不用跨轮累积的 allResults
+      const obsData = thinkResult.calls.map((c, ci) => ({
+        tool: c.tool,
+        result: roundResults[ci] ?? 'error',
+      }))
       // 观察注入（Reflexion 式事实对比）
       const dataFields = obsData.flatMap(d => {
         if (d.result && typeof d.result === 'object' && !Array.isArray(d.result)) return Object.keys(d.result as Record<string, unknown>)
@@ -197,11 +201,12 @@ export async function processQuery(
     round++
   }
 
-  // 置信度计算
-  const verdictConfidence: ConfidenceLevel = !verdict ? 'low'
-    : verdict.sampleCount >= 10 ? 'high'
-    : verdict.sampleCount >= 3 ? 'medium' : 'low'
-  const signals: ConfidenceSignals = { toolMatch: 'high', verdictConfidence, queryClarity: clarity }
+  // 置信度计算（toolMatch 从实际执行结果推导，不再硬编码）
+  const toolMatch: ConfidenceLevel = totalCallsAttempted === 0 ? 'low'
+    : allResults.length === totalCallsAttempted ? 'high'
+    : allResults.length > 0 ? 'medium' : 'low'
+  const verdictConfidence = computeVerdictConfidence(verdict)
+  const signals: ConfidenceSignals = { toolMatch, verdictConfidence, queryClarity: clarity }
   const finalConfidence = computeConfidence(signals)
   trace.setConfidence(signals, finalConfidence)
 
@@ -228,7 +233,7 @@ export async function processQuery(
     }
     storage.insertSession(session)
     storage.insertTrace(tenantId, trace.build(), session.sessionId)
-  } catch { /* 存储失败不影响响应 */ }
+  } catch (err) { console.warn('[Router] Session/trace 写入失败:', err) }
 
   // subagent 评估（和 result 一起返回，前端可展示）
   let lessonEval: { quality: string; reason: string; lesson: string } | undefined
@@ -251,9 +256,9 @@ export async function processQuery(
           source: 'self_eval' as const,
           createdAt: new Date(),
         })
-      } catch { /* 写入失败不影响响应 */ }
+      } catch (err) { console.warn('[Router] Lesson 写入失败:', err) }
     }
-  } catch { /* 评估失败不影响响应 */ }
+  } catch (err) { console.warn('[Router] Subagent 评估失败:', err) }
 
   const result = buildStructuredResult(
     summary.answer,
@@ -273,7 +278,8 @@ export async function processQuery(
  * 解析参数中的 {{N.path}} 引用
  * 例如 {{0.items[0].equipmentId}} → 从第 0 个 call 的结果中取 items[0].equipmentId
  */
-function resolveArgRefs(args: Record<string, unknown>, results: unknown[]): Record<string, unknown> {
+/** @internal — 导出仅用于测试 */
+export function resolveArgRefs(args: Record<string, unknown>, results: unknown[]): Record<string, unknown> {
   const resolved: Record<string, unknown> = {}
   for (const [key, value] of Object.entries(args)) {
     if (typeof value === 'string' && value.startsWith('{{') && value.endsWith('}}')) {
@@ -288,7 +294,8 @@ function resolveArgRefs(args: Record<string, unknown>, results: unknown[]): Reco
   return resolved
 }
 
-function navigatePath(ref: string, results: unknown[]): unknown {
+/** @internal — 导出仅用于测试 */
+export function navigatePath(ref: string, results: unknown[]): unknown {
   try {
     const parts = ref.split('.')
     const callIndex = parseInt(parts[0])

@@ -95,7 +95,7 @@ async function main() {
   console.log('\n触发 verdict 计算...')
   let verdictCount = 0
   for (const hash of intentHashes) {
-    await maybeUpdateVerdict(storage, llm, 'default', hash, 3)
+    await maybeUpdateVerdict(storage, 'default', hash, 3)
     const v = storage.getVerdict('default', hash)
     if (v) {
       verdictCount++

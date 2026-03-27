@@ -36,15 +36,15 @@ describe('extractIntentFromThinkResult', () => {
       clarity: 'high',
     }
     const { intent, clarity } = extractIntentFromThinkResult(result)
-    expect(intent.domains).toEqual(['equipment'])
-    expect(intent.intentHash.length).toBe(16)
+    expect(intent!.domains).toEqual(['equipment'])
+    expect(intent!.intentHash.length).toBe(16)
     expect(clarity).toBe('high')
   })
 
-  it('无 intent 时返回空 intent + medium clarity', () => {
+  it('无 intent 时返回 undefined + high clarity（不惩罚未返回 clarity）', () => {
     const result: ThinkResult = { thought: '测试' }
     const { intent, clarity } = extractIntentFromThinkResult(result)
-    expect(intent.domains).toEqual([])
-    expect(clarity).toBe('medium')
+    expect(intent).toBeUndefined()
+    expect(clarity).toBe('high')
   })
 })

@@ -9,7 +9,8 @@ interface TracePanelProps {
 
 export function TracePanel({ trace, lessonEval }: TracePanelProps) {
   const [open, setOpen] = useState(false)
-  const totalMs = (trace.endTime ?? Date.now()) - trace.startTime
+  // endTime 应该在 trace.build() 时已填充，fallback 用 startTime 避免 hydration mismatch
+  const totalMs = (trace.endTime ?? trace.startTime) - trace.startTime
   const roundCount = trace.rounds.length
 
   return (

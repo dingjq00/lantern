@@ -210,6 +210,28 @@ export class SQLiteStorage implements StorageInterface {
     }))
   }
 
+  getAllLessons(tenantId: string, limit = 200): Lesson[] {
+    const stmt = this.db.prepare(`
+      SELECT * FROM nl_lessons
+      WHERE tenant_id = ?
+      ORDER BY created_at DESC
+      LIMIT ?
+    `)
+    const rows = stmt.all(tenantId, limit) as Record<string, unknown>[]
+    return rows.map(row => ({
+      intentHash: row.intent_hash as string,
+      tenantId: row.tenant_id as string,
+      query: row.query as string,
+      selectedTools: JSON.parse(row.selected_tools as string),
+      quality: row.quality as Lesson['quality'],
+      errorReason: row.error_reason as string | undefined,
+      betterPath: row.better_path ? JSON.parse(row.better_path as string) : undefined,
+      lesson: row.lesson as string,
+      source: row.source as Lesson['source'],
+      createdAt: new Date(row.created_at as string),
+    }))
+  }
+
   // --- Benchmark 追踪 ---
 
   saveBenchmarkRun(run: BenchmarkRun): void {

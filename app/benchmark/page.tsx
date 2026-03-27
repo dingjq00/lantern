@@ -18,21 +18,41 @@ interface RunDetail {
     id: string; query: string; level: string; success: boolean
     actualTools: string[]; expectedTools: string[]; recall: number; precision: number
     rounds: number; latencyMs: number; confidence: string; hasSources: boolean; answer: string
+    data?: Record<string, unknown>[]; display?: string; columns?: string[]
+    followUp?: string[]; sources?: Array<{ tool: string; description: string }>
     trace?: any
+    lessonEval?: { quality: string; reason: string; lesson: string }
   }>
+}
+
+interface LessonItem {
+  intentHash: string; query: string; quality: 'good' | 'partial' | 'bad'
+  errorReason?: string; lesson: string; selectedTools: string[]
+  source: string; createdAt: string
 }
 
 export default function BenchmarkDashboard() {
   const [runs, setRuns] = useState<RunSummary[]>([])
   const [selectedRun, setSelectedRun] = useState<RunDetail | null>(null)
   const [compareRun, setCompareRun] = useState<RunDetail | null>(null)
-  const [compareMode, setCompareMode] = useState(false)
+  const [tab, setTab] = useState<'benchmark' | 'lessons'>('benchmark')
   const [filter, setFilter] = useState<string>('all')
   const [loading, setLoading] = useState(true)
+  const [lessons, setLessons] = useState<LessonItem[]>([])
+  const [lessonsLoading, setLessonsLoading] = useState(false)
 
   useEffect(() => {
     fetch('/api/benchmark/runs').then(r => r.json()).then(data => { setRuns(data); setLoading(false) })
   }, [])
+
+  const loadLessons = async () => {
+    if (lessons.length > 0) return  // 已加载
+    setLessonsLoading(true)
+    const res = await fetch('/api/benchmark/lessons')
+    const data = await res.json()
+    setLessons(data)
+    setLessonsLoading(false)
+  }
 
   const loadRun = async (runId: string, isCompare = false) => {
     const res = await fetch(`/api/benchmark/run/${runId}`)
@@ -54,13 +74,22 @@ export default function BenchmarkDashboard() {
   return (
     <div className="min-h-screen bg-gray-50 p-6">
       <div className="max-w-[1400px] mx-auto">
-        {/* 标题 */}
+        {/* 标题 + Tab 切换 */}
         <div className="flex items-center justify-between mb-6">
           <div>
             <h1 className="text-2xl font-bold text-blue-900">Benchmark Dashboard</h1>
-            <p className="text-sm text-gray-500">实验追踪 · 历史对比 · 逐题分析</p>
+            <div className="flex gap-4 mt-2">
+              <button onClick={() => setTab('benchmark')}
+                className={`text-sm pb-1 border-b-2 transition-colors ${tab === 'benchmark' ? 'text-blue-700 border-blue-700 font-semibold' : 'text-gray-500 border-transparent hover:text-gray-700'}`}>
+                实验追踪
+              </button>
+              <button onClick={() => { setTab('lessons'); loadLessons() }}
+                className={`text-sm pb-1 border-b-2 transition-colors ${tab === 'lessons' ? 'text-blue-700 border-blue-700 font-semibold' : 'text-gray-500 border-transparent hover:text-gray-700'}`}>
+                Lessons ({lessons.length || '...'})
+              </button>
+            </div>
           </div>
-          {selectedRun && (
+          {tab === 'benchmark' && selectedRun && (
             <div className="flex items-center gap-3">
               <button onClick={() => { setSelectedRun(null); setCompareRun(null) }}
                 className="px-4 py-2 text-sm text-gray-700 bg-white border border-gray-200 rounded-lg hover:bg-gray-50">
@@ -85,8 +114,11 @@ export default function BenchmarkDashboard() {
           )}
         </div>
 
+        {/* Lessons Tab */}
+        {tab === 'lessons' && <LessonsPanel lessons={lessons} loading={lessonsLoading} />}
+
         {/* 运行列表 */}
-        {!selectedRun && (
+        {tab === 'benchmark' && !selectedRun && (
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
             <div className="px-6 py-4 border-b border-gray-100">
               <h2 className="text-lg font-semibold text-gray-800">历史运行记录</h2>
@@ -138,7 +170,7 @@ export default function BenchmarkDashboard() {
         )}
 
         {/* 运行详情 */}
-        {selectedRun && (
+        {tab === 'benchmark' && selectedRun && (
           <>
             {/* 概览卡片 */}
             <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3 mb-6">
@@ -274,73 +306,298 @@ function ResultRow({ result: r, compareResult: cr, index }: { result: any; compa
 }
 
 function RunDetailPanel({ result: r }: { result: any }) {
+  const [traceOpen, setTraceOpen] = useState(false)
   const missing = r.expectedTools.filter((t: string) => !r.actualTools.includes(t))
   const extra = r.actualTools.filter((t: string) => !r.expectedTools.includes(t))
 
+  // 展平嵌套数据用于表格渲染（复用 ResultTable 的 key/header 分离策略）
+  const tableData = r.data?.length > 0 ? flattenBenchmarkData(r.data) : null
+  const dataKeys = tableData ? Object.keys(tableData[0] ?? {}).filter(k => typeof tableData[0][k] !== 'object') : []
+  // columns 和 dataKeys 对齐时用 columns 做中文表头，否则直接用 dataKeys
+  const tableHeaders = r.columns?.length > 0 && r.columns.length === dataKeys.length
+    ? r.columns
+    : r.columns?.length > 0 && r.columns.every((c: string) => c in (tableData?.[0] ?? {}))
+      ? r.columns
+      : dataKeys
+  const tableKeys = r.columns?.length > 0 && r.columns.every((c: string) => c in (tableData?.[0] ?? {}))
+    ? r.columns
+    : dataKeys
+
   return (
-    <div className="space-y-2 text-xs text-gray-800 bg-white rounded-lg border border-gray-200 p-3">
-      {/* 回答 */}
-      <div><span className="font-semibold">回答:</span> {r.answer?.slice(0, 200)}</div>
-
-      {/* 工具对比 */}
-      <div className="flex flex-wrap gap-1">
-        <span className="font-semibold mr-1">期望:</span>
-        {r.expectedTools.map((t: string) => (
-          <span key={t} className="px-2 py-0.5 rounded bg-blue-100 text-blue-800">{t}</span>
-        ))}
+    <div className="space-y-3 text-xs text-gray-800 bg-white rounded-lg border border-gray-200 p-4">
+      {/* ① 回答气泡 — 模拟聊天 UI */}
+      <div className="px-4 py-3 bg-gray-100 rounded-2xl rounded-bl-md text-sm leading-relaxed text-gray-800 whitespace-pre-wrap">
+        {r.answer || '(无回答)'}
       </div>
-      <div className="flex flex-wrap gap-1">
-        <span className="font-semibold mr-1">实际:</span>
-        {r.actualTools.map((t: string) => (
-          <span key={t} className={`px-2 py-0.5 rounded ${r.expectedTools.includes(t) ? 'bg-green-100 text-green-800' : 'bg-amber-100 text-amber-800'}`}>{t}</span>
-        ))}
-        {r.actualTools.length === 0 && <span className="text-gray-400">(无)</span>}
-      </div>
-      {missing.length > 0 && <div className="text-red-600">漏选: {missing.join(', ')}</div>}
-      {extra.length > 0 && <div className="text-amber-600">多选: {extra.join(', ')}</div>}
 
-      {/* Trace */}
-      {r.trace?.rounds && (
-        <div className="mt-2 space-y-2">
-          <div className="font-semibold">执行追踪:</div>
-          {r.trace.rounds.map((round: any, ri: number) => (
-            <div key={ri} className="border border-gray-200 rounded-lg overflow-hidden">
-              <div className="px-3 py-1.5 bg-gray-100 font-semibold text-gray-700">
-                轮次 {round.round} — {round.round === 0 ? '首轮规划' : `追查轮 ${round.round}`}
-              </div>
-              <div className="px-3 py-2 space-y-1">
-                <div>💭 <span className="font-semibold">思考:</span> {round.thought}</div>
-                {round.calls?.map((c: any, ci: number) => (
-                  <div key={ci}>
-                    🔧 <span className="font-semibold">{c.tool}</span>
-                    <span className="text-gray-400 ml-1">({JSON.stringify(c.arguments)})</span>
-                    <span className={`ml-2 ${c.status === 'success' ? 'text-green-600' : 'text-red-500'}`}>
-                      → {c.durationMs}ms {c.status === 'success' ? '✅' : '❌'}
-                    </span>
-                    <details className="ml-6 mt-1">
-                      <summary className="text-gray-400 cursor-pointer">返回数据</summary>
-                      <pre className="bg-gray-900 text-gray-200 p-2 rounded mt-1 overflow-x-auto max-h-32 text-[11px]">
-                        {JSON.stringify(c.result, null, 2)}
-                      </pre>
-                    </details>
-                  </div>
+      {/* ② 数据表格 */}
+      {tableData && tableKeys.length > 0 && (
+        <div className="overflow-x-auto">
+          <table className="w-full text-xs border border-gray-200 rounded-lg overflow-hidden">
+            <thead>
+              <tr className="bg-blue-700 text-white">
+                {tableHeaders.map((h: string, i: number) => (
+                  <th key={i} className="px-3 py-1.5 text-left font-medium">{h}</th>
                 ))}
-                <div>👁 <span className="font-semibold">观察:</span> {round.observation}</div>
-              </div>
-            </div>
-          ))}
-          <div className="text-gray-500 space-y-0.5">
-            {r.trace.intent && <div>意图: {r.trace.intent.domains?.join('/')} / {r.trace.intent.operation}</div>}
-            <div>置信度: {r.confidence}</div>
-            {(r as any).lessonEval && (
-              <div className={`mt-1 px-2 py-1 rounded ${(r as any).lessonEval.quality === 'good' ? 'bg-green-50 text-green-700' : (r as any).lessonEval.quality === 'bad' ? 'bg-red-50 text-red-700' : 'bg-amber-50 text-amber-700'}`}>
-                Subagent 评估: {(r as any).lessonEval.quality === 'good' ? '✅' : (r as any).lessonEval.quality === 'bad' ? '❌' : '⚠️'} {(r as any).lessonEval.reason}
-                {(r as any).lessonEval.lesson && <div>教训: {(r as any).lessonEval.lesson}</div>}
-              </div>
-            )}
-          </div>
+              </tr>
+            </thead>
+            <tbody>
+              {tableData.slice(0, 10).map((row: any, ri: number) => (
+                <tr key={ri} className={ri % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                  {tableKeys.map((key: string, ki: number) => (
+                    <td key={ki} className="px-3 py-1.5 text-gray-700">
+                      {row[key] !== undefined && row[key] !== null
+                        ? (typeof row[key] === 'object' ? JSON.stringify(row[key]) : String(row[key]))
+                        : '-'}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {tableData.length > 10 && <div className="text-gray-400 mt-1">... 共 {tableData.length} 行</div>}
         </div>
       )}
+
+      {/* ③ 置信度提示 */}
+      {r.confidence === 'low' && (
+        <div className="px-3 py-1.5 bg-amber-50 text-amber-700 rounded-lg text-xs border border-amber-200">
+          请补充更多细节，帮助我为您精确定位信息
+        </div>
+      )}
+      {r.confidence === 'medium' && (
+        <div className="px-3 py-1.5 bg-blue-50 text-blue-600 rounded-lg text-xs border border-blue-200">
+          以上是根据您的描述匹配的结果，如需精确查询请补充条件
+        </div>
+      )}
+
+      {/* ④ 数据来源 */}
+      {(r.sources?.length > 0 || r.trace?.sources?.length > 0) && (
+        <div className="text-xs text-gray-400">
+          数据来源: {(r.sources || r.trace?.sources || []).map((s: any) => s.description).join('、')}
+        </div>
+      )}
+
+      {/* ⑤ 追问建议（Perplexity 式） */}
+      {r.followUp?.length > 0 && (
+        <div className="flex flex-wrap gap-1.5">
+          {r.followUp.map((q: string, i: number) => (
+            <span key={i} className="px-3 py-1 bg-blue-50 text-blue-600 rounded-full text-xs border border-blue-200">{q}</span>
+          ))}
+        </div>
+      )}
+
+      {/* ⑥ Lesson 评估 */}
+      {r.lessonEval && (
+        <div className={`px-3 py-1.5 rounded-lg text-xs ${r.lessonEval.quality === 'good' ? 'bg-green-50 text-green-700 border border-green-200' : r.lessonEval.quality === 'bad' ? 'bg-red-50 text-red-700 border border-red-200' : 'bg-amber-50 text-amber-700 border border-amber-200'}`}>
+          Subagent: {r.lessonEval.quality === 'good' ? '✅' : r.lessonEval.quality === 'bad' ? '❌' : '⚠️'} {r.lessonEval.reason}
+          {r.lessonEval.lesson && <div className="mt-0.5 opacity-80">教训: {r.lessonEval.lesson}</div>}
+        </div>
+      )}
+
+      {/* ⑦ 工具对比 */}
+      <div className="border-t border-gray-100 pt-2 space-y-1.5">
+        <div className="flex flex-wrap gap-1 items-center">
+          <span className="font-semibold text-gray-500 mr-1">期望:</span>
+          {r.expectedTools.map((t: string) => (
+            <span key={t} className="px-2 py-0.5 rounded bg-blue-100 text-blue-800">{t}</span>
+          ))}
+        </div>
+        <div className="flex flex-wrap gap-1 items-center">
+          <span className="font-semibold text-gray-500 mr-1">实际:</span>
+          {r.actualTools.map((t: string) => (
+            <span key={t} className={`px-2 py-0.5 rounded ${r.expectedTools.includes(t) ? 'bg-green-100 text-green-800' : 'bg-amber-100 text-amber-800'}`}>{t}</span>
+          ))}
+          {r.actualTools.length === 0 && <span className="text-gray-400">(无)</span>}
+        </div>
+        {missing.length > 0 && <div className="text-red-600">漏选: {missing.join(', ')}</div>}
+        {extra.length > 0 && <div className="text-amber-600">多选: {extra.join(', ')}</div>}
+      </div>
+
+      {/* ⑧ 执行追踪（可折叠） */}
+      {r.trace?.rounds && (
+        <div className="border-t border-gray-100 pt-2">
+          <button onClick={() => setTraceOpen(!traceOpen)}
+            className="text-xs text-gray-500 hover:text-blue-600 transition-colors flex items-center gap-1">
+            <span>{traceOpen ? '▼' : '▶'}</span>
+            <span>执行追踪 ({r.trace.rounds.length} 轮, {r.latencyMs}ms)</span>
+          </button>
+          {traceOpen && (
+            <div className="mt-2 space-y-2">
+              {r.trace.rounds.map((round: any, ri: number) => (
+                <div key={ri} className="border border-gray-200 rounded-lg overflow-hidden">
+                  <div className="px-3 py-1.5 bg-gray-100 font-semibold text-gray-700">
+                    轮次 {round.round} — {round.round === 0 ? '首轮规划' : `追查轮 ${round.round}`}
+                  </div>
+                  <div className="px-3 py-2 space-y-1">
+                    <div>💭 <span className="font-semibold">思考:</span> {round.thought}</div>
+                    {round.calls?.map((c: any, ci: number) => (
+                      <div key={ci}>
+                        🔧 <span className="font-semibold">{c.tool}</span>
+                        <span className="text-gray-400 ml-1">({JSON.stringify(c.arguments)})</span>
+                        <span className={`ml-2 ${c.status === 'success' ? 'text-green-600' : 'text-red-500'}`}>
+                          → {c.durationMs}ms {c.status === 'success' ? '✅' : '❌'}
+                        </span>
+                        <details className="ml-6 mt-1">
+                          <summary className="text-gray-400 cursor-pointer">返回数据</summary>
+                          <pre className="bg-gray-900 text-gray-200 p-2 rounded mt-1 overflow-x-auto max-h-32 text-[11px]">
+                            {JSON.stringify(c.result, null, 2)}
+                          </pre>
+                        </details>
+                      </div>
+                    ))}
+                    <div>👁 <span className="font-semibold">观察:</span> {round.observation}</div>
+                  </div>
+                </div>
+              ))}
+              <div className="text-gray-500 space-y-0.5">
+                {r.trace.intent && <div>意图: {r.trace.intent.domains?.join('/')} / {r.trace.intent.operation}</div>}
+                <div>置信度: toolMatch={r.trace.confidence?.toolMatch} verdict={r.trace.confidence?.verdictConfidence} clarity={r.trace.confidence?.queryClarity} → {r.confidence}</div>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+/** 展平嵌套数据（和 ResultTable 的 flattenData 同逻辑） */
+function flattenBenchmarkData(data: Record<string, unknown>[]): Record<string, unknown>[] {
+  const result: Record<string, unknown>[] = []
+  for (const item of data) {
+    const values = Object.values(item)
+    const allArrays = values.length > 0 && values.every(v => Array.isArray(v))
+    if (allArrays) {
+      for (const arr of values) {
+        for (const row of arr as Record<string, unknown>[]) {
+          if (typeof row === 'object' && row !== null && !Array.isArray(row)) result.push(row)
+        }
+      }
+    } else if ('items' in item && Array.isArray(item.items)) {
+      for (const row of item.items as Record<string, unknown>[]) result.push(row)
+    } else {
+      result.push(item)
+    }
+  }
+  return result
+}
+
+function LessonsPanel({ lessons, loading }: { lessons: LessonItem[]; loading: boolean }) {
+  const [qualityFilter, setQualityFilter] = useState<string>('all')
+
+  if (loading) return <div className="p-8 text-center text-gray-400">加载中...</div>
+  if (lessons.length === 0) return (
+    <div className="p-8 text-center text-gray-400">
+      暂无 Lesson 数据。运行 benchmark 或在聊天中使用后会自动积累。
+    </div>
+  )
+
+  // 汇总统计
+  const badCount = lessons.filter(l => l.quality === 'bad').length
+  const partialCount = lessons.filter(l => l.quality === 'partial').length
+  const goodCount = lessons.filter(l => l.quality === 'good').length
+
+  // 按 intentHash 聚合
+  const byIntent = new Map<string, LessonItem[]>()
+  for (const l of lessons) {
+    if (!byIntent.has(l.intentHash)) byIntent.set(l.intentHash, [])
+    byIntent.get(l.intentHash)!.push(l)
+  }
+
+  const filtered = qualityFilter === 'all' ? lessons : lessons.filter(l => l.quality === qualityFilter)
+
+  return (
+    <div className="space-y-4">
+      {/* 汇总卡片 */}
+      <div className="grid grid-cols-4 gap-3">
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+          <div className="text-2xl font-bold text-gray-800">{lessons.length}</div>
+          <div className="text-xs text-gray-500">总 Lessons</div>
+        </div>
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+          <div className="text-2xl font-bold text-red-500">{badCount}</div>
+          <div className="text-xs text-gray-500">Bad（选错工具）</div>
+        </div>
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+          <div className="text-2xl font-bold text-amber-500">{partialCount}</div>
+          <div className="text-xs text-gray-500">Partial（不完整）</div>
+        </div>
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+          <div className="text-2xl font-bold text-green-500">{goodCount}</div>
+          <div className="text-xs text-gray-500">Good</div>
+        </div>
+      </div>
+
+      {/* 按 intent 聚合视图 */}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
+        <h3 className="text-sm font-semibold text-gray-700 mb-3">按意图聚合（{byIntent.size} 个 intent）</h3>
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
+          {[...byIntent.entries()].sort((a, b) => b[1].length - a[1].length).slice(0, 12).map(([hash, items]) => {
+            const worst = items.some(i => i.quality === 'bad') ? 'bad' : items.some(i => i.quality === 'partial') ? 'partial' : 'good'
+            return (
+              <div key={hash} className={`p-2 rounded-lg border text-xs ${worst === 'bad' ? 'border-red-200 bg-red-50' : worst === 'partial' ? 'border-amber-200 bg-amber-50' : 'border-green-200 bg-green-50'}`}>
+                <div className="font-mono text-gray-500">{hash.slice(0, 8)}...</div>
+                <div className="truncate text-gray-700 mt-0.5">{items[0].query.slice(0, 30)}</div>
+                <div className="mt-1 text-gray-500">{items.length} 条 · {worst}</div>
+              </div>
+            )
+          })}
+        </div>
+      </div>
+
+      {/* 筛选 */}
+      <div className="flex gap-2">
+        {[
+          { key: 'all', label: `全部 (${lessons.length})` },
+          { key: 'bad', label: `❌ Bad (${badCount})` },
+          { key: 'partial', label: `⚠️ Partial (${partialCount})` },
+          { key: 'good', label: `✅ Good (${goodCount})` },
+        ].map(f => (
+          <button key={f.key} onClick={() => setQualityFilter(f.key)}
+            className={`px-3 py-1.5 text-xs rounded-full border transition-colors ${qualityFilter === f.key ? 'bg-blue-800 text-white border-blue-800' : 'bg-white text-gray-600 border-gray-200 hover:border-blue-300'}`}>
+            {f.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Lesson 列表 */}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+        <table className="w-full text-sm text-gray-900">
+          <thead>
+            <tr className="bg-blue-800 text-white">
+              <th className="px-3 py-2 text-left w-16">质量</th>
+              <th className="px-3 py-2 text-left">查询</th>
+              <th className="px-3 py-2 text-left">选用工具</th>
+              <th className="px-3 py-2 text-left">错误原因</th>
+              <th className="px-3 py-2 text-left">教训</th>
+              <th className="px-3 py-2 text-left w-16">来源</th>
+            </tr>
+          </thead>
+          <tbody>
+            {filtered.map((l, i) => (
+              <tr key={i} className={`${i % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-blue-50`}>
+                <td className="px-3 py-2">
+                  <span className={`px-2 py-0.5 rounded text-xs font-semibold ${l.quality === 'bad' ? 'bg-red-100 text-red-700' : l.quality === 'partial' ? 'bg-amber-100 text-amber-700' : 'bg-green-100 text-green-700'}`}>
+                    {l.quality}
+                  </span>
+                </td>
+                <td className="px-3 py-2 max-w-[200px] truncate" title={l.query}>{l.query}</td>
+                <td className="px-3 py-2 text-xs">
+                  <div className="flex flex-wrap gap-1">
+                    {l.selectedTools.map(t => (
+                      <span key={t} className="px-1.5 py-0.5 bg-gray-100 rounded">{t}</span>
+                    ))}
+                  </div>
+                </td>
+                <td className="px-3 py-2 text-xs text-gray-600 max-w-[250px]">{l.errorReason || '-'}</td>
+                <td className="px-3 py-2 text-xs text-gray-600 max-w-[250px]">{l.lesson}</td>
+                <td className="px-3 py-2 text-xs text-gray-400">{l.source}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   )
 }

@@ -5,7 +5,7 @@ import type { LLMProvider, RouteResult, EvaluateResult, SummarizeResult, ThinkRe
 
 // ReAct 输出的 zod schema
 const ThinkResultSchema = z.object({
-  thought: z.string(),
+  thought: z.string().optional(),
   intent: z.object({
     domains: z.array(z.string()),
     operation: z.string(),
@@ -151,7 +151,7 @@ followUp 规则（类似 Perplexity 的深入引导）：
       const raw = JSON.parse(content)
       const parsed = ThinkResultSchema.parse(raw)
       return {
-        thought: parsed.thought,
+        thought: parsed.thought || content,  // 无 thought 时保留原始 JSON（供 evaluator 等非 ReAct 调用方解析）
         intent: parsed.intent ? {
           ...parsed.intent,
           intentHash: '',  // 由调用方计算
@@ -161,8 +161,8 @@ followUp 规则（类似 Perplexity 的深入引导）：
         finish: parsed.finish,
         unsupported: parsed.unsupported,
       }
-    } catch {
-      // zod 校验失败或 JSON 解析失败 → 安全降级为 finish
+    } catch (err) {
+      console.warn('[LLM] think() 解析失败，降级为 finish:', err)
       return { thought: content || '解析失败', finish: true }
     }
   }

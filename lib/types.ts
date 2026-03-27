@@ -295,7 +295,9 @@ export interface BenchmarkResult {
   confidence: string
   hasSources: boolean
   answer: string
+  followUp?: string[]
   trace?: ExecutionTrace
+  lessonEval?: { quality: string; reason: string; lesson: string }
 }
 
 export interface BenchmarkRunSummary {

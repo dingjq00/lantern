@@ -74,6 +74,12 @@ interface BenchmarkResult {
   hasSources: boolean
   trace?: any  // 完整 ExecutionTrace
   answer: string
+  data?: Record<string, unknown>[]
+  display?: string
+  columns?: string[]
+  followUp?: string[]
+  sources?: Array<{ tool: string; description: string }>
+  lessonEval?: { quality: string; reason: string; lesson: string }
   error?: string
 }
 
@@ -173,6 +179,9 @@ async function main() {
         rounds: result.trace?.rounds.length ?? 0, latencyMs,
         confidence: result.confidence, hasSources: (result.sources?.length ?? 0) > 0,
         trace: result.trace, answer: result.answer,
+        data: result.data, display: result.display, columns: result.columns,
+        followUp: result.followUp, sources: result.sources,
+        lessonEval: result.lessonEval,
       }
       results.push(r)
       const recallStr = recall === 1 ? '✅' : `⚠️${(recall * 100).toFixed(0)}%`
