@@ -1,0 +1,1158 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>自学习系统设计方案 — Insight68 NL-API Platform</title>
+<style>
+  :root {
+    --blue: #1F3864;
+    --blue-light: #4472C4;
+    --blue-bg: #E8EFF8;
+    --green: #2E7D32;
+    --green-light: #4CAF50;
+    --green-bg: #E8F5E9;
+    --purple: #6A1B9A;
+    --purple-light: #AB47BC;
+    --purple-bg: #F3E5F5;
+    --orange: #E65100;
+    --orange-light: #FF9800;
+    --orange-bg: #FFF3E0;
+    --gray-50: #FAFAFA;
+    --gray-100: #F5F5F5;
+    --gray-200: #EEEEEE;
+    --gray-300: #E0E0E0;
+    --gray-600: #757575;
+    --gray-800: #424242;
+    --gray-900: #212121;
+    --code-bg: #1E1E2E;
+    --code-text: #CDD6F4;
+    --shadow: 0 2px 8px rgba(31, 56, 100, 0.08);
+    --shadow-md: 0 4px 16px rgba(31, 56, 100, 0.12);
+    --radius: 8px;
+    --radius-lg: 12px;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
+    background: linear-gradient(135deg, #f0f4fa 0%, #e8eff8 50%, #f5f0fa 100%);
+    color: var(--gray-900);
+    line-height: 1.7;
+    min-height: 100vh;
+  }
+
+  .container {
+    max-width: 1000px;
+    margin: 0 auto;
+    padding: 40px 24px 80px;
+  }
+
+  /* ===== HEADER ===== */
+  .header {
+    background: linear-gradient(135deg, var(--blue) 0%, var(--blue-light) 100%);
+    color: white;
+    padding: 48px 40px;
+    border-radius: var(--radius-lg);
+    margin-bottom: 32px;
+    box-shadow: var(--shadow-md);
+    position: relative;
+    overflow: hidden;
+  }
+  .header::before {
+    content: '';
+    position: absolute;
+    top: -50%;
+    right: -20%;
+    width: 400px;
+    height: 400px;
+    background: radial-gradient(circle, rgba(255,255,255,0.08) 0%, transparent 70%);
+    border-radius: 50%;
+  }
+  .header::after {
+    content: '';
+    position: absolute;
+    bottom: -30%;
+    left: -10%;
+    width: 300px;
+    height: 300px;
+    background: radial-gradient(circle, rgba(255,255,255,0.05) 0%, transparent 70%);
+    border-radius: 50%;
+  }
+  .header h1 {
+    font-size: 2.2em;
+    font-weight: 700;
+    margin-bottom: 16px;
+    position: relative;
+    z-index: 1;
+  }
+  .header .subtitle {
+    font-size: 1.05em;
+    opacity: 0.92;
+    line-height: 1.8;
+    position: relative;
+    z-index: 1;
+    border-left: 3px solid rgba(255,255,255,0.5);
+    padding-left: 16px;
+  }
+  .header .badge {
+    display: inline-block;
+    background: rgba(255,255,255,0.18);
+    border: 1px solid rgba(255,255,255,0.3);
+    padding: 4px 14px;
+    border-radius: 20px;
+    font-size: 0.85em;
+    margin-top: 16px;
+    position: relative;
+    z-index: 1;
+  }
+
+  /* ===== SECTIONS ===== */
+  .section {
+    background: white;
+    border-radius: var(--radius-lg);
+    padding: 36px 40px;
+    margin-bottom: 24px;
+    box-shadow: var(--shadow);
+    border: 1px solid var(--gray-200);
+  }
+
+  h2 {
+    font-size: 1.5em;
+    color: var(--blue);
+    margin-bottom: 20px;
+    padding-bottom: 10px;
+    border-bottom: 2px solid var(--blue-bg);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  h2 .num {
+    background: var(--blue);
+    color: white;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.7em;
+    font-weight: 700;
+    flex-shrink: 0;
+  }
+
+  h3 {
+    font-size: 1.15em;
+    color: var(--gray-800);
+    margin: 24px 0 12px;
+    font-weight: 600;
+  }
+
+  h4 {
+    font-size: 1em;
+    color: var(--blue-light);
+    margin: 18px 0 8px;
+    font-weight: 600;
+  }
+
+  p { margin-bottom: 12px; }
+
+  strong { color: var(--blue); }
+
+  /* ===== TABLES ===== */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 16px 0;
+    font-size: 0.95em;
+  }
+  thead th {
+    background: var(--blue);
+    color: white;
+    padding: 12px 16px;
+    text-align: left;
+    font-weight: 600;
+    font-size: 0.9em;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+  }
+  thead th:first-child { border-radius: var(--radius) 0 0 0; }
+  thead th:last-child { border-radius: 0 var(--radius) 0 0; }
+  tbody td {
+    padding: 11px 16px;
+    border-bottom: 1px solid var(--gray-200);
+  }
+  tbody tr:hover { background: var(--blue-bg); }
+  tbody tr:last-child td { border-bottom: none; }
+
+  /* comparison table variant */
+  .table-comparison thead th { background: var(--purple); }
+  .table-comparison tbody td:first-child { font-weight: 500; color: var(--gray-600); }
+
+  /* ===== CODE BLOCKS ===== */
+  pre {
+    background: var(--code-bg);
+    color: var(--code-text);
+    padding: 20px 24px;
+    border-radius: var(--radius);
+    overflow-x: auto;
+    font-family: 'Cascadia Code', 'Fira Code', 'JetBrains Mono', Consolas, monospace;
+    font-size: 0.88em;
+    line-height: 1.6;
+    margin: 16px 0;
+    box-shadow: inset 0 1px 3px rgba(0,0,0,0.2);
+  }
+  pre .comment { color: #6C7086; }
+  pre .keyword { color: #CBA6F7; }
+  pre .string { color: #A6E3A1; }
+  pre .type { color: #89B4FA; }
+  pre .arrow { color: #F9E2AF; }
+  pre .field { color: #F38BA8; }
+
+  code {
+    background: var(--blue-bg);
+    color: var(--blue);
+    padding: 2px 7px;
+    border-radius: 4px;
+    font-family: 'Cascadia Code', 'Fira Code', Consolas, monospace;
+    font-size: 0.9em;
+  }
+
+  /* ===== ARCHITECTURE DIAGRAM ===== */
+  .arch-diagram {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    margin: 24px 0;
+    position: relative;
+  }
+
+  .arch-trigger {
+    background: var(--blue-bg);
+    border: 2px solid var(--blue-light);
+    border-radius: var(--radius);
+    padding: 14px 20px;
+    text-align: center;
+    font-weight: 600;
+    color: var(--blue);
+    font-size: 0.95em;
+    margin-bottom: 8px;
+  }
+
+  .arch-arrow {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 36px;
+    position: relative;
+  }
+  .arch-arrow::before {
+    content: '';
+    width: 2px;
+    height: 100%;
+    background: var(--gray-300);
+    position: absolute;
+  }
+  .arch-arrow::after {
+    content: '';
+    width: 0;
+    height: 0;
+    border-left: 7px solid transparent;
+    border-right: 7px solid transparent;
+    border-top: 8px solid var(--gray-600);
+    position: absolute;
+    bottom: 0;
+  }
+  .arch-arrow .arrow-label {
+    position: absolute;
+    right: calc(50% + 20px);
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 0.78em;
+    color: var(--gray-600);
+    white-space: nowrap;
+    font-style: italic;
+  }
+
+  .arch-layer {
+    border-radius: var(--radius-lg);
+    padding: 20px 24px;
+    position: relative;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+  }
+  .arch-layer:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+  }
+  .arch-layer .layer-tag {
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 12px;
+    font-size: 0.75em;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 6px;
+  }
+  .arch-layer .layer-title {
+    font-size: 1.1em;
+    font-weight: 700;
+    margin-bottom: 6px;
+  }
+  .arch-layer .layer-desc {
+    font-size: 0.9em;
+    opacity: 0.85;
+    line-height: 1.5;
+  }
+  .arch-layer .layer-cost {
+    position: absolute;
+    top: 16px;
+    right: 20px;
+    font-size: 0.78em;
+    font-weight: 600;
+    padding: 3px 10px;
+    border-radius: 10px;
+    background: rgba(255,255,255,0.6);
+  }
+
+  .layer-0 {
+    background: linear-gradient(135deg, var(--green-bg) 0%, #C8E6C9 100%);
+    border: 2px solid var(--green-light);
+    color: var(--green);
+  }
+  .layer-0 .layer-tag { background: var(--green); color: white; }
+  .layer-0 .layer-cost { color: var(--green); }
+
+  .layer-1 {
+    background: linear-gradient(135deg, var(--blue-bg) 0%, #BBDEFB 100%);
+    border: 2px solid var(--blue-light);
+    color: var(--blue);
+  }
+  .layer-1 .layer-tag { background: var(--blue-light); color: white; }
+  .layer-1 .layer-cost { color: var(--blue); }
+
+  .layer-2 {
+    background: linear-gradient(135deg, var(--purple-bg) 0%, #E1BEE7 100%);
+    border: 2px solid var(--purple-light);
+    color: var(--purple);
+  }
+  .layer-2 .layer-tag { background: var(--purple); color: white; }
+  .layer-2 .layer-cost { color: var(--purple); }
+
+  .layer-3 {
+    background: linear-gradient(135deg, var(--orange-bg) 0%, #FFE0B2 100%);
+    border: 2px solid var(--orange-light);
+    color: var(--orange);
+  }
+  .layer-3 .layer-tag { background: var(--orange); color: white; }
+  .layer-3 .layer-cost { color: var(--orange); }
+
+  /* ===== LAYER RELATION CARDS ===== */
+  .relation-list {
+    display: grid;
+    gap: 10px;
+    margin: 16px 0;
+  }
+  .relation-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 12px 16px;
+    background: var(--gray-50);
+    border-radius: var(--radius);
+    border-left: 3px solid var(--blue-light);
+    font-size: 0.95em;
+  }
+  .relation-item .bullet {
+    flex-shrink: 0;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--blue-light);
+    margin-top: 8px;
+  }
+
+  /* ===== STATUS BADGES ===== */
+  .status {
+    display: inline-block;
+    padding: 3px 12px;
+    border-radius: 12px;
+    font-size: 0.82em;
+    font-weight: 600;
+    letter-spacing: 0.3px;
+  }
+  .status-done { background: var(--green-bg); color: var(--green); border: 1px solid var(--green-light); }
+  .status-pending { background: var(--orange-bg); color: var(--orange); border: 1px solid var(--orange-light); }
+  .status-partial { background: var(--purple-bg); color: var(--purple); border: 1px solid var(--purple-light); }
+
+  /* ===== DETAIL BLOCKS ===== */
+  .detail-block {
+    border-radius: var(--radius);
+    padding: 20px 24px;
+    margin: 20px 0;
+  }
+  .detail-block.green { background: var(--green-bg); border-left: 4px solid var(--green); }
+  .detail-block.blue { background: var(--blue-bg); border-left: 4px solid var(--blue-light); }
+  .detail-block.purple { background: var(--purple-bg); border-left: 4px solid var(--purple); }
+  .detail-block.orange { background: var(--orange-bg); border-left: 4px solid var(--orange); }
+
+  .detail-block h3 {
+    margin-top: 0;
+  }
+  .detail-block.green h3 { color: var(--green); }
+  .detail-block.blue h3 { color: var(--blue); }
+  .detail-block.purple h3 { color: var(--purple); }
+  .detail-block.orange h3 { color: var(--orange); }
+
+  /* ===== FLOW DIAGRAMS ===== */
+  .flow {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    margin: 16px 0;
+    flex-wrap: wrap;
+  }
+  .flow-step {
+    padding: 8px 18px;
+    border-radius: 6px;
+    font-size: 0.88em;
+    font-weight: 500;
+    white-space: nowrap;
+  }
+  .flow-arrow-h {
+    width: 30px;
+    height: 2px;
+    background: var(--gray-300);
+    position: relative;
+    flex-shrink: 0;
+  }
+  .flow-arrow-h::after {
+    content: '';
+    position: absolute;
+    right: 0;
+    top: -4px;
+    border-left: 6px solid var(--gray-600);
+    border-top: 5px solid transparent;
+    border-bottom: 5px solid transparent;
+  }
+
+  .flow-step.user { background: var(--blue-bg); color: var(--blue); border: 1px solid var(--blue-light); }
+  .flow-step.ai { background: var(--purple-bg); color: var(--purple); border: 1px solid var(--purple-light); }
+  .flow-step.tool { background: var(--green-bg); color: var(--green); border: 1px solid var(--green-light); }
+  .flow-step.action { background: var(--orange-bg); color: var(--orange); border: 1px solid var(--orange-light); }
+
+  /* ===== PHASE TIMELINE ===== */
+  .timeline {
+    position: relative;
+    margin: 24px 0;
+    padding-left: 40px;
+  }
+  .timeline::before {
+    content: '';
+    position: absolute;
+    left: 15px;
+    top: 0;
+    bottom: 0;
+    width: 3px;
+    background: linear-gradient(to bottom, var(--green), var(--blue-light), var(--purple), var(--orange));
+    border-radius: 2px;
+  }
+  .timeline-item {
+    position: relative;
+    margin-bottom: 24px;
+    padding: 18px 22px;
+    background: white;
+    border-radius: var(--radius);
+    border: 1px solid var(--gray-200);
+    box-shadow: var(--shadow);
+  }
+  .timeline-item::before {
+    content: '';
+    position: absolute;
+    left: -33px;
+    top: 22px;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    border: 3px solid white;
+    box-shadow: 0 0 0 2px var(--gray-300);
+  }
+  .timeline-item.phase-1::before { background: var(--green); box-shadow: 0 0 0 2px var(--green-light); }
+  .timeline-item.phase-2::before { background: var(--blue-light); box-shadow: 0 0 0 2px var(--blue-light); }
+  .timeline-item.phase-3::before { background: var(--purple); box-shadow: 0 0 0 2px var(--purple-light); }
+  .timeline-item.phase-4::before { background: var(--orange); box-shadow: 0 0 0 2px var(--orange-light); }
+
+  .timeline-item .phase-label {
+    font-size: 0.78em;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 4px;
+  }
+  .timeline-item.phase-1 .phase-label { color: var(--green); }
+  .timeline-item.phase-2 .phase-label { color: var(--blue-light); }
+  .timeline-item.phase-3 .phase-label { color: var(--purple); }
+  .timeline-item.phase-4 .phase-label { color: var(--orange); }
+
+  .timeline-item .phase-title {
+    font-size: 1.05em;
+    font-weight: 600;
+    color: var(--gray-900);
+    margin-bottom: 8px;
+  }
+  .timeline-item ul {
+    padding-left: 18px;
+    font-size: 0.92em;
+    color: var(--gray-800);
+  }
+  .timeline-item li { margin-bottom: 4px; }
+
+  /* ===== EXPECTED RESULTS ===== */
+  .result-table thead th:first-child { width: 80px; }
+  .result-table tbody td:first-child {
+    font-weight: 700;
+    text-align: center;
+  }
+  .result-table .layer-tag-cell {
+    display: inline-block;
+    padding: 2px 10px;
+    border-radius: 10px;
+    font-size: 0.82em;
+    color: white;
+  }
+  .tag-l0 { background: var(--green); }
+  .tag-l1 { background: var(--blue-light); }
+  .tag-l2 { background: var(--purple); }
+  .tag-l3 { background: var(--orange); }
+
+  /* ===== EFFECT BAR ===== */
+  .effect-bars {
+    margin: 20px 0;
+  }
+  .effect-bar-item {
+    margin-bottom: 14px;
+  }
+  .effect-bar-label {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 6px;
+    font-size: 0.9em;
+    font-weight: 500;
+  }
+  .effect-bar-track {
+    height: 24px;
+    background: var(--gray-200);
+    border-radius: 12px;
+    overflow: hidden;
+    position: relative;
+  }
+  .effect-bar-fill {
+    height: 100%;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    padding-right: 10px;
+    font-size: 0.75em;
+    font-weight: 700;
+    color: white;
+    transition: width 0.8s ease;
+  }
+  .effect-bar-fill.green { background: linear-gradient(90deg, var(--green-light), var(--green)); }
+  .effect-bar-fill.blue { background: linear-gradient(90deg, var(--blue-light), var(--blue)); }
+  .effect-bar-fill.purple { background: linear-gradient(90deg, var(--purple-light), var(--purple)); }
+  .effect-bar-fill.orange { background: linear-gradient(90deg, var(--orange-light), var(--orange)); }
+
+  /* ===== PRINCIPLE CARDS ===== */
+  .principle-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+    margin: 20px 0;
+  }
+  .principle-card {
+    padding: 18px 20px;
+    border-radius: var(--radius);
+    background: var(--gray-50);
+    border: 1px solid var(--gray-200);
+    transition: transform 0.2s, box-shadow 0.2s;
+  }
+  .principle-card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+  }
+  .principle-card .p-num {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    background: var(--blue);
+    color: white;
+    font-size: 0.75em;
+    font-weight: 700;
+    margin-bottom: 8px;
+  }
+  .principle-card .p-title {
+    font-weight: 600;
+    color: var(--blue);
+    font-size: 0.95em;
+    margin-bottom: 4px;
+  }
+  .principle-card .p-desc {
+    font-size: 0.88em;
+    color: var(--gray-600);
+    line-height: 1.5;
+  }
+
+  /* ===== OUTPUT BLOCK ===== */
+  .output-label {
+    font-size: 0.82em;
+    font-weight: 600;
+    color: var(--gray-600);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 6px;
+  }
+
+  /* ===== CALLOUT ===== */
+  .callout {
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+    padding: 16px 20px;
+    border-radius: var(--radius);
+    margin: 16px 0;
+    font-size: 0.93em;
+  }
+  .callout.info { background: var(--blue-bg); border: 1px solid #B0C4DE; }
+  .callout.warn { background: var(--orange-bg); border: 1px solid #FFCC80; }
+  .callout .callout-icon { font-size: 1.3em; flex-shrink: 0; margin-top: 1px; }
+
+  /* ===== FOOTER ===== */
+  .footer {
+    text-align: center;
+    padding: 32px 0 0;
+    color: var(--gray-600);
+    font-size: 0.85em;
+  }
+  .footer .divider {
+    width: 60px;
+    height: 3px;
+    background: linear-gradient(90deg, var(--green), var(--blue-light), var(--purple), var(--orange));
+    border-radius: 2px;
+    margin: 0 auto 16px;
+  }
+
+  /* ===== RESPONSIVE ===== */
+  @media (max-width: 700px) {
+    .container { padding: 16px 12px 40px; }
+    .header { padding: 32px 24px; }
+    .header h1 { font-size: 1.6em; }
+    .section { padding: 24px 20px; }
+    .principle-grid { grid-template-columns: 1fr; }
+    .flow { flex-wrap: wrap; gap: 6px; }
+    .flow-arrow-h { width: 20px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="container">
+
+  <!-- ===== HEADER ===== -->
+  <div class="header">
+    <h1>自学习系统设计方案</h1>
+    <div class="subtitle">
+      学习信号来自外部，不来自 AI 自己。正确的积累反而没那么重要，从错误中学习才有价值。
+    </div>
+    <div class="badge">Insight68 NL-API Platform &middot; P1.5 Self-Learning</div>
+  </div>
+
+  <!-- ===== SECTION 1: 问题回顾 ===== -->
+  <div class="section">
+    <h2><span class="num">1</span> 问题回顾</h2>
+
+    <h3>已验证无效的方案</h3>
+    <table>
+      <thead>
+        <tr><th>方案</th><th>失败原因</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>verdict（记 winner 工具链）</td>
+          <td>60% 准确率下积累 40% 错误经验，垃圾进垃圾出</td>
+        </tr>
+        <tr>
+          <td>AI 自评 lesson</td>
+          <td>循环论证 &mdash; 同一个脑子、同一个上下文评自己，检测不出自己的盲区</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h3>根因</h3>
+    <div class="callout warn">
+      <span class="callout-icon">&#9888;</span>
+      <div>自学习难的不是学习算法，是<strong>标注难</strong> &mdash; 怎么知道什么是对的、什么是错的、错在哪里。</div>
+    </div>
+  </div>
+
+  <!-- ===== SECTION 2: 四层检测架构 ===== -->
+  <div class="section">
+    <h2><span class="num">2</span> 四层检测架构</h2>
+    <p>从低成本到高成本，从简单到深度，逐层递进：</p>
+
+    <!-- Architecture Diagram -->
+    <div class="arch-diagram">
+      <div class="arch-trigger">
+        用户查询 &rarr; AI 规划+执行 &rarr; 工具返回数据
+      </div>
+
+      <div class="arch-arrow"></div>
+
+      <div class="arch-layer layer-0">
+        <span class="layer-tag">Layer 0</span>
+        <span class="layer-cost">零 LLM 成本</span>
+        <div class="layer-title">数据质量检测</div>
+        <div class="layer-desc">纯规则 &mdash; 数值异常 / 空结果 / 日期错误</div>
+      </div>
+
+      <div class="arch-arrow"></div>
+
+      <div class="arch-layer layer-1">
+        <span class="layer-tag">Layer 1</span>
+        <span class="layer-cost">零 LLM 成本</span>
+        <div class="layer-title">关联性检测</div>
+        <div class="layer-desc">规则+关键词 &mdash; 返回数据字段 vs 问题意图 &mdash; "工具返回值即信号"</div>
+      </div>
+
+      <div class="arch-arrow">
+        <span class="arrow-label">层 0/1 发现异常时才触发</span>
+      </div>
+
+      <div class="arch-layer layer-2">
+        <span class="layer-tag">Layer 2</span>
+        <span class="layer-cost">1 次 LLM 调用</span>
+        <div class="layer-title">隔离 subagent 评估</div>
+        <div class="layer-desc">独立上下文 &mdash; generator + evaluator 架构 &mdash; 只看问题+数据，不看推理过程</div>
+      </div>
+
+      <div class="arch-arrow">
+        <span class="arrow-label">任何时候都可触发</span>
+      </div>
+
+      <div class="arch-layer layer-3">
+        <span class="layer-tag">Layer 3</span>
+        <span class="layer-cost">零成本 &middot; 最可靠</span>
+        <div class="layer-title">用户反馈</div>
+        <div class="layer-desc">Thumbs down &rarr; 覆写 lesson &mdash; 最高优先级</div>
+      </div>
+    </div>
+
+    <h3>层间关系</h3>
+    <div class="relation-list">
+      <div class="relation-item">
+        <span class="bullet"></span>
+        <span>层 0 和层 1 <strong>每次请求都跑</strong>（零成本，纯规则）</span>
+      </div>
+      <div class="relation-item">
+        <span class="bullet"></span>
+        <span>层 2 <strong>按需触发</strong>（层 0/1 发现异常时）</span>
+      </div>
+      <div class="relation-item">
+        <span class="bullet"></span>
+        <span>层 3 <strong>用户主动触发</strong>（随时可用）</span>
+      </div>
+      <div class="relation-item">
+        <span class="bullet"></span>
+        <span>每层都可以独立产出 lesson，<strong>后层的 lesson 优先级高于前层</strong></span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== SECTION 3: 各层详细设计 ===== -->
+  <div class="section">
+    <h2><span class="num">3</span> 各层详细设计</h2>
+
+    <!-- Layer 0 -->
+    <div class="detail-block green">
+      <h3>层 0: 数据质量检测 <span class="status status-done">已实现</span></h3>
+      <p style="font-size:0.9em; margin-top:8px;">实现位置：<code>lib/brain/validator.ts</code></p>
+
+      <p style="margin-top:12px;"><strong>检测内容：</strong></p>
+      <table>
+        <thead>
+          <tr><th>检查项</th><th>规则</th><th>输出</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>数值范围</td><td>百分率 &isin; [0,100]，数量 &ge; 0</td><td>warning</td></tr>
+          <tr><td>空结果</td><td>items=[] 或 total=0</td><td>warning</td></tr>
+          <tr><td>日期异常</td><td>日期在未来</td><td>warning</td></tr>
+        </tbody>
+      </table>
+
+      <p><strong>产出：</strong> <code>ValidationResult[]</code>，已写入 trace。</p>
+      <p><strong>局限：</strong> 只检查数据本身是否合理，不检查数据是否回答了问题。</p>
+    </div>
+
+    <!-- Layer 1 -->
+    <div class="detail-block blue">
+      <h3>层 1: 关联性检测（工具返回值即信号）<span class="status status-pending" style="margin-left:12px;">待实现</span></h3>
+      <p style="margin-top:12px;"><strong>核心思路：</strong> 比较返回数据的"主题"和用户问题的"主题"是否匹配。</p>
+      <p><strong>检测方式：</strong> 纯规则，不用 LLM</p>
+
+      <h4>1.1 意图-域匹配</h4>
+      <p>从 think() 首轮提取的 intent.domains 和实际调用的工具的 domains 对比：</p>
+      <pre><span class="field">用户意图 domains</span> = [maintenance]
+<span class="field">实际工具 domains</span> = [equipment]
+<span class="arrow">&rarr;</span> <span class="keyword">不匹配！</span>标记：域偏移</pre>
+
+      <h4>1.2 关键词-字段匹配</h4>
+      <p>从用户查询中提取关键词，检查返回数据是否包含相关字段：</p>
+      <pre><span class="comment">// 关键词映射表（可配置）</span>
+<span class="string">"保养"</span> <span class="arrow">&rarr;</span> [maintenanceRate, scheduledDate, completedDate, planName, taskId]
+<span class="string">"故障"</span> <span class="arrow">&rarr;</span> [faultType, faultReportId, reportTime, description]
+<span class="string">"备件"</span> <span class="arrow">&rarr;</span> [spareId, spareName, quantity, safetyStock]
+<span class="string">"工时"</span> <span class="arrow">&rarr;</span> [repairHours, laborRecords, worker, hours]
+<span class="string">"库存"</span> <span class="arrow">&rarr;</span> [currentStock, safetyStock, shortage, warehouseId]
+
+<span class="comment">// 示例</span>
+用户问 <span class="string">"保养执行率"</span>
+返回数据字段: [equipmentId, name, code, status, category]
+匹配度: <span class="keyword">0/5</span> <span class="arrow">&rarr;</span> <span class="keyword">不匹配！</span>标记：字段缺失</pre>
+
+      <h4>1.3 空结果区分</h4>
+      <p>空结果有两种情况：</p>
+      <pre><span class="string">A. 真没有数据（合理）</span><span class="comment">— 查上月故障，确实没有故障 → 不标记</span>
+<span class="keyword">B. 选错工具（异常）</span><span class="comment">— 查保养记录但调了设备查询工具 → 标记</span>
+
+<span class="comment">// 区分方式</span>
+<span class="keyword">如果</span> 意图-域匹配 <span class="keyword">且</span> 空结果 <span class="arrow">&rarr;</span> A（真没有）
+<span class="keyword">如果</span> 意图-域不匹配 <span class="keyword">且</span> 空结果 <span class="arrow">&rarr;</span> B（选错了）</pre>
+
+      <div class="output-label">输出接口</div>
+      <pre><span class="keyword">interface</span> <span class="type">RelevanceCheckResult</span> {
+  <span class="field">relevant</span>: <span class="type">boolean</span>                    <span class="comment">// 总体是否相关</span>
+  <span class="field">domainMatch</span>: <span class="type">boolean</span>                 <span class="comment">// 意图域 vs 工具域 是否匹配</span>
+  <span class="field">fieldCoverage</span>: <span class="type">number</span>                <span class="comment">// 关键词字段覆盖率 0-1</span>
+  <span class="field">missingDomains</span>: <span class="type">string</span>[]             <span class="comment">// 缺失的域</span>
+  <span class="field">missingFields</span>: <span class="type">string</span>[]              <span class="comment">// 缺失的关键字段</span>
+  <span class="field">recommendation</span>: <span class="string">'pass'</span> | <span class="string">'review'</span> | <span class="string">'fail'</span>
+}</pre>
+
+      <p style="margin-top:12px;"><strong>触发 lesson 的条件：</strong></p>
+      <div class="relation-list">
+        <div class="relation-item">
+          <span class="bullet"></span>
+          <span><code>recommendation = 'fail'</code> &rarr; 自动写 lesson</span>
+        </div>
+        <div class="relation-item">
+          <span class="bullet"></span>
+          <span><code>recommendation = 'review'</code> &rarr; 触发层 2 subagent 深度检查</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Layer 2 -->
+    <div class="detail-block purple">
+      <h3>层 2: 隔离 subagent 评估 <span class="status status-pending" style="margin-left:12px;">待实现 (P1.5)</span></h3>
+      <p style="margin-top:12px;"><strong>触发条件：</strong> 层 1 返回 <code>recommendation = 'review'</code></p>
+      <p><strong>架构：</strong> Anthropic generator + evaluator 模式，用 <code>context: fork</code> 隔离</p>
+
+      <div style="margin:16px 0;">
+        <div class="flow">
+          <div class="flow-step ai">主 Agent (generator)</div>
+          <div class="flow-arrow-h"></div>
+          <div class="flow-step tool">完成查询 + 拿到结果</div>
+          <div class="flow-arrow-h"></div>
+          <div class="flow-step action">触发 evaluator</div>
+        </div>
+        <div style="height:12px;"></div>
+        <div class="flow">
+          <div class="flow-step purple" style="background:var(--purple-bg);color:var(--purple);border:1px solid var(--purple-light);">fork subagent (evaluator)</div>
+          <div class="flow-arrow-h"></div>
+          <div class="flow-step user">用户原始问题 + 工具返回数据</div>
+          <div class="flow-arrow-h"></div>
+          <div class="flow-step action">通过/不通过 + 原因</div>
+        </div>
+      </div>
+
+      <div class="output-label">Evaluator Prompt</div>
+      <pre><span class="comment">你是结果质量评估员。你不知道 AI 是怎么选工具的，也不需要知道。</span>
+<span class="comment">你只需要判断：给定的数据能回答用户的问题吗？</span>
+
+<span class="field">用户问题</span>: <span class="string">"{query}"</span>
+<span class="field">返回数据</span>: {data}
+
+<span class="keyword">请回答：</span>
+1. 数据中是否包含回答问题所需的核心信息？（是/否）
+2. 如果否，缺少什么？（具体说明）
+3. 数据中是否有与问题无关的信息？（是/否）
+4. 综合评估：good / partial / bad
+
+<span class="keyword">返回 JSON:</span>
+{<span class="string">"quality"</span>: <span class="string">"good|partial|bad"</span>, <span class="string">"reason"</span>: <span class="string">"..."</span>, <span class="string">"missing"</span>: [<span class="string">"..."</span>], <span class="string">"lesson"</span>: <span class="string">"一句话总结"</span>}</pre>
+
+      <h4>为什么有效（vs 之前的 AI 自评）</h4>
+      <table class="table-comparison">
+        <thead>
+          <tr><th>之前的 AI 自评</th><th>隔离 subagent</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>看到了自己的推理过程 &rarr; 偏见</td><td>只看问题和数据 &rarr; 客观</td></tr>
+          <tr><td>路由 prompt + 评估任务混合</td><td>专用评估 prompt</td></tr>
+          <tr><td>同一上下文</td><td>干净的隔离上下文</td></tr>
+          <tr><td>评估难度 = 路由难度</td><td>评估难度 &lt; 路由难度（匹配 vs 选择）</td></tr>
+        </tbody>
+      </table>
+
+      <p><strong>成本：</strong> 1 次 LLM 调用 / 触发。预计 10-20% 的请求会触发（层 1 过滤后）。</p>
+    </div>
+
+    <!-- Layer 3 -->
+    <div class="detail-block orange">
+      <h3>层 3: 用户反馈 <span class="status status-partial" style="margin-left:12px;">UI+API 已就绪</span></h3>
+      <p style="margin-top:12px;"><strong>机制：</strong></p>
+      <div class="flow" style="margin-bottom:12px; flex-wrap: wrap; gap: 6px;">
+        <div class="flow-step action">用户点 Thumbs Down</div>
+        <div class="flow-arrow-h"></div>
+        <div class="flow-step tool">POST /api/feedback</div>
+        <div class="flow-arrow-h"></div>
+        <div class="flow-step ai">查 session intentHash + toolChain</div>
+        <div class="flow-arrow-h"></div>
+        <div class="flow-step action">写 lesson (优先级最高)</div>
+      </div>
+
+      <pre><span class="comment">// 反馈流程</span>
+用户点 &#x1F44E; <span class="arrow">&rarr;</span> POST /api/feedback { sessionId, feedback: <span class="string">'down'</span> }
+         <span class="arrow">&rarr;</span> 查 session 的 intentHash + toolChain
+         <span class="arrow">&rarr;</span> 写 lesson: quality=<span class="string">'bad'</span>, source=<span class="string">'user_feedback'</span>
+         <span class="arrow">&rarr;</span> <span class="keyword">优先级最高，覆写层 1/2 的 lesson</span></pre>
+
+      <p><strong>扩展（P2）：</strong></p>
+      <div class="relation-list">
+        <div class="relation-item">
+          <span class="bullet"></span>
+          <span>点 Thumbs Down 后弹出简单选项："工具选错了 / 数据不完整 / 回答不准确 / 其他"</span>
+        </div>
+        <div class="relation-item">
+          <span class="bullet"></span>
+          <span>用户选择直接变成 <code>lesson.errorReason</code></span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== SECTION 4: Lesson 数据模型 ===== -->
+  <div class="section">
+    <h2><span class="num">4</span> Lesson 数据模型</h2>
+
+    <pre><span class="keyword">interface</span> <span class="type">Lesson</span> {
+  <span class="field">intentHash</span>: <span class="type">string</span>
+  <span class="field">tenantId</span>: <span class="type">string</span>
+  <span class="field">query</span>: <span class="type">string</span>
+  <span class="field">selectedTools</span>: <span class="type">string</span>[]
+  <span class="field">quality</span>: <span class="string">'good'</span> | <span class="string">'partial'</span> | <span class="string">'bad'</span>
+  <span class="field">errorReason</span>?: <span class="type">string</span>
+  <span class="field">betterPath</span>?: <span class="type">string</span>[]
+  <span class="field">lesson</span>: <span class="type">string</span>
+  <span class="field">source</span>: <span class="string">'validator'</span> | <span class="string">'relevance'</span> | <span class="string">'subagent'</span> | <span class="string">'user_feedback'</span>
+  <span class="field">createdAt</span>: <span class="type">Date</span>
+}</pre>
+
+    <h3>写入规则</h3>
+    <div class="relation-list">
+      <div class="relation-item">
+        <span class="bullet"></span>
+        <span>同 <code>intentHash + tenantId</code> 只保留最新一条（upsert）</span>
+      </div>
+      <div class="relation-item">
+        <span class="bullet"></span>
+        <span>source 优先级：<code>user_feedback &gt; subagent &gt; relevance &gt; validator</code></span>
+      </div>
+      <div class="relation-item">
+        <span class="bullet"></span>
+        <span>高优先级覆写低优先级</span>
+      </div>
+    </div>
+
+    <h3>读取 / 注入</h3>
+    <div class="relation-list">
+      <div class="relation-item">
+        <span class="bullet"></span>
+        <span>下次同 intentHash 查询时，在观察注入中加入 lesson</span>
+      </div>
+      <div class="relation-item">
+        <span class="bullet"></span>
+        <span>注入格式：<code>"历史教训：上次类似查询选了 X 结果不好，因为 Y"</code></span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== SECTION 5: 实施计划 ===== -->
+  <div class="section">
+    <h2><span class="num">5</span> 实施计划</h2>
+
+    <div class="timeline">
+      <div class="timeline-item phase-1">
+        <div class="phase-label">Phase 1 &mdash; 现在</div>
+        <div class="phase-title">层 1 关联性检测</div>
+        <ul>
+          <li>新建 <code>lib/brain/relevance-checker.ts</code></li>
+          <li>实现意图-域匹配 + 关键词-字段匹配</li>
+          <li>在 router 中 summarize 前调用</li>
+          <li>结果写入 trace + 自动生成 lesson（quality = fail 时）</li>
+          <li>纯规则，零 LLM 成本</li>
+        </ul>
+      </div>
+
+      <div class="timeline-item phase-2">
+        <div class="phase-label">Phase 2 &mdash; P1.5</div>
+        <div class="phase-title">层 2 subagent evaluator</div>
+        <ul>
+          <li>设计 evaluator prompt</li>
+          <li>实现 fork subagent 调用（或独立 LLM 调用 with 独立 prompt）</li>
+          <li>层 1 review 时触发</li>
+          <li>结果生成 lesson</li>
+        </ul>
+      </div>
+
+      <div class="timeline-item phase-3">
+        <div class="phase-label">Phase 3 &mdash; P1.5</div>
+        <div class="phase-title">层 3 反馈打通</div>
+        <ul>
+          <li>thumbs down &rarr; 查 session &rarr; 写 lesson</li>
+          <li>lesson 注入到下次同类查询</li>
+        </ul>
+      </div>
+
+      <div class="timeline-item phase-4">
+        <div class="phase-label">Phase 4 &mdash; P2</div>
+        <div class="phase-title">反馈增强</div>
+        <ul>
+          <li>Thumbs Down 后弹选项（选错工具/不完整/不准确）</li>
+          <li>Ground Truth 自动注入（测试阶段）</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== SECTION 6: 预期效果 ===== -->
+  <div class="section">
+    <h2><span class="num">6</span> 预期效果</h2>
+
+    <table class="result-table">
+      <thead>
+        <tr><th>层</th><th>能抓到的问题</th><th>示例</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><span class="layer-tag-cell tag-l0">层 0</span></td>
+          <td>数据本身异常</td>
+          <td>百分率 &gt; 100，数量为负</td>
+        </tr>
+        <tr>
+          <td><span class="layer-tag-cell tag-l1">层 1</span></td>
+          <td>选错方向</td>
+          <td>问保养返回设备信息</td>
+        </tr>
+        <tr>
+          <td><span class="layer-tag-cell tag-l2">层 2</span></td>
+          <td>选对方向但不完整</td>
+          <td>问维修成本只返回工单列表没有备件工时</td>
+        </tr>
+        <tr>
+          <td><span class="layer-tag-cell tag-l3">层 3</span></td>
+          <td>任何 AI 检测不到的错误</td>
+          <td>回答逻辑正确但不是用户想要的</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h3>串联效果</h3>
+    <div class="effect-bars">
+      <div class="effect-bar-item">
+        <div class="effect-bar-label">
+          <span>层 0 + 层 1（零成本规则）</span>
+          <span>60-70%</span>
+        </div>
+        <div class="effect-bar-track">
+          <div class="effect-bar-fill green" style="width:65%;">~65%</div>
+        </div>
+      </div>
+      <div class="effect-bar-item">
+        <div class="effect-bar-label">
+          <span>+ 层 2（subagent 评估）</span>
+          <span>85-90%</span>
+        </div>
+        <div class="effect-bar-track">
+          <div class="effect-bar-fill blue" style="width:87%;">~87%</div>
+        </div>
+      </div>
+      <div class="effect-bar-item">
+        <div class="effect-bar-label">
+          <span>+ 层 3（用户反馈）</span>
+          <span>95%+</span>
+        </div>
+        <div class="effect-bar-track">
+          <div class="effect-bar-fill purple" style="width:96%;">95%+</div>
+        </div>
+      </div>
+      <div class="effect-bar-item">
+        <div class="effect-bar-label">
+          <span>+ Lesson 积累（持续学习）</span>
+          <span>持续提升</span>
+        </div>
+        <div class="effect-bar-track">
+          <div class="effect-bar-fill orange" style="width:100%;">&#8734;</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== SECTION 7: 架构原则回顾 ===== -->
+  <div class="section">
+    <h2><span class="num">7</span> 架构原则回顾</h2>
+
+    <div class="principle-grid">
+      <div class="principle-card">
+        <div class="p-num">1</div>
+        <div class="p-title">学习信号来自外部</div>
+        <div class="p-desc">层 0/1 来自数据客观事实，层 2 来自隔离评估，层 3 来自用户</div>
+      </div>
+      <div class="principle-card">
+        <div class="p-num">2</div>
+        <div class="p-title">从错误中学习</div>
+        <div class="p-desc">只存 quality != good 的 lesson</div>
+      </div>
+      <div class="principle-card">
+        <div class="p-num">3</div>
+        <div class="p-title">成本递进</div>
+        <div class="p-desc">零成本规则先行，LLM 按需触发</div>
+      </div>
+      <div class="principle-card">
+        <div class="p-num">4</div>
+        <div class="p-title">隔离消除偏见</div>
+        <div class="p-desc">subagent 不知道路由过程，只看结果</div>
+      </div>
+      <div class="principle-card" style="grid-column: span 2;">
+        <div class="p-num">5</div>
+        <div class="p-title">用户反馈是最高权威</div>
+        <div class="p-desc">覆写一切自动判断</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== FOOTER ===== -->
+  <div class="footer">
+    <div class="divider"></div>
+    <p>Insight68 NL-API Platform &middot; Self-Learning System Design</p>
+    <p style="margin-top:4px; font-size:0.9em;">Generated from <code>self-learning-design.md</code></p>
+  </div>
+
+</div>
+
+</body>
+</html>
