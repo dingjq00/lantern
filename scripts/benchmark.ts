@@ -123,7 +123,8 @@ function calcBestMatch(actual: string[], acceptablePaths: string[][]): { recall:
 }
 
 async function main() {
-  console.log('=== Insight68 Benchmark v2 (MCP 12 Tools + Real EAM API) ===')
+  const currentModel = process.env.LLM_MODEL || 'gpt-5.4-mini'
+  console.log(`=== Insight68 Benchmark v2 | 模型: ${currentModel} ===`)
   console.log(`测试集: ${TEST_CASES.length} 题, 并发: ${CONCURRENCY}\n`)
 
   // 加载 Skill YAML（从 skills/ 目录）
