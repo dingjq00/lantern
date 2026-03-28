@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MCP 工具 → EAM API 映射</title>
+<style>
+  :root {
+    --blue-900: #1e3a5f; --blue-700: #2563eb; --blue-600: #3b82f6;
+    --blue-100: #dbeafe; --blue-50: #eff6ff;
+    --green-700: #15803d; --green-100: #dcfce7; --green-50: #f0fdf4;
+    --amber-700: #b45309; --amber-100: #fef3c7; --amber-50: #fffbeb;
+    --red-700: #b91c1c; --red-100: #fee2e2; --red-50: #fef2f2;
+    --gray-900: #111827; --gray-700: #374151; --gray-500: #6b7280;
+    --gray-300: #d1d5db; --gray-100: #f3f4f6; --gray-50: #f9fafb;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; color: var(--gray-900); background: var(--gray-50); line-height: 1.6; }
+  .container { max-width: 1200px; margin: 0 auto; padding: 40px 24px; }
+  .header { background: linear-gradient(135deg, var(--blue-900), #2d4a7a); color: white; padding: 40px; border-radius: 16px; margin-bottom: 32px; }
+  .header h1 { font-size: 26px; font-weight: 700; margin-bottom: 6px; }
+  .header .subtitle { font-size: 14px; opacity: 0.85; }
+  .header .meta { margin-top: 12px; display: flex; gap: 24px; font-size: 13px; opacity: 0.7; }
+  .section { background: white; border-radius: 12px; border: 1px solid var(--gray-300); padding: 28px; margin-bottom: 20px; }
+  .section h2 { font-size: 18px; color: var(--blue-900); margin-bottom: 14px; padding-bottom: 6px; border-bottom: 2px solid var(--blue-100); }
+  .section h3 { font-size: 15px; color: var(--blue-700); margin: 18px 0 10px; }
+  .section p { color: var(--gray-700); margin-bottom: 10px; font-size: 14px; }
+  code { background: var(--gray-100); padding: 1px 5px; border-radius: 3px; font-size: 12px; font-family: 'SF Mono', monospace; }
+  table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 13px; }
+  th { padding: 8px 12px; background: var(--blue-900); color: white; text-align: left; font-weight: 600; }
+  td { padding: 8px 12px; border-bottom: 1px solid var(--gray-100); color: var(--gray-700); }
+  tr:nth-child(even) { background: var(--gray-50); }
+  .mono { font-family: 'SF Mono', monospace; font-size: 12px; color: var(--blue-700); }
+  .gap { color: var(--red-700); font-weight: 600; }
+  .ok { color: var(--green-700); }
+  .warn { color: var(--amber-700); }
+  .code-block { background: var(--gray-900); color: #e5e7eb; border-radius: 8px; padding: 16px; font-family: 'SF Mono', monospace; font-size: 12px; line-height: 1.7; overflow-x: auto; white-space: pre; margin: 12px 0; }
+  .code-block .hl { color: #60a5fa; }
+  .code-block .gn { color: #34d399; }
+  .code-block .am { color: #fbbf24; }
+  .code-block .dm { color: #6b7280; }
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; }
+  .badge-ok { background: var(--green-100); color: var(--green-700); }
+  .badge-gap { background: var(--red-100); color: var(--red-700); }
+  .badge-warn { background: var(--amber-100); color: var(--amber-700); }
+  .badge-tier1 { background: var(--blue-900); color: white; }
+  .badge-tier2 { background: var(--blue-600); color: white; }
+  .badge-tier3 { background: var(--green-700); color: white; }
+  .summary-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin: 16px 0; }
+  .summary-card { padding: 16px; border-radius: 10px; border: 1px solid var(--gray-300); text-align: center; }
+  .summary-card .num { font-size: 28px; font-weight: 700; }
+  .summary-card .label { font-size: 12px; color: var(--gray-500); margin-top: 4px; }
+  .flow-box { background: var(--blue-50); border: 1px solid var(--blue-100); border-radius: 10px; padding: 16px; margin: 12px 0; }
+  @media (max-width: 768px) { .summary-grid { grid-template-columns: repeat(2, 1fr); } .container { padding: 16px; } }
+</style>
+</head>
+<body>
+<div class="container">
+
+<div class="header">
+  <h1>MCP 工具 → EAM REST API 映射</h1>
+  <div class="subtitle">12 个工具 × EAM Controller 端点的完整对照，含 Gap 分析和解法</div>
+  <div class="meta">
+    <span>Insight68 NL-API Platform</span>
+    <span>2026-03-28</span>
+    <span>配合 mcp-redesign.html 阅读</span>
+  </div>
+</div>
+
+<!-- 0. 总览 -->
+<div class="section">
+  <h2>0. 映射总览</h2>
+  <div class="summary-grid">
+    <div class="summary-card">
+      <div class="num" style="color: var(--blue-700);">12</div>
+      <div class="label">MCP 工具</div>
+    </div>
+    <div class="summary-card">
+      <div class="num" style="color: var(--green-700);">~40</div>
+      <div class="label">可用 EAM API 端点</div>
+    </div>
+    <div class="summary-card">
+      <div class="num" style="color: var(--red-700);">3</div>
+      <div class="label">公共解析方法</div>
+    </div>
+    <div class="summary-card">
+      <div class="num" style="color: var(--amber-700);">6</div>
+      <div class="label">主要 Gap</div>
+    </div>
+  </div>
+
+  <h3>复杂度一览</h3>
+  <table>
+    <tr><th>工具</th><th>主 API</th><th>并行子调用</th><th>Gap 数</th><th>复杂度</th></tr>
+    <tr><td class="mono">eam.equipment.profile</td><td class="mono">/equipment/get + /kpi</td><td>9 个并行</td><td>0</td><td><span class="badge badge-ok">中</span></td></tr>
+    <tr><td class="mono">eam.repair.profile</td><td class="mono">/repair-order/get</td><td>9 个并行</td><td>0</td><td><span class="badge badge-ok">中</span></td></tr>
+    <tr><td class="mono">eam.scope.overview</td><td class="mono">三棵树 + /equipment/page</td><td>先解析再聚合</td><td>0</td><td><span class="badge badge-warn">高</span></td></tr>
+    <tr><td class="mono">eam.equipment.search</td><td class="mono">/equipment/page</td><td>2-3 丰富化</td><td>2</td><td><span class="badge badge-ok">低</span></td></tr>
+    <tr><td class="mono">eam.fault.search</td><td class="mono">/fault-report/page</td><td>3-4 丰富化</td><td>3</td><td><span class="badge badge-ok">中</span></td></tr>
+    <tr><td class="mono">eam.repair.search</td><td class="mono">/repair-order/page</td><td>5-6 丰富化</td><td>4</td><td><span class="badge badge-gap">高</span></td></tr>
+    <tr><td class="mono">eam.maintenance.search</td><td class="mono">/maintenance/task/page</td><td>2-3 丰富化</td><td>3</td><td><span class="badge badge-ok">中</span></td></tr>
+    <tr><td class="mono">eam.patrol.search</td><td class="mono">/patrol/task/page</td><td>2-3 丰富化</td><td>3</td><td><span class="badge badge-warn">中高</span></td></tr>
+    <tr><td class="mono">eam.anomaly.search</td><td class="mono">/anomaly/page</td><td>2-3 丰富化</td><td>2</td><td><span class="badge badge-ok">低</span></td></tr>
+    <tr><td class="mono">eam.spare.search</td><td class="mono">/spare/part/page</td><td>3-4 丰富化</td><td>2</td><td><span class="badge badge-ok">中</span></td></tr>
+    <tr><td class="mono">eam.dashboard</td><td class="mono">/dashboard/summary + 各 status-stats</td><td>12-15 组合</td><td>1</td><td><span class="badge badge-ok">中</span></td></tr>
+    <tr><td class="mono">eam.trend</td><td class="mono">仅巡检有原生 API</td><td>按域不同</td><td>5</td><td><span class="badge badge-gap">高</span></td></tr>
+  </table>
+</div>
+
+<!-- 1. 公共解析方法 -->
+<div class="section">
+  <h2>1. 公共解析方法（所有工具共用）</h2>
+  <p>identifier 智能解析封装在 MCP 内部，AI 层完全不碰。三个解析方法 + 一个匹配策略。</p>
+
+  <div class="code-block"><span class="dm">// 所有工具共用的 identifier → ID 解析</span>
+
+<span class="hl">resolveEquipment</span>(identifier: string)
+  → GET <span class="gn">/eam/equipment/page</span>?keyword={identifier}&pageSize=5
+  → 返回 { id, equipmentCode, equipmentName } 或 candidates[]
+
+<span class="hl">resolveProductionLine</span>(identifier: string)
+  → GET <span class="gn">/eam/production-line/page</span>?keyword={identifier}&pageSize=5
+  → 返回 { id, lineCode, lineName } 或 candidates[]
+
+<span class="hl">resolveDepartment</span>(identifier: string)
+  → GET <span class="gn">/system/dept/list</span>?name={identifier}
+  → 返回 { id, name, parentId } 或 candidates[]
+
+<span class="am">匹配策略: exact match > startsWith > contains</span>
+<span class="am">唯一匹配 → 返回实体</span>
+<span class="am">多个匹配 → 返回候选列表（最多 5 个），AI 追问用户</span></div>
+
+  <h3>productionLine / department 过滤（公共逻辑）</h3>
+  <p>大部分业务 API 只支持 <code>equipmentId</code> 过滤，不支持直接按产线/部门过滤。MCP 内部做两步过滤：</p>
+
+  <div class="flow-box">
+    <strong>Step 1</strong>: 解析产线/部门 → 查该范围下的设备 ID 列表<br>
+    &nbsp;&nbsp;产线: <code>/production-line/equipment/list?lineId=</code> → 设备 ID 列表<br>
+    &nbsp;&nbsp;部门: <code>/equipment/page?deptId=</code> → 设备 ID 列表<br>
+    <strong>Step 2</strong>: 用设备 ID 列表过滤业务数据（如 <code>/fault-report/page?equipmentId=</code>）<br>
+    <strong>优化</strong>: 如果设备数太多，改用服务端 IN 查询或分批处理
+  </div>
+</div>
+
+<!-- 2. Tier 1 -->
+<div class="section">
+  <h2>2. Tier 1: 实体全景（3 个）</h2>
+
+  <h3><span class="badge badge-tier1">Tier 1</span> eam.equipment.profile</h3>
+  <p>输入 identifier → 解析设备 → 并行调 9 个 API → 聚合返回全景。</p>
+  <table>
+    <tr><th>步骤</th><th>API 端点</th><th>参数</th><th>返回</th><th>状态</th></tr>
+    <tr><td>0. 解析</td><td class="mono">/equipment/page?keyword=</td><td>identifier</td><td>equipmentId</td><td><span class="ok">✅</span></td></tr>
+    <tr><td>1. 基础信息</td><td class="mono">/equipment/get</td><td>id</td><td>code, name, category, dept, location, status, 负责人</td><td><span class="ok">✅</span></td></tr>
+    <tr><td>2. KPI</td><td class="mono">/equipment/kpi</td><td>id</td><td>故障率, 可用率, 平均修复时间</td><td><span class="ok">✅</span></td></tr>
+    <tr><td>3. 生命周期</td><td class="mono">/equipment/lifecycle-timeline</td><td>equipmentId</td><td>采购→验收→变更事件列表</td><td><span class="ok">✅</span></td></tr>
+    <tr><td>4. 近5条故障</td><td class="mono">/fault-report/page</td><td>equipmentId, pageSize=5</td><td>故障报修列表</td><td><span class="ok">✅</span></td></tr>
+    <tr><td>5. 维修工单</td><td class="mono">/repair-order/page</td><td>equipmentId, status≠已关闭</td><td>进行中工单</td><td><span class="ok">✅</span></td></tr>
+    <tr><td>6. 近5条保养</td><td class="mono">/maintenance/task/page</td><td>equipmentId, pageSize=5</td><td>保养任务列表</td><td><span class="ok">✅</span></td></tr>
+    <tr><td>7. 近5条巡检</td><td class="mono">/patrol/task/page 或 /equipment-records</td><td>equipmentId, pageSize=5</td><td>巡检记录（含异常数）</td><td><span class="ok">✅</span></td></tr>
+    <tr><td>8. BOM</td><td class="mono">/spare/bom/by-equipment</td><td>equipmentId</td><td>备件 BOM 清单</td><td><span class="ok">✅</span></td></tr>
+    <tr><td>9. 库存水位</td><td class="mono">/spare/part/stock-summary</td><td>spareIds (from BOM)</td><td>各备件当前库存</td><td><span class="ok">✅</span></td></tr>
+  </table>
+  <p><strong>Gap: 0</strong>。所有子 API 都存在，步骤 1-9 可并行调用（8→9 有依赖，其余并行）。</p>
+
+  <h3><span class="badge badge-tier1">Tier 1</span> eam.repair.profile</h3>
+  <p>输入 identifier（支持 orderCode / faultReportCode / ID 三种入口）→ 并行调 9 个 API。</p>
+  <table>
+    <tr><th>步骤</th><th>API 端点</th><th>参数</th><th>返回</th><th>状态</th></tr>
+    <tr><td>0a. 按工单号</td><td class="mono">/repair-order/page?keyword=</td><td>orderCode</td><td>repairOrderId</td><td><span class="ok">✅</span></td></tr>
+    <tr><td>0b. 按报修号</td><td class="mono">/fault-report/page?keyword= → /repair-order/get-by-fault-report-id</td><td>faultReportCode → faultReportId</td><td>repairOrderId</td><td><span class="ok">✅</span></td></tr>
+    <tr><td>1. 工单信息</td><td class="mono">/repair-order/get</td><td>id</td><td>code, status, type, 负责人, 时间线</td><td><span class="ok">✅</span></td></tr>
+    <tr><td>2. 故障报修</td><td class="mono">/fault-report/get</td><td>faultReportId</td><td>报修人, 故障描述, 紧急度</td><td><span class="ok">✅</span></td></tr>
+    <tr><td>3. 设备信息</td><td class="mono">/equipment/get</td><td>equipmentId</td><td>code, name, 产线, 位置</td><td><span class="ok">✅</span></td></tr>
+    <tr><td>4. 备件明细</td><td class="mono">/repair-order/spare/list</td><td>repairOrderId</td><td>件号, 数量, 单价, 仓库</td><td><span class="ok">✅</span></td></tr>
+    <tr><td>5. 工时明细</td><td class="mono">/repair-order/workload/list</td><td>repairOrderId</td><td>人员, 工时, 费用</td><td><span class="ok">✅</span></td></tr>
+    <tr><td>6. 知识引用</td><td class="mono">/repair-order/knowledge-ref/list</td><td>repairOrderId</td><td>文档标题, 类型</td><td><span class="ok">✅</span></td></tr>
+    <tr><td>7. 出库单</td><td class="mono">/repair-order/related-stock-out/list</td><td>repairOrderId</td><td>仓库名, 金额</td><td><span class="ok">✅</span></td></tr>
+    <tr><td>8. 出库明细</td><td class="mono">/repair-order/related-stock-out/items</td><td>stockOutOrderId</td><td>备件明细</td><td><span class="ok">✅</span></td></tr>
+    <tr><td>9. 操作日志</td><td class="mono">/repair-order/log-list</td><td>repairOrderId</td><td>操作记录</td><td><span class="ok">✅</span></td></tr>
+  </table>
+  <p><strong>Gap: 0</strong>。步骤 1-9 可并行（7→8 有依赖）。concise 模式跳过 8、9。</p>
+
+  <h3><span class="badge badge-tier1">Tier 1</span> eam.scope.overview</h3>
+  <p>输入 identifier → 三棵树匹配 → 查设备列表 → 各域汇总。最复杂的工具。</p>
+
+  <div class="code-block"><span class="am">Step 1: 层级解析（三棵树顺序匹配）</span>
+  ProductionLine: GET <span class="gn">/eam/production-line/page</span>?keyword={identifier}
+  Department:     GET <span class="gn">/system/dept/list</span>?name={identifier}
+  Location:       GET <span class="gn">/eam/location/tree</span> → 遍历匹配 name
+  <span class="dm">优先级: ProductionLine > Department > Location</span>
+
+<span class="am">Step 2: 获取设备列表</span>
+  产线: GET <span class="gn">/production-line/equipment/list</span>?lineId= → equipmentIds
+        GET <span class="gn">/equipment/page</span>?ids=... → 设备详情
+  部门: GET <span class="gn">/equipment/page</span>?deptId= → 直接获取
+  位置: GET <span class="gn">/equipment/page</span>?locationIds= → 直接获取
+
+<span class="am">Step 3: 各域汇总（基于设备 ID 列表，并行调用）</span>
+  故障: GET <span class="gn">/fault-report/page</span>?equipmentId=... → 按设备统计
+  维修: GET <span class="gn">/repair-order/page</span>?equipmentId=... → 按状态统计
+  保养: GET <span class="gn">/maintenance/task/page</span>?equipmentId=... → 完成率
+  巡检: GET <span class="gn">/patrol/task/analytics/by-equipment</span> → 异常率
+  备件: GET <span class="gn">/spare/alert/list</span> → 过滤该范围设备
+
+<span class="am">Step 4: 下级分项</span>
+  车间级 → 查该部门下的产线列表，每条产线各自汇总
+  <span class="dm">只展开直接下级，不递归</span></div>
+  <p><strong>Gap: 0</strong>（API 都存在）。但实现复杂度高——需要多阶段调用，设备数多时要分批。</p>
+</div>
+
+<!-- 3. Tier 2 -->
+<div class="section">
+  <h2>3. Tier 2: 条件搜索（7 个）</h2>
+  <p>每个工具 = 主 API + identifier 解析 + 结果丰富化。<span class="badge badge-gap">红色</span> = API 不原生支持，MCP 需变通。</p>
+
+  <h3><span class="badge badge-tier2">Tier 2</span> eam.equipment.search</h3>
+  <p>主 API: <code>GET /eam/equipment/page</code> (EamEquipmentPageReqVO)</p>
+  <table>
+    <tr><th>MCP 参数</th><th>EAM API 参数</th><th>状态</th><th>说明</th></tr>
+    <tr><td class="mono">status</td><td class="mono">status</td><td><span class="ok">✅ 原生</span></td><td>Integer: 0=待验收...7=报废</td></tr>
+    <tr><td class="mono">category</td><td class="mono">categoryIds</td><td><span class="ok">✅ 原生</span></td><td>支持子分类</td></tr>
+    <tr><td class="mono">department</td><td class="mono">deptId</td><td><span class="ok">✅ 原生</span></td><td>直接过滤</td></tr>
+    <tr><td class="mono">location</td><td class="mono">locationIds</td><td><span class="ok">✅ 原生</span></td><td>含子位置</td></tr>
+    <tr><td class="mono">isKey</td><td class="mono">isKey</td><td><span class="ok">✅ 原生</span></td><td>0/1</td></tr>
+    <tr><td class="mono">productionLine</td><td>—</td><td><span class="gap">❌ Gap</span></td><td>先查产线设备列表，再用 equipmentIds 过滤</td></tr>
+    <tr><td class="mono">dateRange</td><td>—</td><td><span class="gap">❌ Gap</span></td><td>PageReqVO 无 createTime 过滤；需后端加或 MCP 内存过滤</td></tr>
+    <tr><td class="mono">groupBy</td><td>—</td><td><span class="warn">⚠️ MCP 计算</span></td><td>MCP 从返回列表内存聚合</td></tr>
+    <tr><td class="mono">sortBy</td><td>—</td><td><span class="warn">⚠️ MCP 计算</span></td><td>MCP 内存排序</td></tr>
+  </table>
+  <p><strong>丰富化</strong>: categoryId → 分类名, locationId → 位置名, responsiblePersonIds → 人名（需调系统用户 API）</p>
+
+  <h3><span class="badge badge-tier2">Tier 2</span> eam.fault.search</h3>
+  <p>主 API: <code>GET /eam/fault-report/page</code> (EamFaultReportPageReqVO)</p>
+  <table>
+    <tr><th>MCP 参数</th><th>EAM API 参数</th><th>状态</th><th>说明</th></tr>
+    <tr><td class="mono">equipment</td><td class="mono">equipmentId</td><td><span class="ok">✅ 原生</span></td><td>需先 resolveEquipment</td></tr>
+    <tr><td class="mono">status</td><td class="mono">status</td><td><span class="ok">✅ 原生</span></td><td>0=待审核...8=已撤回</td></tr>
+    <tr><td class="mono">urgency</td><td class="mono">urgency</td><td><span class="ok">✅ 原生</span></td><td>0=一般, 1=紧急, 2=特急</td></tr>
+    <tr><td class="mono">dateRange</td><td class="mono">startTime, endTime</td><td><span class="ok">✅ 原生</span></td><td>LocalDateTime</td></tr>
+    <tr><td class="mono">faultType</td><td>—</td><td><span class="gap">❌ Gap</span></td><td>DO 有 faultTypeId，但 PageReqVO 无此过滤</td></tr>
+    <tr><td class="mono">productionLine</td><td>—</td><td><span class="gap">❌ Gap</span></td><td>公共两步过滤（产线→设备→故障）</td></tr>
+    <tr><td class="mono">department</td><td>—</td><td><span class="gap">❌ Gap</span></td><td>公共两步过滤（部门→设备→故障）</td></tr>
+  </table>
+  <p><strong>丰富化</strong>: equipmentId → 设备名, faultTypeId → 故障类型名, 关联维修工单号（查 repair-order by faultReportId）</p>
+
+  <h3><span class="badge badge-tier2">Tier 2</span> eam.repair.search <span class="badge badge-gap">最复杂</span></h3>
+  <p>主 API: <code>GET /eam/repair-order/page</code> (EamRepairOrderPageReqVO)</p>
+  <table>
+    <tr><th>MCP 参数</th><th>EAM API 参数</th><th>状态</th><th>说明</th></tr>
+    <tr><td class="mono">equipment</td><td class="mono">equipmentId</td><td><span class="ok">✅ 原生</span></td><td>需先 resolveEquipment</td></tr>
+    <tr><td class="mono">status</td><td class="mono">status</td><td><span class="ok">✅ 原生</span></td><td>0=待分配...6=已关闭</td></tr>
+    <tr><td class="mono">orderType</td><td>—</td><td><span class="gap">❌ Gap</span></td><td>DO 有 orderType 字段，PageReqVO 未暴露</td></tr>
+    <tr><td class="mono">dateRange</td><td>—</td><td><span class="gap">❌ Gap</span></td><td>PageReqVO 无时间过滤</td></tr>
+    <tr><td class="mono">productionLine</td><td>—</td><td><span class="gap">❌ Gap</span></td><td>公共两步过滤</td></tr>
+    <tr><td class="mono">department</td><td>—</td><td><span class="gap">❌ Gap</span></td><td>公共两步过滤</td></tr>
+  </table>
+  <p><strong>丰富化（中等丰富度）— 每条工单需额外调用</strong>:</p>
+  <table>
+    <tr><th>丰富化项</th><th>API</th><th>说明</th></tr>
+    <tr><td>备件费用汇总</td><td class="mono">/repair-order/spare/list</td><td>sum(quantity × unitPrice)</td></tr>
+    <tr><td>工时汇总</td><td class="mono">/repair-order/workload/list</td><td>sum(hours), repairMinutes 已在主 DO 中</td></tr>
+    <tr><td>知识引用标题</td><td class="mono">/repair-order/knowledge-ref/list</td><td>提取 title 列表</td></tr>
+    <tr><td>出库仓库名</td><td class="mono">/repair-order/related-stock-out/list</td><td>提取 warehouse 名列表</td></tr>
+  </table>
+  <p class="warn"><strong>性能风险</strong>: 20 条工单 × 4 个丰富化调用 = 80 个 API 调用。<br>
+  <strong>解法</strong>: concise 模式只返回主 DO 字段（含 repairMinutes/laborCost/materialCost 已有汇总）；detailed 模式限制 limit=10 并行调用。<br>
+  <strong>更优方案</strong>: 推动 EAM 后端加 orderType + dateRange 到 PageReqVO，加批量丰富化接口。</p>
+
+  <h3><span class="badge badge-tier2">Tier 2</span> eam.maintenance.search</h3>
+  <p>主 API: <code>GET /eam/maintenance/task/page</code></p>
+  <table>
+    <tr><th>MCP 参数</th><th>EAM API 参数</th><th>状态</th><th>说明</th></tr>
+    <tr><td class="mono">equipment</td><td class="mono">equipmentId</td><td><span class="ok">✅ 原生</span></td><td></td></tr>
+    <tr><td class="mono">status</td><td class="mono">status</td><td><span class="ok">✅ 原生</span></td><td>0=待执行...4=已跳过</td></tr>
+    <tr><td class="mono">dateRange</td><td>—</td><td><span class="gap">❌ Gap</span></td><td>无 plannedTime 过滤</td></tr>
+    <tr><td class="mono">overdue</td><td>—</td><td><span class="gap">❌ Gap</span></td><td>状态码 3=已逾期 可用，或 now > plannedEndTime</td></tr>
+    <tr><td class="mono">productionLine</td><td>—</td><td><span class="gap">❌ Gap</span></td><td>公共两步过滤</td></tr>
+    <tr><td class="mono">department</td><td>—</td><td><span class="gap">❌ Gap</span></td><td>公共两步过滤</td></tr>
+  </table>
+  <p><strong>丰富化</strong>: equipmentId → 设备名, 执行记录摘要（<code>/maintenance/task/records</code>）</p>
+
+  <h3><span class="badge badge-tier2">Tier 2</span> eam.patrol.search</h3>
+  <p>主 API: <code>GET /eam/patrol/task/page</code></p>
+  <table>
+    <tr><th>MCP 参数</th><th>EAM API 参数</th><th>状态</th><th>说明</th></tr>
+    <tr><td class="mono">status</td><td class="mono">status</td><td><span class="ok">✅ 原生</span></td><td></td></tr>
+    <tr><td class="mono">equipment</td><td>—</td><td><span class="gap">❌ Gap</span></td><td>巡检任务通过 plan → equipment 关联，无直接 equipmentId 过滤</td></tr>
+    <tr><td class="mono">dateRange</td><td>—</td><td><span class="gap">❌ Gap</span></td><td>无时间过滤</td></tr>
+    <tr><td class="mono">productionLine</td><td>—</td><td><span class="gap">❌ Gap</span></td><td>需多层解析: 产线→设备→plan→task</td></tr>
+  </table>
+  <p><strong>已有字段</strong>: <code>totalItems</code>, <code>completedItems</code>, <code>abnormalItems</code> 已在响应中，无需额外调用。</p>
+  <p class="warn"><strong>注意</strong>: patrol.search 是 Tier 2 中 gap 最多的，equipment 过滤需要反向查 plan。考虑用 <code>/patrol/task/equipment-records</code> 端点替代（支持 equipmentId + dateRange）。</p>
+
+  <h3><span class="badge badge-tier2">Tier 2</span> eam.anomaly.search</h3>
+  <p>主 API: <code>GET /eam/anomaly/page</code> (EamAnomalyRecordPageReqVO)</p>
+  <table>
+    <tr><th>MCP 参数</th><th>EAM API 参数</th><th>状态</th><th>说明</th></tr>
+    <tr><td class="mono">equipment</td><td class="mono">equipmentId</td><td><span class="ok">✅ 原生</span></td><td></td></tr>
+    <tr><td class="mono">severity</td><td class="mono">severity</td><td><span class="ok">✅ 原生</span></td><td>1-4</td></tr>
+    <tr><td class="mono">source</td><td class="mono">source</td><td><span class="ok">✅ 原生</span></td><td>PATROL/SPOT_CHECK/INSPECTION/MANUAL</td></tr>
+    <tr><td class="mono">dateRange</td><td class="mono">createTimeStart, createTimeEnd</td><td><span class="ok">✅ 原生</span></td><td></td></tr>
+    <tr><td class="mono">productionLine</td><td>—</td><td><span class="gap">❌ Gap</span></td><td>公共两步过滤</td></tr>
+    <tr><td class="mono">department</td><td>—</td><td><span class="gap">❌ Gap</span></td><td>公共两步过滤</td></tr>
+  </table>
+  <p><strong>丰富化</strong>: equipmentId → 设备名, faultReportId 非空 = "已升级为故障报修"。<br>
+  <strong>聚合端点</strong>: <code>/anomaly/grouped</code> 可用于 groupBy 场景。</p>
+
+  <h3><span class="badge badge-tier2">Tier 2</span> eam.spare.search</h3>
+  <p>主 API: <code>GET /eam/spare/part/page</code></p>
+  <table>
+    <tr><th>MCP 参数</th><th>EAM API 参数</th><th>状态</th><th>说明</th></tr>
+    <tr><td class="mono">identifier</td><td class="mono">spareName</td><td><span class="ok">✅ 原生</span></td><td>模糊匹配</td></tr>
+    <tr><td class="mono">category</td><td class="mono">spareTypeIds</td><td><span class="ok">✅ 原生</span></td><td></td></tr>
+    <tr><td class="mono">equipment (BOM)</td><td>—</td><td><span class="gap">❌ Gap</span></td><td>需调 <code>/spare/bom/by-equipment</code> 获取 spareIds，再过滤</td></tr>
+    <tr><td class="mono">lowStock</td><td>—</td><td><span class="gap">❌ Gap</span></td><td>需调 stock-summary 后比较 quantity ≤ stockLower</td></tr>
+  </table>
+  <p><strong>丰富化</strong>: 库存水位（<code>/spare/part/stock-summary</code>）, 关联设备数（<code>/spare/bom/by-spare</code>）, 替代件（需查 spare_substitute 表）。</p>
+</div>
+
+<!-- 4. Tier 3 -->
+<div class="section">
+  <h2>4. Tier 3: 全局分析（2 个）</h2>
+
+  <h3><span class="badge badge-tier3">Tier 3</span> eam.dashboard</h3>
+  <p>组合多个统计端点，大部分有现成 API。</p>
+  <table>
+    <tr><th>数据项</th><th>API 端点</th><th>状态</th></tr>
+    <tr><td>设备总数 + 按状态分布</td><td class="mono">/dashboard/summary + /dashboard/equipment-status-distribution</td><td><span class="ok">✅ 原生</span></td></tr>
+    <tr><td>故障按状态分布</td><td class="mono">/fault-report/status-stats</td><td><span class="ok">✅ 原生</span></td></tr>
+    <tr><td>维修按状态分布</td><td class="mono">/repair-order/status-stats</td><td><span class="ok">✅ 原生</span></td></tr>
+    <tr><td>保养完成率 + 逾期数</td><td class="mono">/maintenance/task/status-stats</td><td><span class="ok">✅ 原生</span></td></tr>
+    <tr><td>巡检完成率 + 异常率</td><td class="mono">/patrol/task/statistics</td><td><span class="ok">✅ 原生</span></td></tr>
+    <tr><td>备件预警数</td><td class="mono">/spare/alert/list</td><td><span class="ok">✅ 原生</span></td></tr>
+    <tr><td>备件消耗 top5</td><td class="mono">/spare/stock-out/page + /items</td><td><span class="warn">⚠️ MCP 聚合</span></td></tr>
+    <tr><td>待办事项</td><td class="mono">/dashboard/todo-list</td><td><span class="ok">✅ 原生</span></td></tr>
+    <tr><td>平均修复时间</td><td>—</td><td><span class="warn">⚠️ MCP 计算</span></td></tr>
+  </table>
+  <p><strong>总调用</strong>: ~12 个 API 并行。除"备件消耗 top5"和"平均修复时间"需 MCP 计算外，其余都有现成端点。</p>
+
+  <h3><span class="badge badge-tier3">Tier 3</span> eam.trend</h3>
+  <p>按域查询时间序列数据。<strong>大部分域没有原生趋势 API，MCP 需从列表数据聚合。</strong></p>
+  <table>
+    <tr><th>域</th><th>原生趋势 API</th><th>回退方案</th><th>状态</th></tr>
+    <tr><td>fault 故障</td><td class="mono">/dashboard/fault-trend（固定30天，不可定制）</td><td class="mono">/fault-report/page + MCP 聚合</td><td><span class="warn">⚠️ 部分</span></td></tr>
+    <tr><td>repair 维修</td><td>无</td><td class="mono">/repair-order/page + MCP 聚合</td><td><span class="gap">❌ 全靠 MCP</span></td></tr>
+    <tr><td>maintenance 保养</td><td>无</td><td class="mono">/maintenance/task/page + MCP 聚合</td><td><span class="gap">❌ 全靠 MCP</span></td></tr>
+    <tr><td>patrol 巡检</td><td class="mono">/patrol/task/analytics（30天，含 taskTrend + abnormalTrend）<br>/patrol/task/analytics/by-equipment<br>/patrol/task/analytics/by-plan</td><td>自定义日期范围时用 /page</td><td><span class="ok">✅ 较好</span></td></tr>
+    <tr><td>anomaly 异常</td><td class="mono">/anomaly/grouped（按设备+日期分组，非时间序列格式）</td><td class="mono">/anomaly/page + MCP 重格式化</td><td><span class="warn">⚠️ 需转换</span></td></tr>
+    <tr><td>spare 备件</td><td>无</td><td class="mono">/spare/stock-out/page + /items + MCP 聚合</td><td><span class="gap">❌ 全靠 MCP</span></td></tr>
+  </table>
+  <p class="warn"><strong>核心问题</strong>: 6 个域中只有巡检有较好的原生分析 API。其余 5 个域的趋势数据需要 MCP 从 page 列表拉数据后自己做时间聚合。<br>
+  <strong>长期方案</strong>: 推动 EAM 后端为各域加分析端点（支持 dateRange + groupBy day/week/month）。</p>
+</div>
+
+<!-- 5. Gap 汇总 -->
+<div class="section">
+  <h2>5. Gap 汇总与解法</h2>
+
+  <h3>通用 Gap（影响多个工具）</h3>
+  <table>
+    <tr><th>Gap</th><th>影响工具</th><th>MCP 解法</th><th>后端改进方案</th></tr>
+    <tr>
+      <td><span class="gap">productionLine 过滤不原生</span></td>
+      <td>fault, repair, maintenance, patrol, anomaly (5个)</td>
+      <td>公共两步过滤: 产线→设备IDs→业务数据过滤</td>
+      <td>各 PageReqVO 加 productionLineId 参数</td>
+    </tr>
+    <tr>
+      <td><span class="gap">department 过滤不原生</span></td>
+      <td>fault, repair, patrol (3个)</td>
+      <td>公共两步过滤: 部门→设备IDs→业务数据过滤</td>
+      <td>各 PageReqVO 加 deptId 参数</td>
+    </tr>
+    <tr>
+      <td><span class="gap">groupBy / sortBy 无原生支持</span></td>
+      <td>所有 search (7个)</td>
+      <td>MCP 内存聚合和排序</td>
+      <td>—（合理由 MCP 处理）</td>
+    </tr>
+    <tr>
+      <td><span class="gap">趋势分析 API 缺失</span></td>
+      <td>trend (4/6 域)</td>
+      <td>MCP 从 page 拉数据自行聚合</td>
+      <td>各域加 /analytics 端点</td>
+    </tr>
+  </table>
+
+  <h3>专项 Gap</h3>
+  <table>
+    <tr><th>Gap</th><th>影响工具</th><th>解法</th></tr>
+    <tr>
+      <td>repair.search 丰富化成本高（每条 4-5 个额外调用）</td>
+      <td>repair.search</td>
+      <td>concise 不丰富化；detailed 限 limit=10 并行；长期推后端加批量接口</td>
+    </tr>
+    <tr>
+      <td>patrol.search 无 equipmentId 直接过滤</td>
+      <td>patrol.search</td>
+      <td>改用 <code>/patrol/task/equipment-records</code> 端点（支持 equipmentId + dateRange）</td>
+    </tr>
+    <tr>
+      <td>repair PageReqVO 缺 orderType + dateRange</td>
+      <td>repair.search</td>
+      <td>MCP 内存过滤；推后端加参数</td>
+    </tr>
+    <tr>
+      <td>spare lowStock 无原生过滤</td>
+      <td>spare.search</td>
+      <td>查 stock-summary 后比较 quantity ≤ stockLower；或用 /spare/alert/list</td>
+    </tr>
+  </table>
+
+  <h3>推荐后端改进（按优先级）</h3>
+  <table>
+    <tr><th>优先级</th><th>改动</th><th>收益</th></tr>
+    <tr><td><strong>P1</strong></td><td>RepairOrderPageReqVO 加 orderType + startTime/endTime</td><td>repair.search 最常用的两个过滤</td></tr>
+    <tr><td><strong>P1</strong></td><td>FaultReportPageReqVO 加 faultTypeId</td><td>"电气故障有哪些" 直接可查</td></tr>
+    <tr><td><strong>P2</strong></td><td>MaintenanceTaskPageReqVO 加 plannedTime 时间范围</td><td>maintenance.search 支持日期过滤</td></tr>
+    <tr><td><strong>P2</strong></td><td>各域 PageReqVO 加 productionLineId（通过 equipment join）</td><td>消除公共两步过滤的性能开销</td></tr>
+    <tr><td><strong>P3</strong></td><td>各域加 /analytics 端点（支持 dateRange + groupBy）</td><td>eam.trend 性能质变</td></tr>
+  </table>
+</div>
+
+<!-- 6. 实现路线 -->
+<div class="section">
+  <h2>6. 建议实现顺序</h2>
+  <table>
+    <tr><th>阶段</th><th>工具</th><th>理由</th></tr>
+    <tr><td><strong>Phase 1</strong></td><td>公共解析方法 + eam.equipment.profile + eam.dashboard</td><td>解析方法是基础；profile 和 dashboard 最常用且 gap 少</td></tr>
+    <tr><td><strong>Phase 2</strong></td><td>eam.repair.profile + eam.equipment.search + eam.fault.search + eam.anomaly.search</td><td>直接过滤能力强的工具优先；repair.profile gap=0</td></tr>
+    <tr><td><strong>Phase 3</strong></td><td>eam.repair.search + eam.maintenance.search + eam.spare.search</td><td>需要丰富化和变通的工具</td></tr>
+    <tr><td><strong>Phase 4</strong></td><td>eam.scope.overview + eam.patrol.search + eam.trend</td><td>最复杂的工具放最后，可能需要后端配合</td></tr>
+  </table>
+</div>
+
+</div>
+</body>
+</html>

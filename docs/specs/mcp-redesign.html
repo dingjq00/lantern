@@ -1,0 +1,934 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Insight68 MCP 工具层重新设计</title>
+<style>
+  :root {
+    --blue-900: #1e3a5f;
+    --blue-700: #2563eb;
+    --blue-600: #3b82f6;
+    --blue-100: #dbeafe;
+    --blue-50: #eff6ff;
+    --green-700: #15803d;
+    --green-100: #dcfce7;
+    --green-50: #f0fdf4;
+    --amber-700: #b45309;
+    --amber-100: #fef3c7;
+    --amber-50: #fffbeb;
+    --red-700: #b91c1c;
+    --red-100: #fee2e2;
+    --gray-900: #111827;
+    --gray-700: #374151;
+    --gray-500: #6b7280;
+    --gray-300: #d1d5db;
+    --gray-100: #f3f4f6;
+    --gray-50: #f9fafb;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    color: var(--gray-900);
+    background: var(--gray-50);
+    line-height: 1.6;
+  }
+  .container { max-width: 1100px; margin: 0 auto; padding: 40px 24px; }
+
+  /* Header */
+  .header {
+    background: linear-gradient(135deg, var(--blue-900), #2d4a7a);
+    color: white;
+    padding: 48px 40px;
+    border-radius: 16px;
+    margin-bottom: 32px;
+  }
+  .header h1 { font-size: 28px; font-weight: 700; margin-bottom: 8px; }
+  .header .subtitle { font-size: 15px; opacity: 0.85; }
+  .header .meta { margin-top: 16px; display: flex; gap: 24px; font-size: 13px; opacity: 0.7; }
+
+  /* Section */
+  .section {
+    background: white;
+    border-radius: 12px;
+    border: 1px solid var(--gray-300);
+    padding: 32px;
+    margin-bottom: 24px;
+  }
+  .section h2 {
+    font-size: 20px;
+    color: var(--blue-900);
+    margin-bottom: 16px;
+    padding-bottom: 8px;
+    border-bottom: 2px solid var(--blue-100);
+  }
+  .section h3 {
+    font-size: 16px;
+    color: var(--blue-700);
+    margin: 20px 0 12px;
+  }
+  .section p { color: var(--gray-700); margin-bottom: 12px; }
+  .section ul { padding-left: 20px; color: var(--gray-700); }
+  .section li { margin-bottom: 6px; }
+
+  /* Philosophy cards */
+  .philosophy-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+    margin-top: 16px;
+  }
+  .philosophy-card {
+    background: var(--blue-50);
+    border: 1px solid var(--blue-100);
+    border-radius: 10px;
+    padding: 20px;
+  }
+  .philosophy-card .icon { font-size: 24px; margin-bottom: 8px; }
+  .philosophy-card h4 { font-size: 14px; color: var(--blue-900); margin-bottom: 6px; }
+  .philosophy-card p { font-size: 13px; color: var(--gray-500); margin: 0; }
+
+  /* Schema diagram */
+  .schema-box {
+    background: var(--gray-900);
+    color: #e5e7eb;
+    border-radius: 10px;
+    padding: 24px;
+    font-family: 'SF Mono', 'Fira Code', monospace;
+    font-size: 13px;
+    line-height: 1.7;
+    overflow-x: auto;
+    white-space: pre;
+  }
+  .schema-box .highlight { color: #60a5fa; }
+  .schema-box .green { color: #34d399; }
+  .schema-box .amber { color: #fbbf24; }
+  .schema-box .dim { color: #6b7280; }
+
+  /* Tool cards */
+  .tier-label {
+    display: inline-block;
+    padding: 4px 12px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 12px;
+  }
+  .tier-1 { background: var(--blue-900); color: white; }
+  .tier-2 { background: var(--blue-600); color: white; }
+  .tier-3 { background: var(--green-700); color: white; }
+
+  .tool-card {
+    border: 1px solid var(--gray-300);
+    border-radius: 10px;
+    margin-bottom: 16px;
+    overflow: hidden;
+  }
+  .tool-card-header {
+    padding: 16px 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    cursor: pointer;
+  }
+  .tool-card-header h4 {
+    font-size: 15px;
+    font-family: 'SF Mono', monospace;
+    color: var(--blue-900);
+  }
+  .tool-card-header .badge {
+    font-size: 11px;
+    padding: 2px 8px;
+    border-radius: 4px;
+    background: var(--gray-100);
+    color: var(--gray-500);
+  }
+  .tool-card-body {
+    padding: 0 20px 20px;
+    border-top: 1px solid var(--gray-100);
+  }
+  .tool-card-body .field-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 12px;
+    font-size: 13px;
+  }
+  .field-table th {
+    text-align: left;
+    padding: 8px 12px;
+    background: var(--gray-100);
+    color: var(--gray-700);
+    font-weight: 600;
+    font-size: 12px;
+  }
+  .field-table td {
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--gray-100);
+    color: var(--gray-700);
+  }
+  .field-table .param { font-family: 'SF Mono', monospace; color: var(--blue-700); font-size: 12px; }
+  .field-table .optional { color: var(--gray-500); font-style: italic; }
+
+  .return-block {
+    background: var(--green-50);
+    border: 1px solid #bbf7d0;
+    border-radius: 8px;
+    padding: 12px 16px;
+    margin-top: 12px;
+    font-size: 13px;
+    color: var(--green-700);
+    font-family: 'SF Mono', monospace;
+    line-height: 1.8;
+    white-space: pre-wrap;
+  }
+
+  /* Comparison table */
+  .compare-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 16px;
+    font-size: 13px;
+  }
+  .compare-table th {
+    padding: 10px 16px;
+    background: var(--blue-900);
+    color: white;
+    text-align: left;
+    font-weight: 600;
+  }
+  .compare-table td {
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--gray-100);
+  }
+  .compare-table tr:nth-child(even) { background: var(--gray-50); }
+  .compare-table .old { color: var(--red-700); text-decoration: line-through; }
+  .compare-table .new { color: var(--green-700); font-weight: 600; }
+
+  /* Principle list */
+  .principle-list {
+    list-style: none;
+    padding: 0;
+    counter-reset: principle;
+  }
+  .principle-list li {
+    counter-increment: principle;
+    padding: 12px 16px 12px 52px;
+    position: relative;
+    margin-bottom: 8px;
+    background: var(--gray-50);
+    border-radius: 8px;
+    border-left: 3px solid var(--blue-600);
+  }
+  .principle-list li::before {
+    content: counter(principle);
+    position: absolute;
+    left: 16px;
+    top: 12px;
+    width: 24px;
+    height: 24px;
+    background: var(--blue-600);
+    color: white;
+    border-radius: 50%;
+    font-size: 12px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .principle-list li strong { color: var(--blue-900); }
+
+  /* Evolution timeline */
+  .timeline {
+    border-left: 3px solid var(--blue-100);
+    padding-left: 24px;
+    margin-top: 16px;
+  }
+  .timeline-item {
+    position: relative;
+    padding-bottom: 20px;
+  }
+  .timeline-item::before {
+    content: '';
+    position: absolute;
+    left: -30px;
+    top: 4px;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    border: 2px solid var(--blue-600);
+    background: white;
+  }
+  .timeline-item.done::before { background: var(--blue-600); }
+  .timeline-item .label { font-size: 12px; color: var(--gray-500); }
+  .timeline-item .desc { font-size: 14px; color: var(--gray-700); }
+
+  /* Not doing */
+  .not-doing {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+    margin-top: 16px;
+  }
+  .not-doing-item {
+    padding: 12px 16px;
+    background: var(--gray-50);
+    border-radius: 8px;
+    border: 1px dashed var(--gray-300);
+  }
+  .not-doing-item .name { font-weight: 600; color: var(--gray-500); font-size: 13px; }
+  .not-doing-item .reason { font-size: 12px; color: var(--gray-500); margin-top: 4px; }
+
+  /* Responsive */
+  @media (max-width: 768px) {
+    .philosophy-grid { grid-template-columns: 1fr; }
+    .not-doing { grid-template-columns: 1fr; }
+    .container { padding: 16px; }
+    .header { padding: 32px 24px; }
+    .section { padding: 20px; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+<!-- Header -->
+<div class="header">
+  <h1>Insight68 MCP 工具层重新设计</h1>
+  <div class="subtitle">从 22 个 API Wrapper 到 12 个意图级工具 — 让 MCP 主动服务 AI</div>
+  <div class="meta">
+    <span>Insight68 NL-API Platform</span>
+    <span>2026-03-28</span>
+    <span>状态: 设计审核中</span>
+  </div>
+</div>
+
+<!-- 1. 设计哲学 -->
+<div class="section">
+  <h2>1. 设计哲学</h2>
+  <p><strong>MCP 不应该躺平，应该主动服务于 AI。</strong></p>
+  <div class="philosophy-grid">
+    <div class="philosophy-card">
+      <div class="icon">🧠</div>
+      <h4>确定性 MCP 做</h4>
+      <p>ID 解析、同域多表聚合、层级定位 — 这些有明确答案的操作不该让 AI 猜</p>
+    </div>
+    <div class="philosophy-card">
+      <div class="icon">🎯</div>
+      <h4>AI 只做判断</h4>
+      <p>意图理解、跨域编排、分析对比 — 这些需要推理的才是 AI 的价值</p>
+    </div>
+    <div class="philosophy-card">
+      <div class="icon">👤</div>
+      <h4>用户意图粒度</h4>
+      <p>不按 API 设计，不按数据表设计，按"用户想知道什么"设计</p>
+    </div>
+  </div>
+
+  <h3>业界验证</h3>
+  <p style="font-size: 13px; color: var(--gray-500); margin-bottom: 12px;">2026-03-28 调研确认，设计方向与 Anthropic 官方 + Context Engineering 前沿完全吻合。</p>
+  <table class="compare-table">
+    <tr><th style="width: 30%">来源</th><th>核心观点</th><th style="width: 25%">对应我们的设计</th></tr>
+    <tr>
+      <td><a href="https://www.anthropic.com/engineering/writing-tools-for-agents" style="color: var(--blue-700);">Anthropic — Writing Tools for Agents</a></td>
+      <td>"More tools don't always lead to better outcomes" — 合并自然连续的操作，不要 1:1 包装 API</td>
+      <td>22 → 12 工具合并</td>
+    </tr>
+    <tr>
+      <td>同上</td>
+      <td>工具描述优化比 system prompt 优化效果更大（SWE-bench 实测）</td>
+      <td>原则 #8: 描述 = Prompt 工程</td>
+    </tr>
+    <tr>
+      <td>同上</td>
+      <td>Poka-yoke 防错：接受宽松输入，减少模型犯错</td>
+      <td>原则 #1: identifier 智能解析</td>
+    </tr>
+    <tr>
+      <td>同上</td>
+      <td>response_format 参数：让 AI 按需选择 DETAILED vs CONCISE</td>
+      <td>原则 #7: format 参数</td>
+    </tr>
+    <tr>
+      <td><a href="https://www.philschmid.de/context-engineering-part-2" style="color: var(--blue-700);">Context Engineering Part 2</a></td>
+      <td>100+ 工具会导致 Context Confusion — 保持 ~20 个核心工具，复杂链用代码解决</td>
+      <td>12 工具 + MCP 内部做确定性逻辑</td>
+    </tr>
+    <tr>
+      <td><a href="https://medium.com/@chris.p.hughes10/building-scalable-mcp-servers-with-domain-driven-design-fb9454d4c726" style="color: var(--blue-700);">DDD for MCP Servers</a></td>
+      <td>按业务域组织，每个 MCP Server = Bounded Context</td>
+      <td>Tier 2 按域分 + 层级前缀命名</td>
+    </tr>
+  </table>
+
+  <h3>分工边界</h3>
+  <table class="compare-table">
+    <tr><th>谁做</th><th>做什么</th><th>例子</th></tr>
+    <tr>
+      <td><strong>MCP</strong></td>
+      <td>确定性动作：获取数据、ID 解析、同域聚合、层级导航</td>
+      <td>"E02" → 解析出设备 → 返回全景<br>"一车间" → 定位部门 → 聚合该范围数据</td>
+    </tr>
+    <tr>
+      <td><strong>AI</strong></td>
+      <td>非确定性能力：意图理解、跨域编排、分析/统计/对比</td>
+      <td>判断用户问的是维修还是保养<br>对比两台设备的故障率</td>
+    </tr>
+  </table>
+</div>
+
+<!-- 2. EAM Schema 全景 -->
+<div class="section">
+  <h2>2. EAM Schema 全景</h2>
+  <p>Equipment 是整个系统的引力中心，7 大业务域围绕它运转。</p>
+
+  <div class="schema-box"><span class="dim">                              ┌─────────────────┐</span>
+<span class="dim">                              │</span><span class="amber"> Organization    </span><span class="dim">│</span>
+<span class="dim">                              │</span> Department(树)  <span class="dim">│</span>
+<span class="dim">                              │</span> Location(树)    <span class="dim">│</span>
+<span class="dim">                              │</span> ProductionLine  <span class="dim">│</span>
+<span class="dim">                              └────────┬────────┘</span>
+<span class="dim">                                       │ deptId / lineId</span>
+<span class="dim">                                       ▼</span>
+<span class="dim">  ┌──────────┐    ┌──────────┐    ┌──────────┐    ┌──────────────┐</span>
+<span class="dim">  │</span><span class="highlight"> Category </span><span class="dim">│───▶│</span><span class="highlight"> Location </span><span class="dim">│    │</span><span class="green"> EQUIPMENT</span><span class="dim">│◀───│</span><span class="highlight"> SpareBOM(桥) </span><span class="dim">│──▶ SparePart</span>
+<span class="dim">  │</span><span class="highlight">  (tree)  </span><span class="dim">│    │</span><span class="highlight">  (tree)  </span><span class="dim">│    │</span><span class="green">  ★中心★  </span><span class="dim">│    └──────────────┘      │</span>
+<span class="dim">  └──────────┘    └──────────┘    └─────┬─────┘                         ▼</span>
+<span class="dim">                                       │                          SpareStock</span>
+<span class="dim">                      ┌────────────────┼────────────────┐            │</span>
+<span class="dim">                      ▼                ▼                ▼        Warehouse</span>
+<span class="dim">                ┌──────────┐   ┌────────────┐   ┌───────────┐</span>
+<span class="dim">                │</span><span class="highlight">FaultReport</span><span class="dim">│   │</span><span class="highlight">PatrolPlan  </span><span class="dim">│   │</span><span class="highlight">Maint.Plan </span><span class="dim">│</span>
+<span class="dim">                │</span>故障报修   <span class="dim">│   │</span>巡检计划    <span class="dim">│   │</span>保养计划    <span class="dim">│</span>
+<span class="dim">                └────┬─────┘   └─────┬──────┘   └─────┬─────┘</span>
+<span class="dim">                     │               │                 │</span>
+<span class="dim">                     ▼               ▼                 ▼</span>
+<span class="dim">                ┌──────────┐   ┌──────────┐     ┌───────────┐</span>
+<span class="dim">                │</span><span class="highlight">RepairOrder</span><span class="dim">│   │</span><span class="highlight">PatrolTask</span><span class="dim">│     │</span><span class="highlight">Maint.Task </span><span class="dim">│</span>
+<span class="dim">                │</span>维修工单   <span class="dim">│   │</span>巡检任务  <span class="dim">│     │</span>保养任务    <span class="dim">│</span>
+<span class="dim">                └────┬─────┘   └────┬─────┘     └─────┬─────┘</span>
+<span class="dim">                     │              │                  │</span>
+<span class="dim">            ┌────┬───┴──┬────┐     ▼                  ▼</span>
+<span class="dim">            ▼    ▼      ▼    ▼  PatrolRecord     Maint.Record</span>
+<span class="dim">         Spare  Work  Know  StockOut  │</span>
+<span class="dim">         Usage  load  Ref   Order    ▼</span>
+<span class="dim">                                  AnomalyRecord</span>
+<span class="dim">                                     │</span>
+<span class="dim">                                     ▼ </span><span class="amber">(可升级为故障报修)</span>
+<span class="dim">                                FaultReport</span></div>
+
+  <h3>三条主干关系链</h3>
+  <table class="compare-table">
+    <tr><th>链</th><th>路径</th><th>场景</th></tr>
+    <tr><td><strong>故障→维修</strong></td><td>Equipment → FaultReport → RepairOrder → {SpareUsage, Workload, KnowledgeRef, StockOut}</td><td>设备故障了，修了什么、用了什么件、花了多少工时</td></tr>
+    <tr><td><strong>巡检→异常</strong></td><td>Equipment → PatrolPlan → PatrolTask → PatrolRecord → AnomalyRecord → FaultReport</td><td>巡检发现异常，严重的升级为故障报修</td></tr>
+    <tr><td><strong>保养执行</strong></td><td>Equipment → MaintenancePlan → MaintenanceTask → MaintenanceRecord</td><td>保养计划执行了没有</td></tr>
+  </table>
+
+  <h3>组织/空间层级（三棵树）</h3>
+  <div class="schema-box"><span class="amber">Department 树</span><span class="dim">（组织维度 — 谁管）      </span><span class="amber">Location 树</span><span class="dim">（空间维度 — 在哪）</span>
+<span class="dim">  工厂                                    厂区</span>
+<span class="dim">  ├── 一车间                               ├── 1号厂房</span>
+<span class="dim">  │   ├── 班组A                            │   ├── 1F</span>
+<span class="dim">  │   └── 班组B                            │   └── 2F</span>
+<span class="dim">  └── 二车间                               └── 2号厂房</span>
+
+<span class="green">ProductionLine</span><span class="dim">（产线维度 — 什么线）</span>
+<span class="dim">  A产线 → deptId(一车间) → [设备1, 设备2, 设备3]</span>
+<span class="dim">  B产线 → deptId(一车间) → [设备4, 设备5]</span>
+<span class="dim">  C产线 → deptId(二车间) → [设备6, 设备7]</span>
+
+<span class="highlight">Equipment.deptId</span><span class="dim">  → 设备归属部门（后端自动权限过滤）</span>
+<span class="highlight">Equipment.locationId</span><span class="dim"> → 设备物理位置</span>
+<span class="highlight">ProductionLineEquipment</span><span class="dim"> → 桥接表（产线 ↔ 设备 M:N）</span></div>
+
+  <h3>7 个桥接表（跨域连接的关键）</h3>
+  <table class="compare-table">
+    <tr><th>桥接表</th><th>连接</th><th>用途</th></tr>
+    <tr><td>ProductionLineEquipment</td><td>产线 ↔ 设备</td><td>按产线查设备</td></tr>
+    <tr><td>EquipmentSpareBom</td><td>设备 ↔ 备件</td><td>设备需要哪些备件</td></tr>
+    <tr><td>RepairSpareUsage</td><td>维修工单 ↔ 备件</td><td>维修用了哪些件</td></tr>
+    <tr><td>RepairOrderKnowledgeRef</td><td>维修工单 ↔ 知识文档</td><td>维修参考了哪些文档</td></tr>
+    <tr><td>PatrolPlanEquipment</td><td>巡检计划 ↔ 设备</td><td>哪些设备要巡检</td></tr>
+    <tr><td>CategoryFaultType</td><td>设备分类 ↔ 故障类型</td><td>不同类设备的故障类型</td></tr>
+    <tr><td>SpareSubstitute</td><td>备件 ↔ 替代备件</td><td>备件互换关系</td></tr>
+  </table>
+</div>
+
+<!-- 3. 12 个工具详细设计 -->
+<div class="section">
+  <h2>3. 工具详细设计（12 个）</h2>
+
+  <h3>命名规范</h3>
+  <p style="margin-bottom: 16px; color: var(--gray-700);">采用 <code style="background: var(--gray-100); padding: 2px 6px; border-radius: 4px;">eam.&lt;domain&gt;.&lt;action&gt;</code> 层级前缀命名。扩展到其他系统时自然分隔：<code style="background: var(--gray-100); padding: 2px 6px; border-radius: 4px;">mes.xxx</code> / <code style="background: var(--gray-100); padding: 2px 6px; border-radius: 4px;">wms.xxx</code>。</p>
+
+  <!-- Tier 1 -->
+  <span class="tier-label tier-1">Tier 1 · 实体全景 — 3 个</span>
+  <p style="margin-bottom: 16px; color: var(--gray-500);">围绕 schema 的聚合中心，一次调用返回完整画像。</p>
+
+  <div class="tool-card">
+    <div class="tool-card-header" style="background: var(--blue-50);">
+      <h4>eam.equipment.profile</h4>
+      <span class="badge">设备全景</span>
+    </div>
+    <div class="tool-card-body">
+      <p style="margin-top: 12px; font-size: 13px; color: var(--gray-500);">给定任意设备标识符，返回该设备的完整画像。MCP 内部完成 ID 解析和多域聚合。</p>
+      <table class="field-table">
+        <tr><th>参数</th><th>类型</th><th>说明</th></tr>
+        <tr><td class="param">identifier</td><td>string</td><td>"E02" / "EQ-001" / 数字ID — MCP 自动在 name/code/id 中匹配</td></tr>
+        <tr><td class="param">format</td><td class="optional">string?</td><td>"detailed"(默认) | "concise" — concise 只返回基础+KPI，省 token</td></tr>
+      </table>
+      <div class="return-block">返回:
+├ 基础: code, name, category, location, status, 负责人, 产线, 部门
+├ KPI: 故障次数, 平均修复时间, 保养完成率
+├ 近 5 条故障报修（带状态）
+├ 进行中的维修工单
+├ 近 5 条保养任务（带完成状态）
+├ 近 5 条巡检记录（带异常数）
+├ BOM 备件清单 + 当前库存水位
+└ 生命周期事件（采购→验收→变更）</div>
+      <p style="margin-top: 8px; font-size: 12px; color: var(--gray-500);">覆盖场景: "E02 怎么样" "EQ-001 详细信息" "EQ-003 生命周期" "BOM 哪些库存不足"</p>
+    </div>
+  </div>
+
+  <div class="tool-card">
+    <div class="tool-card-header" style="background: var(--blue-50);">
+      <h4>eam.repair.profile</h4>
+      <span class="badge">维修工单全景</span>
+    </div>
+    <div class="tool-card-body">
+      <p style="margin-top: 12px; font-size: 13px; color: var(--gray-500);">给定工单标识符，返回完整维修工单画像。一个调用替代原来的 3 步查询。</p>
+      <table class="field-table">
+        <tr><th>参数</th><th>类型</th><th>说明</th></tr>
+        <tr><td class="param">identifier</td><td>string</td><td>"WO-005" / "FR-001" / 数字ID — 支持 orderCode、faultReportCode、ID 三种入口（Poka-yoke）</td></tr>
+        <tr><td class="param">format</td><td class="optional">string?</td><td>"detailed"(默认) | "concise" — concise 省略日志和完整备件明细</td></tr>
+      </table>
+      <div class="return-block">返回:
+├ 工单: code, status, type(内修/外协), 负责人, 时间线
+├ 关联故障报修（报修人, 故障描述, 紧急度）
+├ 设备基础信息（code, name, 产线, 位置）
+├ 备件使用明细（件号, 名称, 数量, 单价, 仓库）
+├ 工时明细（人员, 工时, 费用）
+├ 知识引用（文档标题, 类型）
+├ 出库单（仓库名, 金额）
+└ 操作日志</div>
+      <p style="margin-top: 8px; font-size: 12px; color: var(--gray-500);">覆盖场景: "WO-001 用了哪些备件" "WO-005 出库涉及哪些仓库" "维修参考了哪些文档"</p>
+    </div>
+  </div>
+
+  <div class="tool-card">
+    <div class="tool-card-header" style="background: var(--blue-50);">
+      <h4>eam.scope.overview</h4>
+      <span class="badge">范围概览（层级自适应）</span>
+    </div>
+    <div class="tool-card-body">
+      <p style="margin-top: 12px; font-size: 13px; color: var(--gray-500);">给定任意层级标识符，MCP 在三棵树中自动匹配（优先级: ProductionLine > Department > Location）。只展开直接下级，不递归。concise 模式不含设备清单，设备列表 limit 默认 50。</p>
+      <table class="field-table">
+        <tr><th>参数</th><th>类型</th><th>说明</th></tr>
+        <tr><td class="param">identifier</td><td>string</td><td>"一车间" / "A产线" / "制造部" / 区域名 — 三棵树模糊匹配</td></tr>
+        <tr><td class="param">format</td><td class="optional">string?</td><td>"detailed"(默认) | "concise" — concise 只返回汇总指标，不含设备清单</td></tr>
+      </table>
+      <div class="return-block">返回:
+├ 定位: 名称, 层级类型(部门/区域/产线), 上级, 下级列表
+├ 设备汇总: 总数, 按状态分布
+├ 故障汇总: 本月新增, 按紧急度分布
+├ 维修汇总: 进行中数, 本月完成数, 平均修复时间
+├ 保养汇总: 完成率, 逾期数
+├ 巡检汇总: 异常率, 最近异常设备
+├ 备件预警: 该范围设备 BOM 中库存不足的备件
+└ 下级分项概览（如车间→按产线各自的指标）</div>
+      <p style="margin-top: 8px; font-size: 12px; color: var(--gray-500);">覆盖场景: "一车间状态" "A线三项概览" "制造部概览"</p>
+    </div>
+  </div>
+
+  <!-- Tier 2 -->
+  <span class="tier-label tier-2" style="margin-top: 24px;">Tier 2 · 条件搜索 — 7 个</span>
+  <p style="margin-bottom: 8px; color: var(--gray-500);">按 schema 的 7 个业务域各一个搜索工具。统一支持 identifier 智能解析、中等丰富度返回、可选 groupBy 聚合。</p>
+  <p style="margin-bottom: 16px; font-size: 12px; color: var(--gray-500);">统一参数集: 所有 search 工具均支持 <code>format</code>(detailed|concise), <code>sortBy</code>, <code>sortOrder</code>(asc|desc), <code>limit</code>(默认20)。groupBy 结果默认按 count 降序。</p>
+
+  <div class="tool-card">
+    <div class="tool-card-header"><h4>eam.equipment.search</h4><span class="badge">设备搜索</span></div>
+    <div class="tool-card-body">
+      <table class="field-table">
+        <tr><th>参数</th><th>类型</th><th>说明</th></tr>
+        <tr><td class="param">status</td><td class="optional">string?</td><td>运行中/维修中/停机/封存/报废...</td></tr>
+        <tr><td class="param">category</td><td class="optional">string?</td><td>设备分类名称/ID</td></tr>
+        <tr><td class="param">productionLine</td><td class="optional">string?</td><td>产线名/ID（智能解析）</td></tr>
+        <tr><td class="param">department</td><td class="optional">string?</td><td>部门/车间名/ID（智能解析）</td></tr>
+        <tr><td class="param">location</td><td class="optional">string?</td><td>位置/区域名/ID（智能解析）</td></tr>
+        <tr><td class="param">isKey</td><td class="optional">boolean?</td><td>是否重点设备</td></tr>
+        <tr><td class="param">dateRange</td><td class="optional">object?</td><td>{from, to} — 按创建/验收时间过滤</td></tr>
+        <tr><td class="param">groupBy</td><td class="optional">string?</td><td>category / productionLine / status / department — MCP 内部聚合</td></tr>
+      </table>
+      <div class="return-block">每条返回: code, name, category, productionLine, status, 负责人, location
+groupBy 时返回: [{group, count, items_sample}]</div>
+    </div>
+  </div>
+
+  <div class="tool-card">
+    <div class="tool-card-header"><h4>eam.fault.search</h4><span class="badge">故障报修搜索</span></div>
+    <div class="tool-card-body">
+      <table class="field-table">
+        <tr><th>参数</th><th>类型</th><th>说明</th></tr>
+        <tr><td class="param">equipment</td><td class="optional">string?</td><td>设备 name/code/ID（智能解析）</td></tr>
+        <tr><td class="param">productionLine</td><td class="optional">string?</td><td>产线</td></tr>
+        <tr><td class="param">department</td><td class="optional">string?</td><td>部门/车间</td></tr>
+        <tr><td class="param">status</td><td class="optional">string?</td><td>待审核/维修中/已完成...</td></tr>
+        <tr><td class="param">urgency</td><td class="optional">string?</td><td>一般/紧急/特急</td></tr>
+        <tr><td class="param">faultType</td><td class="optional">string?</td><td>故障类型名称/ID</td></tr>
+        <tr><td class="param">dateRange</td><td class="optional">object?</td><td>{from, to}</td></tr>
+        <tr><td class="param">groupBy</td><td class="optional">string?</td><td>equipment / faultType — MCP 内部聚合</td></tr>
+      </table>
+      <div class="return-block">每条返回: reportCode, 设备名, 故障类型, urgency, status, 报修时间, 报修人
+带关联维修工单号（如有）</div>
+    </div>
+  </div>
+
+  <div class="tool-card">
+    <div class="tool-card-header"><h4>eam.repair.search</h4><span class="badge">维修工单搜索</span></div>
+    <div class="tool-card-body">
+      <table class="field-table">
+        <tr><th>参数</th><th>类型</th><th>说明</th></tr>
+        <tr><td class="param">equipment</td><td class="optional">string?</td><td>设备 name/code/ID</td></tr>
+        <tr><td class="param">productionLine</td><td class="optional">string?</td><td>产线（智能解析）</td></tr>
+        <tr><td class="param">department</td><td class="optional">string?</td><td>部门/车间（智能解析）</td></tr>
+        <tr><td class="param">status</td><td class="optional">string?</td><td>待分配/维修中/已完成...</td></tr>
+        <tr><td class="param">orderType</td><td class="optional">string?</td><td>INTERNAL(内修) / EXTERNAL(外协)</td></tr>
+        <tr><td class="param">dateRange</td><td class="optional">object?</td><td>{from, to}</td></tr>
+        <tr><td class="param">groupBy</td><td class="optional">string?</td><td>equipment / orderType</td></tr>
+      </table>
+      <div class="return-block">每条返回（中等丰富度）:
+├ orderCode, status, type, 设备名, 负责人, 日期
+├ 备件: 总费用, 使用件数          ← 汇总
+├ 工时: 总工时, 总人工费           ← 汇总
+├ 知识引用: ["文档A", "文档B"]     ← 标题列表
+└ 出库: 涉及仓库名列表            ← 名称列表</div>
+    </div>
+  </div>
+
+  <div class="tool-card">
+    <div class="tool-card-header"><h4>eam.maintenance.search</h4><span class="badge">保养任务搜索</span></div>
+    <div class="tool-card-body">
+      <table class="field-table">
+        <tr><th>参数</th><th>类型</th><th>说明</th></tr>
+        <tr><td class="param">equipment</td><td class="optional">string?</td><td>设备 name/code/ID</td></tr>
+        <tr><td class="param">productionLine</td><td class="optional">string?</td><td>产线</td></tr>
+        <tr><td class="param">department</td><td class="optional">string?</td><td>部门/车间</td></tr>
+        <tr><td class="param">status</td><td class="optional">string?</td><td>待执行/已完成/已逾期/已跳过</td></tr>
+        <tr><td class="param">overdue</td><td class="optional">boolean?</td><td>仅逾期任务</td></tr>
+        <tr><td class="param">dateRange</td><td class="optional">object?</td><td>{from, to}</td></tr>
+        <tr><td class="param">groupBy</td><td class="optional">string?</td><td>equipment / productionLine — 聚合返回完成率</td></tr>
+        <tr><td class="param">limit</td><td class="optional">number?</td><td>默认 20</td></tr>
+      </table>
+      <div class="return-block">每条返回: taskCode, 设备名, 标准名, status, 计划时间, 完成时间
+带执行记录摘要（正常/异常项数）</div>
+    </div>
+  </div>
+
+  <div class="tool-card">
+    <div class="tool-card-header"><h4>eam.patrol.search</h4><span class="badge">巡检任务搜索</span></div>
+    <div class="tool-card-body">
+      <table class="field-table">
+        <tr><th>参数</th><th>类型</th><th>说明</th></tr>
+        <tr><td class="param">equipment</td><td class="optional">string?</td><td>设备 name/code/ID</td></tr>
+        <tr><td class="param">productionLine</td><td class="optional">string?</td><td>产线</td></tr>
+        <tr><td class="param">department</td><td class="optional">string?</td><td>部门/车间</td></tr>
+        <tr><td class="param">status</td><td class="optional">string?</td><td>待执行/已完成/已逾期</td></tr>
+        <tr><td class="param">dateRange</td><td class="optional">object?</td><td>{from, to}</td></tr>
+        <tr><td class="param">groupBy</td><td class="optional">string?</td><td>equipment / plan</td></tr>
+        <tr><td class="param">limit</td><td class="optional">number?</td><td>默认 20</td></tr>
+      </table>
+      <div class="return-block">每条返回: taskCode, 计划名, 设备名, status, 计划/完成时间
+带异常项数/总检查项数</div>
+    </div>
+  </div>
+
+  <div class="tool-card">
+    <div class="tool-card-header"><h4>eam.anomaly.search</h4><span class="badge">异常记录搜索</span></div>
+    <div class="tool-card-body">
+      <table class="field-table">
+        <tr><th>参数</th><th>类型</th><th>说明</th></tr>
+        <tr><td class="param">equipment</td><td class="optional">string?</td><td>设备 name/code/ID</td></tr>
+        <tr><td class="param">productionLine</td><td class="optional">string?</td><td>产线（智能解析）</td></tr>
+        <tr><td class="param">department</td><td class="optional">string?</td><td>部门/车间（智能解析）</td></tr>
+        <tr><td class="param">severity</td><td class="optional">string?</td><td>Low/Medium/High</td></tr>
+        <tr><td class="param">source</td><td class="optional">string?</td><td>PATROL/IOT/MANUAL</td></tr>
+        <tr><td class="param">dateRange</td><td class="optional">object?</td><td>{from, to}</td></tr>
+        <tr><td class="param">groupBy</td><td class="optional">string?</td><td>equipment / severity / source</td></tr>
+      </table>
+      <div class="return-block">每条返回: 设备名, severity, source, description, 发现时间
+带"是否已升级为故障报修"标志</div>
+    </div>
+  </div>
+
+  <div class="tool-card">
+    <div class="tool-card-header"><h4>eam.spare.search</h4><span class="badge">备件搜索</span></div>
+    <div class="tool-card-body">
+      <table class="field-table">
+        <tr><th>参数</th><th>类型</th><th>说明</th></tr>
+        <tr><td class="param">identifier</td><td class="optional">string?</td><td>备件 name/code/ID</td></tr>
+        <tr><td class="param">equipment</td><td class="optional">string?</td><td>查 BOM 关联：这台设备需要哪些件</td></tr>
+        <tr><td class="param">category</td><td class="optional">string?</td><td>备件分类</td></tr>
+        <tr><td class="param">lowStock</td><td class="optional">boolean?</td><td>仅库存不足/预警</td></tr>
+        <tr><td class="param">limit</td><td class="optional">number?</td><td>默认 20</td></tr>
+      </table>
+      <div class="return-block">每条返回: code, name, 分类, 库存水位(当前/安全), 关联设备数
+带替代件信息（如有）</div>
+    </div>
+  </div>
+
+  <!-- Tier 3 -->
+  <span class="tier-label tier-3" style="margin-top: 24px;">Tier 3 · 全局分析 — 2 个</span>
+
+  <div class="tool-card">
+    <div class="tool-card-header" style="background: var(--green-50);">
+      <h4>eam.dashboard</h4><span class="badge">全局仪表盘</span>
+    </div>
+    <div class="tool-card-body">
+      <table class="field-table">
+        <tr><th>参数</th><th>类型</th><th>说明</th></tr>
+        <tr><td class="param">dateRange</td><td class="optional">object?</td><td>{from, to}，默认当月</td></tr>
+        <tr><td class="param">format</td><td class="optional">string?</td><td>"detailed"(默认) | "concise" — concise 只返回核心数字</td></tr>
+      </table>
+      <div class="return-block">返回:
+├ 设备: 总数, 按状态分布
+├ 故障: 本期新增, 按状态/紧急度分布
+├ 维修: 按状态分布, 平均修复时间
+├ 保养: 完成率, 逾期数
+├ 巡检: 完成率, 异常率
+├ 备件: 预警数, 本期消耗 top5
+└ 待办: 当前用户待处理事项</div>
+    </div>
+  </div>
+
+  <div class="tool-card">
+    <div class="tool-card-header" style="background: var(--green-50);">
+      <h4>eam.trend</h4><span class="badge">趋势分析</span>
+    </div>
+    <div class="tool-card-body">
+      <table class="field-table">
+        <tr><th>参数</th><th>类型</th><th>说明</th></tr>
+        <tr><td class="param">domain</td><td>string</td><td>fault / repair / maintenance / patrol / anomaly / spare</td></tr>
+        <tr><td class="param">dateRange</td><td>object</td><td>{from, to}</td></tr>
+        <tr><td class="param">groupBy</td><td class="optional">string?</td><td>day / week / month（时间粒度）</td></tr>
+        <tr><td class="param">splitBy</td><td class="optional">string?</td><td>equipment / productionLine / department — 分组对比</td></tr>
+        <tr><td class="param">equipment</td><td class="optional">string?</td><td>限定设备范围</td></tr>
+        <tr><td class="param">productionLine</td><td class="optional">string?</td><td>限定产线范围</td></tr>
+        <tr><td class="param">department</td><td class="optional">string?</td><td>限定部门/车间范围</td></tr>
+        <tr><td class="param">format</td><td class="optional">string?</td><td>"detailed"(默认) | "concise"</td></tr>
+      </table>
+      <div class="return-block">返回: [{period, value, ...splitFields}]
+例: [{month: "2026-01", faultCount: 12, productionLine: "A线"}, ...]</div>
+    </div>
+  </div>
+</div>
+
+<!-- 4. 设计原则 -->
+<div class="section">
+  <h2>4. 统一设计原则（12 条）</h2>
+  <ol class="principle-list">
+    <li><strong>identifier 智能解析</strong> — 所有工具的 equipment / productionLine / department 参数接受 name/code/ID，MCP 内部模糊匹配后确定实体。<span style="color: var(--gray-500);">来源: Anthropic Poka-yoke 防错设计</span></li>
+    <li><strong>层级自动识别</strong> — scope_overview 在 Department树/Location树/ProductionLine 中自动匹配层级，AI 不需要判断用户说的是部门还是产线</li>
+    <li><strong>结果自带上下文</strong> — 不返回裸 ID，所有返回数据带设备名/产线名/负责人等人类可读信息。<span style="color: var(--gray-500);">来源: Anthropic "return only high signal information"</span></li>
+    <li><strong>search 中等丰富度</strong> — 子表返回摘要/名称列表，不返回完整明细。需要明细时用 profile 工具</li>
+    <li><strong>search 支持 groupBy</strong> — 可选参数，MCP 内部聚合返回统计结果。<strong>groupBy 结果默认按 count 降序排列</strong></li>
+    <li><strong>权限透传</strong> — 带用户 token 调 EAM API，后端框架自动按 dept_id 过滤数据（5 级 dataScope）</li>
+    <li style="border-left-color: var(--green-700);"><strong>response_format 参数</strong> — <strong>所有工具</strong>（不只是 Tier 1）支持 <code>format: "detailed" | "concise"</code>。AI 按需控制返回量。<span style="color: var(--gray-500);">来源: Anthropic 工具设计指南</span></li>
+    <li style="border-left-color: var(--green-700);"><strong>工具描述 = Prompt 工程</strong> — 每个工具的 <code>description</code> / <code>when_to_use</code> / <code>when_not_to_use</code> 要精心打磨。<span style="color: var(--gray-500);">来源: Anthropic 实测 — 优化工具描述比优化 system prompt 效果更大</span></li>
+    <li style="border-left-color: var(--green-700);"><strong>层级前缀命名</strong> — <code>eam.&lt;domain&gt;.&lt;action&gt;</code> 格式。扩展时 <code>mes.xxx</code> / <code>wms.xxx</code> 自然分隔。<span style="color: var(--gray-500);">来源: Anthropic 推荐 prefix/suffix-based namespacing</span></li>
+    <li style="border-left-color: var(--amber-700);"><strong>多匹配策略</strong> — identifier 匹配到多个实体时: exact match > startsWith > contains。仍有多个则返回候选列表（最多 5 个），由 AI 追问用户确认。</li>
+    <li style="border-left-color: var(--amber-700);"><strong>scope_overview 匹配优先级</strong> — <strong>ProductionLine > Department > Location</strong>。EAM 语境下用户更常按产线/部门说话，较少按物理位置。</li>
+    <li style="border-left-color: var(--amber-700);"><strong>search 统一参数集</strong> — 所有 search 工具统一支持 <code>format</code> / <code>sortBy</code> / <code>sortOrder</code>(asc|desc) / <code>limit</code>。维度参数（productionLine / department）尽量对齐。</li>
+  </ol>
+</div>
+
+<!-- 5. 新旧对比 -->
+<div class="section">
+  <h2>5. 新旧对比</h2>
+  <table class="compare-table">
+    <tr><th>场景（Benchmark 测试题）</th><th>旧 22 工具</th><th>新 12 工具</th></tr>
+    <tr>
+      <td>T03 "EQ-001 详细信息"</td>
+      <td class="old">query_equipment + get_equipment_detail (2次)</td>
+      <td class="new">eam.equipment.profile (1次)</td>
+    </tr>
+    <tr>
+      <td>T12 "WO-001 用了哪些备件"</td>
+      <td class="old">query_repair_orders + get_repair_detail (2次)</td>
+      <td class="new">eam.repair.profile (1次)</td>
+    </tr>
+    <tr>
+      <td>T22 "EQ-003 BOM 库存不足"</td>
+      <td class="old">query_equipment + get_equipment_spare_bom + get_spare_stock (3次)</td>
+      <td class="new">eam.equipment.profile (1次)</td>
+    </tr>
+    <tr>
+      <td>T27 "WO-005 出库涉及哪些仓库"</td>
+      <td class="old">query_repair_orders + get_repair_detail + query_spare_transactions (3次)</td>
+      <td class="new">eam.repair.profile (1次)</td>
+    </tr>
+    <tr>
+      <td>T32 "A线三项概览"</td>
+      <td class="old">query_equipment + query_fault_reports + query_maintenance_tasks + get_patrol_analytics (4次)</td>
+      <td class="new">eam.scope.overview (1次)</td>
+    </tr>
+    <tr>
+      <td>"一车间什么状态"</td>
+      <td class="old">无法覆盖（没有车间级工具）</td>
+      <td class="new">eam.scope.overview (1次)</td>
+    </tr>
+    <tr>
+      <td>AI 路由难度</td>
+      <td class="old">选对多步骤序列（先查ID→再查详情→再查关联）</td>
+      <td class="new">选对域即可</td>
+    </tr>
+  </table>
+</div>
+
+<!-- 5.5 工具边界定义 -->
+<div class="section">
+  <h2>5.5 工具边界定义</h2>
+  <p>审查中发现的边界模糊点，在此明确定义。</p>
+  <table class="compare-table">
+    <tr><th style="width: 30%">边界</th><th>定义</th></tr>
+    <tr>
+      <td><strong>eam.dashboard vs eam.scope.overview</strong></td>
+      <td>
+        <strong>dashboard</strong> = 全局指标快照（数字为主，跨域汇总，无设备清单）。"系统概况""总共多少设备" → dashboard<br>
+        <strong>scope_overview</strong> = 范围画像（含设备清单、下级分项、更像"报告"）。"一车间怎么样""A线概览" → scope_overview
+      </td>
+    </tr>
+    <tr>
+      <td><strong>eam.scope.overview 数据量控制</strong></td>
+      <td>
+        只展开直接下级（不递归）<br>
+        concise 模式不含设备清单，只有指标<br>
+        设备列表 limit 默认 50
+      </td>
+    </tr>
+    <tr>
+      <td><strong>eam.repair.profile 多入口</strong></td>
+      <td>
+        接受三种标识符: orderCode ("WO-005") / faultReportCode ("FR-001") / 数字 ID<br>
+        MCP 内部自动判断类型并解析（Poka-yoke — 不要求用户知道工单号才能查工单）
+      </td>
+    </tr>
+    <tr>
+      <td><strong>identifier 多匹配处理</strong></td>
+      <td>
+        匹配策略: exact match > startsWith > contains<br>
+        仍有多个候选 → 返回列表（最多 5 个），由 AI 追问用户<br>
+        精确匹配到唯一结果 → 直接返回数据
+      </td>
+    </tr>
+    <tr>
+      <td><strong>search profile vs search</strong></td>
+      <td>
+        <strong>profile</strong> = 单个实体全景（深度，一个实体的全部关联信息）<br>
+        <strong>search</strong> = 多个实体列表（广度，每条中等丰富度，支持过滤和聚合）<br>
+        "WO-005 用了什么备件" → profile；"上月的维修工单" → search
+      </td>
+    </tr>
+  </table>
+</div>
+
+<!-- 6. 设计演进 -->
+<div class="section">
+  <h2>6. 设计演进记录</h2>
+  <div class="timeline">
+    <div class="timeline-item done">
+      <div class="label">初版设计</div>
+      <div class="desc">11 个工具，Tier 1 / Tier 2 / Tier 3 三层结构确立</div>
+    </div>
+    <div class="timeline-item done">
+      <div class="label">自审 #1 — 补 search_equipment</div>
+      <div class="desc">设备是引力中心，不能只有 profile 没有列表搜索。+1 → 12 个工具</div>
+    </div>
+    <div class="timeline-item done">
+      <div class="label">自审 #2 — search 返回丰富度</div>
+      <div class="desc">定义"中等丰富度"：子表返回摘要/名称列表，不返回完整明细</div>
+    </div>
+    <div class="timeline-item done">
+      <div class="label">自审 #3 — groupBy 支持</div>
+      <div class="desc">排名/聚合类查询（"故障最多的设备"）由 MCP 内部聚合，不让 AI 处理大量原始数据</div>
+    </div>
+    <div class="timeline-item done">
+      <div class="label">演进 #4 — production_line_overview → scope_overview</div>
+      <div class="desc">支持 Department/Location/ProductionLine 三棵树任意层级。厂长说"一车间"和车间主任说"A产线"，同一个工具接住</div>
+    </div>
+    <div class="timeline-item done">
+      <div class="label">演进 #5 — search 工具增加 department 参数</div>
+      <div class="desc">支持按组织维度过滤，与 scope_overview 的层级能力对齐</div>
+    </div>
+    <div class="timeline-item done">
+      <div class="label">演进 #6 — 业界调研验证</div>
+      <div class="desc">Anthropic 官方指南 + Context Engineering + DDD for MCP 三方向吻合，设计方向正确</div>
+    </div>
+    <div class="timeline-item done">
+      <div class="label">演进 #7 — response_format 参数</div>
+      <div class="desc">所有工具支持 format: "detailed" | "concise"，AI 按需控制返回量（Anthropic 推荐）</div>
+    </div>
+    <div class="timeline-item done">
+      <div class="label">演进 #8 — 工具描述 = Prompt 工程</div>
+      <div class="desc">description / when_to_use / when_not_to_use 精心打磨。Anthropic: 比优化 system prompt 效果更大</div>
+    </div>
+    <div class="timeline-item done">
+      <div class="label">演进 #9 — 层级前缀命名</div>
+      <div class="desc">eam.&lt;domain&gt;.&lt;action&gt; 格式，为多系统扩展预留命名空间</div>
+    </div>
+    <div class="timeline-item done">
+      <div class="label">演进 #10 — 原则对照自审（6 必修 + 4 改进）</div>
+      <div class="desc">
+        修复: repair.search/anomaly.search 补 productionLine+department，equipment.search 补 dateRange+location，trend 补 department，format 扩展到所有工具，repair.profile 支持 faultReportCode，统一 sortBy/sortOrder<br>
+        改进: 多匹配策略(exact>startsWith>contains)，scope 匹配优先级，dashboard vs scope 边界，数据量控制
+      </div>
+    </div>
+    <div class="timeline-item">
+      <div class="label">下一步</div>
+      <div class="desc">打磨工具描述(when_to_use/when_not_to_use) → API 映射 → YAML 声明 → MCP Server 实现 → Benchmark 验证</div>
+    </div>
+  </div>
+</div>
+
+<!-- 7. 暂不做 -->
+<div class="section">
+  <h2>7. 暂不做（按需后加）</h2>
+  <div class="not-doing">
+    <div class="not-doing-item">
+      <div class="name">fault_report_profile</div>
+      <div class="reason">单独查故障报修详情不常见，通常看工单</div>
+    </div>
+    <div class="not-doing-item">
+      <div class="name">search_stock_transactions</div>
+      <div class="reason">备件出入库流转太细节，先不做</div>
+    </div>
+    <div class="not-doing-item">
+      <div class="name">search_knowledge</div>
+      <div class="reason">知识文档搜索已被 repair_order_profile 的知识引用覆盖</div>
+    </div>
+    <div class="not-doing-item">
+      <div class="name">calibration 相关</div>
+      <div class="reason">校准是专业领域，EAM 第一版先不做</div>
+    </div>
+  </div>
+</div>
+
+<!-- 8. P3 展望 -->
+<div class="section">
+  <h2>8. P3 展望：API Schema 推断引擎</h2>
+  <p>EAM 是第一个手工走通"Schema → MCP 设计"的案例。对于没有源码的系统，通过 API 抓包也能推断出 schema：</p>
+  <div class="schema-box"><span class="highlight">抓包(HAR/mitmproxy)</span> → <span class="green">API 录制</span> → <span class="amber">Schema 推断引擎</span> → <span class="highlight">实体关系图</span> → <span class="green">MCP 工具设计</span>
+
+<span class="dim">推断能力：</span>
+<span class="dim">  URL 路径模式    →  实体名 + CRUD 操作</span>
+<span class="dim">  响应 JSON 字段  →  字段名、类型</span>
+<span class="dim">  xxxId 字段      →  外键关系 → 实体间连接</span>
+<span class="dim">  parentId        →  树形结构</span>
+<span class="dim">  status 值域     →  状态机 / 枚举</span></div>
+  <p style="margin-top: 12px; color: var(--gray-500); font-size: 13px;">这是 Insight68 从"做一个 EAM"到"做任何企业系统"的关键基础设施。EAM 手工走通后抽象成标准化工具。</p>
+</div>
+
+</div>
+</body>
+</html>
