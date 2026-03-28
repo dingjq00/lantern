@@ -1,0 +1,109 @@
+# eam.spare.search — 备件搜索
+# Tier 2 Search Tool: 备件列表搜索 + 设备BOM关联查询，含库存水位和关联设备数
+# 备件是横切域，同时关联维修和库存，有两种使用模式
+
+name: eam.spare.search
+description: >
+  按条件搜索备件列表，支持两种模式：
+  1. 设备BOM模式 — 传 equipment 参数，返回该设备需要的备件清单（BOM）及每个备件的当前库存；
+  2. 通用搜索模式 — 按备件名称/编号、分类、库存预警过滤，返回备件列表 + 库存水位 + 关联设备数。
+  每个备件返回当前库存量、库存上下限、是否低于安全库存（lowStock标记）、关联了多少台设备。
+  适用场景：查某台设备需要什么备件、查库存不足的备件、按名称搜备件信息。
+version: "1.0"
+system: eam
+type: simple
+maps_to: eam.spare.search
+domains:
+  - spare
+operation: search
+
+input_schema:
+  properties:
+    identifier:
+      type: string
+      description: >
+        备件名称或备件编号。用于模糊搜索备件。
+        用户说"轴承""BJ-001"时传入对应的名称或编号。
+        这是通用搜索模式的主要过滤条件。
+    equipment:
+      type: string
+      description: >
+        设备名称、设备编号或设备ID。传此参数进入 BOM 模式：
+        查询该设备的备件清单（BOM），返回每个备件的需求数量和当前库存。
+        用户说"这台设备需要什么备件""CNC-001的备件清单"时传入。
+        注意：equipment 参数优先级最高，传了 equipment 则忽略 identifier/category/lowStock。
+    category:
+      type: string
+      description: >
+        备件分类名称或ID。用于按分类过滤备件。
+        用户说"轴承类备件""电气备件"时传入分类名。
+    lowStock:
+      type: boolean
+      description: >
+        仅筛选库存不足/低于安全库存的备件。true=只返回当前库存≤库存下限的备件。
+        用户说"库存不足的备件""备件预警""哪些备件需要补货"时传true。
+    format:
+      type: string
+      description: >
+        返回格式。detailed=完整字段（含规格型号、单位、参考价格、库存上下限），
+        concise=仅编号+名称+当前库存+是否低库存+关联设备数。
+      enum: [detailed, concise]
+      default: detailed
+    sortBy:
+      type: string
+      description: "排序字段"
+    sortOrder:
+      type: string
+      description: "排序方向"
+      enum: [asc, desc]
+    limit:
+      type: integer
+      description: "返回条数上限，默认20"
+      default: 20
+
+supports_filters:
+  - identifier
+  - equipment
+  - category
+  - lowStock
+
+returns:
+  - spare_list
+  - spare_count
+  - stock_levels
+  - low_stock_flag
+  - associated_equipment_count
+  - bom_list
+
+feeds_into:
+  - eam.equipment.profile
+  - eam.repair.profile
+
+depends_on: []
+
+quality: 85
+cost: medium
+
+when_to_use: |
+  - 用户查某台设备的备件清单，如"CNC-001需要哪些备件""这台设备的BOM"
+  - 用户查库存预警，如"哪些备件库存不足""备件预警清单""需要补货的备件"
+  - 用户按名称/编号搜备件，如"轴承的库存是多少""BJ-001还有多少"
+  - 用户想了解备件和设备的关联，如"这个备件用在哪些设备上"（通过 equipmentCount 字段）
+
+when_not_to_use: |
+  - 用户想看维修工单用了哪些备件（维修工单的备件消耗明细） → 用 eam.repair.profile
+  - 用户想看备件出入库流水/库存变动历史 → 当前无此工具
+  - 用户想看全局备件预警数字（不看列表） → 用 eam.dashboard
+
+examples:
+  - query: "CNC-001需要哪些备件？"
+    arguments:
+      equipment: "CNC-001"
+  - query: "哪些备件库存不足需要补货？"
+    arguments:
+      lowStock: true
+      format: concise
+  - query: "6205轴承还有多少库存？"
+    arguments:
+      identifier: "6205轴承"
+      format: detailed

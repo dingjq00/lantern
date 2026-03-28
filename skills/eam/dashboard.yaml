@@ -1,0 +1,64 @@
+# Tier 3: 全局分析 — 仪表盘
+# 全局指标快照，跨所有域聚合。并行调 8+ 个统计 API 一次返回全景数据。
+# 边界：仅全局视角，不用于特定范围（车间/产线/部门）。
+
+name: eam.dashboard
+description: >
+  获取 EAM 系统全局仪表盘指标快照。一次调用并行聚合 8 类统计接口，
+  返回设备总数及按状态分布、故障报修按状态分布、维修工单按状态分布、
+  保养完成率与逾期数、巡检完成率与异常率、备件库存预警数、待办事项列表。
+  适用于管理层全局视角的"系统总体怎么样"类问题。
+  不适用于查看某个车间/产线/部门的局部概况（应使用 eam.scope.overview）。
+version: 1.0.0
+system: eam
+type: simple
+maps_to: eam.dashboard
+
+domains:
+  - equipment
+  - fault
+  - repair
+  - maintenance
+  - patrol
+  - spare
+
+operation: dashboard
+
+input_schema:
+  type: object
+  required: []
+  properties:
+    format:
+      type: string
+      enum: [detailed, concise]
+      default: detailed
+      description: >
+        返回详细程度。detailed 返回各域完整的按状态分布明细和待办列表；
+        concise 只返回核心数字（设备总数/运行/故障、故障待处理、维修待处理、
+        保养待处理、备件预警数、待办总数），适合快速概览或作为后续分析的前置判断。
+
+when_to_use:
+  - 用户询问系统整体概况，如"系统怎么样""给我一个全局概览""EAM 总体情况"
+  - 用户询问全局维度的统计数字，如"总共有多少设备""有多少台设备在运行""故障报修积压了多少"
+  - 用户询问待办或预警汇总，如"我有多少待办""备件有没有预警""保养逾期了多少"
+  - 管理层需要快速了解各域健康度的全景数据，如"今天的运维日报数据""各项指标汇总"
+  - 作为分析链的起点——先全局快照再深入某个域，如"先看看整体，再看故障明细"
+
+when_not_to_use:
+  - 用户询问某个车间/产线/部门的概况 → 使用 eam.scope.overview（如"一车间怎么样""A线概览""研发部设备情况"）
+  - 用户询问特定设备的详情 → 使用 eam.equipment.profile（如"CNC-001 什么情况"）
+  - 用户需要时间趋势或变化分析 → 使用 eam.trend（如"上月故障趋势""保养完成率变化"）
+
+examples:
+  - query: "系统现在总体情况怎么样"
+    arguments: {}
+    notes: 无参数，返回 detailed 全景快照
+
+  - query: "总共有多少设备？运行中多少台？"
+    arguments:
+      format: concise
+    notes: 只关心核心数字，concise 减少 token 开销
+
+  - query: "目前有多少待办和预警？"
+    arguments: {}
+    notes: 从 detailed 结果中读取 todoList 和 spareAlerts

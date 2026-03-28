@@ -1,0 +1,98 @@
+# Skill: eam.scope.overview — 范围概览画像
+# Tier 1 实体全景 | 1:1 映射到 MCP 工具
+# 设计依据: project_mcp_redesign.md + Anthropic tool description 最佳实践
+
+name: eam.scope.overview
+version: "1.0"
+system: eam
+type: simple          # 1:1 Skill → MCP Tool 映射
+maps_to: eam.scope.overview
+
+description: |
+  获取某个组织/空间范围的概览画像。输入车间名、产线名、部门名或区域名（任一均可），
+  MCP 会自动在三棵树中匹配（优先级：产线 > 部门 > 位置），无需 AI 判断属于哪棵树。
+  返回该范围下的：设备列表与状态分布、故障汇总、维修汇总、保养完成率、异常汇总。
+  只展开直接下级，不递归展开孙级（避免数据爆炸）。
+  当匹配到多个范围时会返回候选列表，由 AI 追问用户确认。
+
+domains:
+  - equipment
+  - fault-repair
+  - maintenance
+  - patrol
+
+operation: statistics
+
+# --- 输入参数 ---
+input_schema:
+  type: object
+  required:
+    - identifier
+  properties:
+    identifier:
+      type: string
+      description: |
+        范围名称，可以是以下任一种（MCP 会自动识别属于哪棵树）：
+        1. 产线名 — 如 "A线"、"SMT产线"、"注塑1号线"
+        2. 部门名/车间名 — 如 "一车间"、"机加车间"、"研发部"、"设备管理部"
+        3. 区域名 — 如 "厂区A"、"北厂区"
+        匹配优先级：产线 > 部门 > 位置。这个优先级符合 EAM 语境下用户的表达习惯。
+    format:
+      type: string
+      enum: [detailed, concise]
+      default: detailed
+      description: |
+        返回详细程度：
+        - detailed（默认）：汇总指标 + 该范围下的设备清单（最多 50 台，含编号/名称/状态/是否关键设备）
+        - concise：仅返回汇总指标，不含设备清单，适合快速了解范围健康度或多范围对比
+
+# --- 返回内容 ---
+returns:
+  - scope（范围定位：类型[productionLine/department/location] + 名称 + ID）
+  - equipment.total（设备总数）
+  - equipment.statusDistribution（设备状态分布：运行中/维修中/停机/封存...各多少台）
+  - equipment.keyEquipmentCount（关键设备数量）
+  - fault.total + fault.pending（故障总数 + 待处理数）
+  - repair.total + repair.inProgress（维修工单总数 + 进行中数）
+  - maintenance.total + maintenance.completed + maintenance.completionRate + maintenance.overdue（保养总数/已完成/完成率/逾期数）
+  - anomaly.total（异常记录总数）
+  - equipmentList（仅 detailed 模式：设备清单，每台含编号/名称/状态/是否关键设备，最多 50 台）
+
+# --- 工具链路 ---
+feeds_into:
+  - eam.equipment.profile   # 看完范围概览后，用户可能想深入某台设备
+  - eam.equipment.search    # 用户可能想按条件进一步筛选该范围的设备
+depends_on: []               # 不依赖其他工具
+
+quality: 90            # 范围级汇总最完整的工具，但不含单设备细节
+cost: high             # 需要查设备列表 + 4 域并行汇总，成本较高
+
+# --- 使用场景 ---
+when_to_use: |
+  - 用户问某个车间/产线/部门的整体情况：如"一车间怎么样""A线概览""机加车间设备情况"
+  - 用户想了解某个范围的设备健康度：如"注塑产线有多少设备在运行""研发部设备故障多不多"
+  - 用户想看某个范围的维修/保养/巡检汇总：如"二车间保养完成率多少""A线最近故障多吗"
+  - 用户想对比两个范围：如"一车间和二车间哪个故障更多"（对每个范围调用一次，用 concise 模式）
+  - 管理层日常巡查：如"生产部下面各车间今天什么情况"
+
+when_not_to_use: |
+  - 用户想看全局/全厂概况，而不是某个具体范围 → 用 eam.dashboard
+  - 用户问的是某台具体设备的详情 → 用 eam.equipment.profile
+  - 用户想按复杂条件筛选设备（如"所有停机的关键设备"） → 用 eam.equipment.search
+
+# --- 示例 ---
+examples:
+  - query: "一车间目前的设备运行情况怎么样？"
+    arguments:
+      identifier: "一车间"
+      format: "detailed"
+
+  - query: "A线和B线哪个故障更多？"
+    arguments:
+      identifier: "A线"
+      format: "concise"
+
+  - query: "研发部有多少设备？保养完成率多少？"
+    arguments:
+      identifier: "研发部"
+      format: "detailed"

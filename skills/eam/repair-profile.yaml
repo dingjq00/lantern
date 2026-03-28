@@ -1,0 +1,96 @@
+# Skill: eam.repair.profile — 维修工单全景画像
+# Tier 1 实体全景 | 1:1 映射到 MCP 工具
+# 设计依据: project_mcp_redesign.md + Anthropic tool description 最佳实践
+
+name: eam.repair.profile
+version: "1.0"
+system: eam
+type: simple          # 1:1 Skill → MCP Tool 映射
+maps_to: eam.repair.profile
+
+description: |
+  获取单张维修工单的全景画像。支持三种入口标识符（Poka-yoke 防错设计）：
+  维修工单号（如 RO202603110001）、故障报修号（如 FR202603260105）、数字 ID。
+  从故障报修号入口时，会自动追溯到关联的维修工单。
+  返回完整维修链路：工单基础信息、关联故障报修、设备信息、备件使用明细、工时明细、
+  知识引用（历史经验）、出库单、操作日志。
+  内部会并行调用 7 个后端 API 并自动聚合，AI 无需逐一编排。
+  当匹配到多张工单时会返回候选列表，由 AI 追问用户确认。
+
+domains:
+  - fault-repair
+  - spare
+  - knowledge
+
+operation: detail
+
+# --- 输入参数 ---
+input_schema:
+  type: object
+  required:
+    - identifier
+  properties:
+    identifier:
+      type: string
+      description: |
+        维修工单标识符，接受三种形式（Poka-yoke 防错设计）：
+        1. 维修工单号 — 如 "RO202603110001"（以 RO 开头的编号）
+        2. 故障报修号 — 如 "FR202603260105"（以 FR 开头的编号，会自动追溯关联工单）
+        3. 数字 ID — 如 "5023"（纯数字会直接按 ID 查询）
+        用户说"工单号""维修单""报修单"时，都可以用此参数传入。
+    format:
+      type: string
+      enum: [detailed, concise]
+      default: detailed
+      description: |
+        返回详细程度：
+        - detailed（默认）：全景信息，包含工单+故障报修+设备+备件使用+工时+知识引用+出库单+操作日志
+        - concise：仅返回工单基础信息+故障报修摘要+设备名称，省略操作日志和出库明细
+
+# --- 返回内容 ---
+returns:
+  - repairOrder（工单基础信息：编号/状态/类型/设备ID/报修ID/负责人/维修时长/人工成本/材料成本）
+  - faultReport（关联故障报修：报修编号/紧急程度/状态/故障描述/故障时间）
+  - equipment（关联设备：编号/名称/状态/位置）
+  - spareUsage（备件使用明细：哪些备件、用了多少）
+  - workload（工时明细：谁干了多久）
+  - knowledgeRefs（知识引用：维修过程参考了哪些历史经验文档）
+  - stockOutOrders（出库单：备件从哪个仓库出的）
+  - operationLogs（操作日志：工单流转全过程记录）
+
+# --- 工具链路 ---
+feeds_into: []         # 全景工具是终点
+depends_on: []         # 不依赖其他工具（三种入口自行解析）
+
+quality: 95            # 维修链路最完整的查询工具
+cost: medium           # 并行调 7 个 API，适中成本
+
+# --- 使用场景 ---
+when_to_use: |
+  - 用户问某张维修工单的详情：如"RO202603110001 什么情况""这个工单进展如何""维修单 5023 的详细信息"
+  - 用户从故障报修追踪维修进展：如"FR202603260105 修了没有""这个报修单的维修进展怎么样了"
+  - 用户问维修工单用了哪些备件或花了多少工时：如"这张工单用了什么备件""维修成本是多少"
+  - 用户问维修过程参考了什么知识/经验：如"修这台设备参考了什么历史经验"
+  - 需要分析单张工单的完整维修链路：故障发生→报修→分配→维修→用件→完工
+
+when_not_to_use: |
+  - 用户想查多张工单的列表或按条件筛选工单 → 用 eam.repair.search
+  - 用户问的是某台设备的综合状况（不仅维修） → 用 eam.equipment.profile
+  - 用户想看维修相关的统计趋势（如本月工单数变化） → 用 eam.trend
+
+# --- 示例 ---
+examples:
+  - query: "维修工单 RO202603110001 的详细情况"
+    arguments:
+      identifier: "RO202603110001"
+      format: "detailed"
+
+  - query: "报修单 FR202603260105 修好了没有？"
+    arguments:
+      identifier: "FR202603260105"
+      format: "detailed"
+
+  - query: "快速看下工单 5023 的状态和负责人"
+    arguments:
+      identifier: "5023"
+      format: "concise"

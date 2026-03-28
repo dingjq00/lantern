@@ -3,95 +3,78 @@
     "type": "single_round",
     "query": "系统里有多少台设备？",
     "round0": {
-      "thought": "[意图] 查设备总数，属于统计类 [候选] get_dashboard_summary [审查] dashboard 直接返回设备总数 [规划] 一个工具搞定 [验证] 覆盖",
+      "thought": "[意图] 查设备总数，全局统计 [候选] eam.dashboard [审查] dashboard 返回设备总数和按状态分布 [规划] 一个工具搞定 [验证] 覆盖",
       "intent": {"domains": ["equipment"], "operation": "statistics", "filters": []},
       "clarity": "clear",
-      "calls": [{"tool": "get_dashboard_summary", "arguments": {}}]
+      "calls": [{"tool": "eam.dashboard", "arguments": {"format": "concise"}}]
     },
     "finish": true,
-    "note": "简单查询，2 次 think（规划+finish）"
+    "note": "全局统计 → dashboard，concise 模式省 token"
   },
   {
     "type": "single_round",
     "query": "设备 EQ-001 最近一次保养是什么时候？",
     "round0": {
-      "thought": "[意图] 查某台设备的保养记录，涉及 equipment 定位 + maintenance 查询 [候选] query_equipment, query_maintenance_tasks [审查] query_equipment 用关键字定位设备ID，query_maintenance_tasks 按设备查保养任务列表含时间 [规划] 先查设备再查保养，用引用传 ID [验证] 设备ID+保养任务列表=能找到最近一次保养时间",
-      "intent": {"domains": ["equipment", "maintenance"], "operation": "detail", "filters": ["keyword"]},
+      "thought": "[意图] 查某台设备的保养记录 [候选] eam.equipment.profile, eam.maintenance.search [审查] equipment.profile 已包含近5条保养任务，一个工具就够 [规划] 直接传设备编号 [验证] profile 包含保养数据，覆盖",
+      "intent": {"domains": ["equipment", "maintenance"], "operation": "detail", "filters": ["equipment"]},
       "clarity": "clear",
-      "calls": [
-        {"tool": "query_equipment", "arguments": {"keyword": "EQ-001"}},
-        {"tool": "query_maintenance_tasks", "arguments": {"equipmentId": "{{0.items[0].equipmentId}}"}}
-      ]
+      "calls": [{"tool": "eam.equipment.profile", "arguments": {"identifier": "EQ-001"}}]
     },
     "finish": true,
-    "note": "有依赖的工具用 {{0.xxx}} 引用，一轮完成"
+    "note": "单台设备的保养信息 → profile 已包含，不需要分别查"
   },
   {
     "type": "single_round",
-    "query": "CNC-001 上季度故障和保养的交叉分析",
+    "query": "维修工单 WO-201 用了哪些备件？",
     "round0": {
-      "thought": "[意图] 跨域分析故障+保养，涉及 fault-repair 和 maintenance [候选] query_fault_reports, query_maintenance_tasks [审查] 两个工具都支持 equipmentId+dateRange，可直接查 [规划] 并行查两个域 [验证] 故障列表+保养列表=可做交叉分析",
-      "intent": {"domains": ["fault-repair", "maintenance"], "operation": "list", "filters": ["equipmentId", "dateRange"]},
+      "thought": "[意图] 查维修工单的备件明细 [候选] eam.repair.profile [审查] repair.profile 返回备件使用明细+工时+知识引用+出库单，一个工具搞定 [规划] 直接传工单号 [验证] 覆盖",
+      "intent": {"domains": ["fault-repair", "spare"], "operation": "detail", "filters": []},
       "clarity": "clear",
-      "calls": [
-        {"tool": "query_fault_reports", "arguments": {"equipmentId": 101, "dateRange": {"start": "2026-01-01", "end": "2026-03-31"}}},
-        {"tool": "query_maintenance_tasks", "arguments": {"equipmentId": 101, "dateRange": {"start": "2026-01-01", "end": "2026-03-31"}}}
-      ]
+      "calls": [{"tool": "eam.repair.profile", "arguments": {"identifier": "WO-201"}}]
     },
     "finish": true,
-    "note": "无依赖的并行查询，一轮完成"
-  },
-  {
-    "type": "multi_round",
-    "query": "维修工单 WO-201 用了哪些备件？这些备件的库存够不够？",
-    "round0": {
-      "thought": "[意图] 查维修工单的备件+库存，涉及 fault-repair 和 spare [候选] get_repair_detail, get_spare_stock [审查] get_repair_detail 返回备件清单含 spareId，get_spare_stock 按 spareId 查库存 [规划] 先查工单详情拿到备件清单，再查各备件库存 [验证] 工单备件+库存=覆盖",
-      "intent": {"domains": ["fault-repair", "spare"], "operation": "detail", "filters": ["repairOrderId"]},
-      "clarity": "clear",
-      "calls": [
-        {"tool": "get_repair_detail", "arguments": {"repairOrderId": 201}},
-        {"tool": "get_spare_stock", "arguments": {"spareId": "{{0.sparesUsed[0].spareId}}"}}
-      ]
-    },
-    "observation0": "获得工单详情和第一个备件的库存，但可能有多个备件需要查",
-    "round1": {
-      "thought": "[意图] 首轮只查了第一个备件库存，如有多个备件需要补全 [审查] 如果 sparesUsed 有多个，需要逐个查 [规划] 补充其他备件的库存查询",
-      "calls": [
-        {"tool": "get_spare_stock", "arguments": {"spareId": 402}}
-      ]
-    },
-    "finish": true,
-    "note": "首轮用引用查第一个备件，审查轮补全其他备件 — 3 次 think"
+    "note": "工单详情 → repair.profile 已聚合备件+工时+知识+出库，不需要拆"
   },
   {
     "type": "single_round",
     "query": "上月故障最多的设备，它的保养是否按计划执行？",
     "round0": {
-      "thought": "[意图] 跨两个域：fault-repair 查故障 + maintenance 查保养。两个域都必须覆盖 [候选] query_fault_reports, query_maintenance_tasks [审查] query_fault_reports 按时间查故障列表可统计各设备故障数；query_maintenance_tasks 按设备查保养任务可判断执行情况 [规划] 并行查两个域 [验证] 故障列表（找最多的设备）+ 保养任务（判断是否按计划）= 覆盖两个域",
-      "intent": {"domains": ["fault-repair", "maintenance"], "operation": "statistics", "filters": ["dateRange"]},
+      "thought": "[意图] 跨两个域：fault 查故障排名 + maintenance 查保养执行。两个域都必须覆盖 [候选] eam.fault.search, eam.maintenance.search [审查] fault.search(groupBy=equipment) 直接返回按设备统计的故障数；maintenance.search 查保养执行情况 [规划] 并行查两个域，都用上月时间范围 [验证] 故障排名（fault.search）+ 保养执行（maintenance.search）= 覆盖两个域",
+      "intent": {"domains": ["fault", "maintenance"], "operation": "statistics", "filters": ["dateRange"]},
       "clarity": "clear",
       "calls": [
-        {"tool": "query_fault_reports", "arguments": {"dateRange": {"start": "2026-02-01", "end": "2026-02-28"}}},
-        {"tool": "query_maintenance_tasks", "arguments": {"dateRange": {"start": "2026-02-01", "end": "2026-02-28"}}}
+        {"tool": "eam.fault.search", "arguments": {"dateRange": {"from": "2026-02-01", "to": "2026-02-28"}, "groupBy": "equipment"}},
+        {"tool": "eam.maintenance.search", "arguments": {"dateRange": {"from": "2026-02-01", "to": "2026-02-28"}}}
       ]
     },
     "finish": true,
-    "note": "跨域问题必须每个域都选工具，不能只选一个域"
+    "note": "跨域问题每个域一个工具，用 groupBy 让工具做聚合而不是拉全量数据"
   },
   {
     "type": "single_round",
-    "query": "上月维修成本最高的设备，巡检有没有发现异常？",
+    "query": "A 线设备的故障、保养、巡检三项指标概览",
     "round0": {
-      "thought": "[意图] 跨两个域：fault-repair 查维修成本 + patrol 查巡检异常 [候选] query_repair_orders, get_repair_detail, query_anomaly_records [审查] query_repair_orders 返回工单列表（编号/状态），get_repair_detail 返回备件+工时=成本明细，query_anomaly_records 返回异常记录。注意：repair_orders 只有列表概要，成本明细必须用 repair_detail 补全 [规划] 三个工具链：工单列表→工单详情（含成本）+ 异常记录 [验证] 维修成本（repair_detail）+ 异常记录（anomaly_records）= 覆盖两个域",
-      "intent": {"domains": ["fault-repair", "patrol"], "operation": "detail", "filters": ["dateRange"]},
+      "thought": "[意图] 某个产线的多域综合概览 [候选] eam.scope.overview [审查] scope.overview 输入产线名，返回设备列表+故障+维修+保养+巡检+异常的汇总指标，一个工具搞定 [规划] 直接传产线名 [验证] 覆盖三个域",
+      "intent": {"domains": ["equipment", "fault-repair", "maintenance", "patrol"], "operation": "statistics", "filters": ["productionLine"]},
+      "clarity": "clear",
+      "calls": [{"tool": "eam.scope.overview", "arguments": {"identifier": "A线"}}]
+    },
+    "finish": true,
+    "note": "范围概览 → scope.overview 一个工具聚合多域，不需要拆成多个 search"
+  },
+  {
+    "type": "single_round",
+    "query": "哪条产线近 3 个月故障呈上升趋势，且备件库存不足？",
+    "round0": {
+      "thought": "[意图] 跨两个域：fault 趋势 + spare 库存预警。两个域都必须覆盖 [候选] eam.trend, eam.spare.search [审查] trend(domain=fault, splitBy=productionLine) 按产线看故障趋势；spare.search(lowStock=true) 查库存不足的备件及关联设备 [规划] 并行查两个域 [验证] 故障趋势（trend）+ 备件预警（spare.search）= 覆盖",
+      "intent": {"domains": ["fault", "spare"], "operation": "trend", "filters": ["dateRange"]},
       "clarity": "clear",
       "calls": [
-        {"tool": "query_repair_orders", "arguments": {"dateRange": {"start": "2026-02-01", "end": "2026-02-28"}}},
-        {"tool": "get_repair_detail", "arguments": {"repairOrderId": "{{0.items[0].repairOrderId}}"}},
-        {"tool": "query_anomaly_records", "arguments": {}}
+        {"tool": "eam.trend", "arguments": {"domain": "fault", "dateRange": {"from": "2025-12-28T00:00:00", "to": "2026-03-28T23:59:59"}, "groupBy": "month", "splitBy": "productionLine"}},
+        {"tool": "eam.spare.search", "arguments": {"lowStock": true}}
       ]
     },
     "finish": true,
-    "note": "主体(repair_orders)→明细(repair_detail)链路 + 跨域(anomaly_records)，一次规划完整"
+    "note": "跨域问题：趋势用 trend，备件预警用 spare.search(lowStock=true)。不要用 fault.search 替代 spare.search"
   }
 ]

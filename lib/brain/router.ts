@@ -299,20 +299,37 @@ export function navigatePath(ref: string, results: unknown[]): unknown {
   try {
     const parts = ref.split('.')
     const callIndex = parseInt(parts[0])
-    if (isNaN(callIndex) || callIndex >= results.length || !results[callIndex]) return ref
+    if (isNaN(callIndex) || callIndex >= results.length || !results[callIndex]) {
+      console.warn(`[Router] {{${ref}}} 引用解析失败: 索引 ${callIndex} 无结果（results 长度=${results.length}）`)
+      return ref
+    }
     let value: unknown = results[callIndex]
     for (const part of parts.slice(1)) {
-      if (value === null || value === undefined) return ref
+      if (value === null || value === undefined) {
+        console.warn(`[Router] {{${ref}}} 引用解析失败: 路径中断于 "${part}"（值为 ${value}）`)
+        return ref
+      }
       const arrayMatch = part.match(/^(\w+)\[(\d+)\]$/)
       if (arrayMatch) {
         value = (value as Record<string, unknown>)[arrayMatch[1]]
-        if (Array.isArray(value)) value = value[parseInt(arrayMatch[2])]
+        if (Array.isArray(value)) {
+          const idx = parseInt(arrayMatch[2])
+          if (idx >= value.length) {
+            console.warn(`[Router] {{${ref}}} 引用解析失败: ${arrayMatch[1]}[${idx}] 越界（数组长度=${value.length}）`)
+            return ref
+          }
+          value = value[idx]
+        }
       } else {
         value = (value as Record<string, unknown>)[part]
       }
     }
+    if (value === undefined || value === null) {
+      console.warn(`[Router] {{${ref}}} 引用解析失败: 最终值为 ${value}`)
+    }
     return value ?? ref
-  } catch {
-    return ref  // 解析失败返回原始引用字符串
+  } catch (err) {
+    console.warn(`[Router] {{${ref}}} 引用解析异常:`, err)
+    return ref
   }
 }

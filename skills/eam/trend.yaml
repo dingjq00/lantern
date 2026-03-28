@@ -1,0 +1,137 @@
+# Tier 3: 全局分析 — 趋势分析
+# 六大域的时间序列数据，支持多维度分组对比。
+# 巡检域使用原生 analytics API，其余五域从 page API 拉取后内存聚合。
+
+name: eam.trend
+description: >
+  获取 EAM 系统任意域的趋势分析时间序列。覆盖故障(fault)、维修(repair)、
+  保养(maintenance)、巡检(patrol)、异常(anomaly)、备件消耗(spare)六个域。
+  按天/周/月聚合，可选按设备/产线/部门拆分对比。
+  返回 [{period, count, ...splitFields}] 格式的时间序列，适用于分析变化趋势、
+  同比环比、周期性规律等问题。巡检域优先使用后端原生 analytics 接口（效率更高），
+  其余域从分页 API 获取后在 MCP 层内存聚合。
+version: 1.0.0
+system: eam
+type: simple
+maps_to: eam.trend
+
+domains:
+  - fault
+  - repair
+  - maintenance
+  - patrol
+  - anomaly
+  - spare
+
+operation: trend
+
+input_schema:
+  type: object
+  required:
+    - domain
+    - dateRange
+  properties:
+    domain:
+      type: string
+      enum: [fault, repair, maintenance, patrol, anomaly, spare]
+      description: >
+        数据域。fault=故障报修，repair=维修工单，maintenance=保养任务，
+        patrol=巡检任务，anomaly=异常记录，spare=备件出库（消耗）。
+    dateRange:
+      type: object
+      required:
+        - from
+        - to
+      properties:
+        from:
+          type: string
+          description: >
+            起始时间，ISO datetime 格式（如 "2026-01-01T00:00:00"）。
+            必须包含时间部分，不能只写日期。
+        to:
+          type: string
+          description: >
+            结束时间，ISO datetime 格式（如 "2026-03-28T23:59:59"）。
+            必须包含时间部分，不能只写日期。
+      description: >
+        必填。时间范围，from/to 均为 ISO datetime 格式。
+        后端要求 LocalDateTime 格式（含 T 分隔符），如 "2026-01-01T00:00:00"。
+        纯日期字符串（"2026-01-01"）会自动补 "T00:00:00"，但建议始终显式传完整格式。
+    groupBy:
+      type: string
+      enum: [day, week, month]
+      default: day
+      description: >
+        时间聚合粒度。day=按天，week=按自然周（ISO 周一起算），month=按月。
+        短时间范围（≤7 天）建议 day，中等（1-3 月）建议 week，长时间（≥3 月）建议 month。
+    splitBy:
+      type: string
+      enum: [equipment, productionLine, department]
+      description: >
+        可选。分组对比维度——按设备/产线/部门拆分时间序列，用于对比分析。
+        例如 splitBy=equipment 时返回每台设备各自的时间序列，可看出哪台设备故障集中。
+        不传则返回全局汇总的单条时间序列。
+    equipment:
+      type: string
+      description: >
+        可选。限定设备范围，支持设备名称、编号或 ID。
+        MCP 会自动解析标识符匹配设备，过滤只包含该设备的记录。
+    productionLine:
+      type: string
+      description: >
+        可选。限定产线范围，支持产线名称或 ID。
+        MCP 会查出该产线下所有设备 ID，再过滤记录。
+    department:
+      type: string
+      description: >
+        可选。限定部门范围，支持部门名称或 ID。
+        MCP 会查出该部门下所有设备 ID，再过滤记录。
+    format:
+      type: string
+      enum: [detailed, concise]
+      default: detailed
+      description: >
+        返回详细程度。detailed 返回完整时间序列和元数据；
+        concise 返回精简结果。
+
+when_to_use:
+  - 用户询问某个域随时间的变化趋势，如"最近三个月故障趋势""保养完成率变化""备件消耗趋势"
+  - 用户需要同比环比或周期性分析，如"本月故障比上月多了吗""每周维修工单量有什么规律"
+  - 用户需要按维度拆分对比趋势，如"各产线故障趋势对比""哪台设备故障在增长"
+  - 用户需要特定范围的趋势数据，如"A线上个季度的维修趋势""CNC-001 最近半年的异常变化"
+  - 用户需要数据支撑决策，如"故障是在好转还是恶化""备件消耗有没有季节性"
+
+when_not_to_use:
+  - 用户只需要当前时间点的全局统计数字（不需要时间序列） → 使用 eam.dashboard（如"现在总共多少故障"）
+  - 用户需要具体记录明细而非聚合数字 → 使用对应的 search 工具（如"上周有哪些故障"用 eam.fault.search）
+  - 用户询问某个范围的综合概况（非趋势） → 使用 eam.scope.overview（如"一车间怎么样"）
+
+examples:
+  - query: "最近三个月的故障趋势"
+    arguments:
+      domain: fault
+      dateRange:
+        from: "2026-01-01T00:00:00"
+        to: "2026-03-28T23:59:59"
+      groupBy: week
+    notes: 三个月用 week 粒度更易看出趋势，避免日粒度数据点过多
+
+  - query: "各产线上个月维修工单数量对比"
+    arguments:
+      domain: repair
+      dateRange:
+        from: "2026-02-01T00:00:00"
+        to: "2026-02-28T23:59:59"
+      groupBy: day
+      splitBy: productionLine
+    notes: splitBy=productionLine 拆分出每条产线的独立时间序列
+
+  - query: "CNC-001 最近半年的异常记录变化"
+    arguments:
+      domain: anomaly
+      dateRange:
+        from: "2025-09-28T00:00:00"
+        to: "2026-03-28T23:59:59"
+      groupBy: month
+      equipment: "CNC-001"
+    notes: 指定 equipment 范围过滤，半年用 month 粒度

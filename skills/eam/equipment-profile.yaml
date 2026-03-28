@@ -1,0 +1,96 @@
+# Skill: eam.equipment.profile — 设备全景画像
+# Tier 1 实体全景 | 1:1 映射到 MCP 工具
+# 设计依据: project_mcp_redesign.md + Anthropic tool description 最佳实践
+
+name: eam.equipment.profile
+version: "1.0"
+system: eam
+type: simple          # 1:1 Skill → MCP Tool 映射
+maps_to: eam.equipment.profile
+
+description: |
+  获取单台设备的全景画像。输入设备名称、编号或 ID（任一均可），返回该设备的完整运营数据：
+  基础信息、KPI 指标、近期故障报修、维修工单、保养记录、巡检记录、BOM 备件清单（含实时库存）、生命周期事件。
+  内部会并行调用 9 个后端 API 并自动聚合，AI 无需逐一编排。
+  当匹配到多台设备时会返回候选列表，由 AI 追问用户确认。
+
+domains:
+  - equipment
+  - fault-repair
+  - maintenance
+  - patrol
+  - spare
+  - lifecycle
+
+operation: detail
+
+# --- 输入参数 ---
+input_schema:
+  type: object
+  required:
+    - identifier
+  properties:
+    identifier:
+      type: string
+      description: |
+        设备标识符，接受三种形式（Poka-yoke 防错设计）：
+        1. 设备编号 — 如 "CNC-001"、"EQ-2026-0042"
+        2. 设备名称 — 如 "数控车床"、"3号注塑机"、"A线贴片机"
+        3. 数字 ID — 如 "101"（纯数字会直接按 ID 查询）
+        匹配策略：精确匹配 > 前缀匹配 > 包含匹配。多个结果返回候选列表（最多 5 个）。
+    format:
+      type: string
+      enum: [detailed, concise]
+      default: detailed
+      description: |
+        返回详细程度：
+        - detailed（默认）：全景信息，包含基础信息+KPI+故障+维修+保养+巡检+BOM(含库存)+生命周期
+        - concise：仅返回基础信息+KPI，适合快速确认设备状态或作为中间步骤
+
+# --- 返回内容 ---
+returns:
+  - equipment（基础信息：编号/名称/状态/类别/部门/位置/厂商/型号/是否关键设备/负责人）
+  - kpi（KPI 指标）
+  - recentFaults（近 5 条故障报修记录）
+  - activeRepairs（进行中的维修工单，status < 5）
+  - recentMaintenance（近 5 条保养任务）
+  - patrolRecords（巡检记录）
+  - bom（BOM 备件清单，含各备件的实时库存数量）
+  - lifecycle（生命周期事件时间线：采购/验收/变更）
+
+# --- 工具链路 ---
+feeds_into: []         # 全景工具是终点，通常不需要再调其他工具
+depends_on: []         # 不依赖其他工具的输出
+
+quality: 95            # 数据最全面的设备查询工具
+cost: medium           # 并行调 9 个 API，适中成本
+
+# --- 使用场景 ---
+when_to_use: |
+  - 用户问某台设备的综合状况：如"CNC-001 怎么样""数控车床什么情况""这台设备最近怎么了"
+  - 用户需要某台设备的详细信息：如"设备 EQ-042 的详情""3号注塑机的完整资料"
+  - 用户问某台设备的故障/维修/保养/巡检历史：如"这台设备最近有没有故障""上次保养是什么时候"
+  - 用户问某台设备的 BOM 或备件库存：如"CNC-001 需要哪些备件""备件够不够用"
+  - 用户需要设备画像作为分析基础：如"分析一下 A 设备和 B 设备的差异"（对每台设备调用一次）
+
+when_not_to_use: |
+  - 用户想查多台设备的列表或筛选设备 → 用 eam.equipment.search
+  - 用户问的是某个车间/产线/部门的整体情况 → 用 eam.scope.overview
+  - 用户想看全局系统概况或总数 → 用 eam.dashboard
+
+# --- 示例 ---
+examples:
+  - query: "CNC-001 这台设备最近怎么样？"
+    arguments:
+      identifier: "CNC-001"
+      format: "detailed"
+
+  - query: "快速看下数控车床的状态"
+    arguments:
+      identifier: "数控车床"
+      format: "concise"
+
+  - query: "设备 ID 101 的 BOM 清单和备件库存"
+    arguments:
+      identifier: "101"
+      format: "detailed"
