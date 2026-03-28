@@ -1,43 +1,48 @@
 ## 工具选择方法
 
-### 1. 工具能力层级
+### 1. 按工具类型选择
 
-工具分三个层级，选择时从上往下匹配：
+每个工具有一个 `operation` 类型。根据用户问题的性质匹配类型：
 
-**Tier 1 — 全景工具（一个工具聚合多域数据，优先选）**
-- `eam.equipment.profile` — 单台设备全景（基础+故障+维修+保养+巡检+BOM+生命周期）
-- `eam.repair.profile` — 单个工单全景（工单+故障+备件+工时+知识+出库）
-- `eam.scope.overview` — 范围概览（车间/产线/部门的设备+各域汇总）
+| 用户想要 | 选 operation 类型 | 判断依据 |
+|---------|------------------|---------|
+| 某个实体的综合情况 | **detail** | 问的是某个具体实体的全貌 |
+| 按条件筛选列表或统计分布 | **search** | 问的是"哪些""多少个""排名" |
+| 某个范围的多域综合概况 | **statistics** | 问的是某个组织/区域的整体情况 |
+| 全局指标快照 | **dashboard** | 问的是"系统总体""全局概况" |
+| 时间维度的变化趋势 | **trend** | 问的是"趋势""变化""环比""同比" |
 
-**Tier 2 — 搜索工具（按条件查列表，支持聚合统计）**
-- 7 个域各一个 search 工具，支持 groupBy 聚合
+### 2. 同一问题多个类型都能回答时的优先级
 
-**Tier 3 — 分析工具（全局视角）**
-- `eam.dashboard` — 全局指标快照
-- `eam.trend` — 时间序列趋势
+| 场景 | 优先 | 不优先 | 原因 |
+|------|------|--------|------|
+| 单个实体的某个维度数据 | detail（含摘要） | search（完整列表） | 一次调用返回多域，够用就不拆 |
+| 单个实体某维度的完整数据 | search（全部记录） | detail（只有近几条） | 用户要完整列表时 detail 的摘要不够 |
+| 全局数字 | dashboard | search | dashboard 一次返回跨域汇总 |
+| 按条件筛选+聚合统计 | search(groupBy) | dashboard | dashboard 没有过滤能力 |
+| 某个范围的综合画像 | statistics | 多个 search | 一个工具搞定，不拆 |
+| 时间变化 | trend | search | trend 专做时间序列 |
+| 当前截面的维度分布 | search(groupBy) | trend | 不涉及时间变化 |
 
-### 2. 选择优先级
+### 3. 跨域问题
 
-1. **能用全景工具就不拆成多个搜索** — "EQ-001 的故障和保养" → 直接用 equipment.profile（已包含两者），不要分别调 fault.search + maintenance.search
-2. **用 search 的 groupBy 做统计** — "故障最多的设备" → fault.search(groupBy=equipment)，不要拉全量数据自己数
-3. **跨域分析用多个工具组合** — "故障最多的设备保养情况" → fault.search + maintenance.search（两个域各一个工具）
-4. **全局统计用 dashboard** — "总共多少设备" → dashboard，不要 equipment.search
-5. **范围概览用 scope.overview** — "一车间怎么样" → scope.overview，不要多个 search 拼凑
+涉及多个数据域的对比/关联分析，每个域选一个工具。
 
-### 3. 参数填写
+### 4. 参数填写
 
-- 设备/产线/部门：直接传用户说的名称或编号，工具内部自动解析
-- 时间范围：转换为 {from, to} 格式，如"上月"→ {from: "2026-02-01", to: "2026-02-28"}
+- 实体标识：直接传用户说的名称或编号，工具内部自动解析
+- 时间范围：转换为 {from, to} 格式
 - groupBy：用户要统计/排名/分布时使用
 - format：简单问题传 "concise" 省 token，深度分析传 "detailed"
 
-### 4. 拿到数据后自己分析
+### 5. 拿到数据后自己分析
 
 获取数据后，自己做统计分析：计数、分组、排序、Top-N、对比。这是你的分析能力，不需要专门工具。
 
-### 5. 常见误区
+### 6. 常见误区
 
-- ❌ 先查设备列表拿 ID，再用 ID 查详情 → ✅ 直接传名称，工具自动解析
-- ❌ 用 search 查一个工具返回 ID，再逐个调 profile → ✅ search 已返回中等丰富度数据
-- ❌ "一车间设备概况"分别调 fault.search + maintenance.search + patrol.search → ✅ 一个 scope.overview 搞定
+- ❌ 先查列表拿 ID，再用 ID 查详情 → ✅ 直接传名称，工具自动解析
+- ❌ 用 search 拿到 ID 再逐个调 detail → ✅ search 已返回中等丰富度数据
+- ❌ 范围概况拆成多个 search → ✅ 一个 statistics 类工具搞定
 - ❌ 跨域问题只查一个域 → ✅ 问了两个域就选两个域的工具
+- ❌ 想知道实体状态用关联单据查 → ✅ 直接用 search 类工具的 status 参数过滤

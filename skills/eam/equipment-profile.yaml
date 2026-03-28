@@ -16,7 +16,8 @@ description: |
 
 domains:
   - equipment
-  - fault-repair
+  - fault
+  - repair
   - maintenance
   - patrol
   - spare

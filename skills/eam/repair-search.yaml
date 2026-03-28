@@ -114,6 +114,7 @@ when_not_to_use: |
   - 用户要看某个具体工单的完整详情（备件清单、工时明细、出库记录） → 用 eam.repair.profile
   - 用户要看某台设备的全貌（不只是维修，还有故障+保养+巡检） → 用 eam.equipment.profile
   - 用户要看维修数量/费用的时间趋势 → 用 eam.trend
+  - 用户只想知道哪些设备处于维修状态（不需要工单详情）→ 用 eam.equipment.search(status=2)
 
 examples:
   - query: "上个月的维修工单有哪些？"

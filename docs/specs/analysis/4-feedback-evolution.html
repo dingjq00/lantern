@@ -1,0 +1,1573 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Insight68 Deep Analysis #4 — Feedback + Evolution Layer</title>
+<style>
+  :root {
+    --blue-900: #1e3a5f;
+    --blue-800: #1e40af;
+    --blue-700: #2563eb;
+    --blue-600: #3b82f6;
+    --blue-100: #dbeafe;
+    --blue-50: #eff6ff;
+    --green-700: #15803d;
+    --green-600: #16a34a;
+    --green-100: #dcfce7;
+    --green-50: #f0fdf4;
+    --amber-700: #b45309;
+    --amber-600: #d97706;
+    --amber-100: #fef3c7;
+    --amber-50: #fffbeb;
+    --red-700: #b91c1c;
+    --red-600: #dc2626;
+    --red-100: #fee2e2;
+    --red-50: #fef2f2;
+    --purple-700: #7c3aed;
+    --purple-100: #ede9fe;
+    --purple-50: #f5f3ff;
+    --gray-900: #111827;
+    --gray-700: #374151;
+    --gray-500: #6b7280;
+    --gray-400: #9ca3af;
+    --gray-300: #d1d5db;
+    --gray-200: #e5e7eb;
+    --gray-100: #f3f4f6;
+    --gray-50: #f9fafb;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Noto Sans SC', sans-serif;
+    color: var(--gray-900);
+    background: var(--gray-50);
+    line-height: 1.7;
+  }
+  .container { max-width: 1200px; margin: 0 auto; padding: 40px 24px; }
+
+  /* Header */
+  .header {
+    background: linear-gradient(135deg, var(--blue-900), #2d4a7a);
+    color: white;
+    padding: 52px 44px;
+    border-radius: 16px;
+    margin-bottom: 36px;
+  }
+  .header h1 { font-size: 30px; font-weight: 700; margin-bottom: 8px; }
+  .header .subtitle { font-size: 16px; opacity: 0.88; line-height: 1.5; }
+  .header .meta { margin-top: 20px; display: flex; gap: 28px; font-size: 13px; opacity: 0.7; flex-wrap: wrap; }
+
+  /* Series Nav */
+  .series-nav {
+    background: white;
+    border-radius: 12px;
+    border: 1px solid var(--gray-300);
+    padding: 18px 24px;
+    margin-bottom: 28px;
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+  .series-nav .label { font-size: 13px; color: var(--gray-500); font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+  .series-nav a {
+    display: inline-block;
+    padding: 6px 16px;
+    border-radius: 8px;
+    font-size: 13px;
+    text-decoration: none;
+    border: 1px solid var(--gray-300);
+    color: var(--gray-500);
+    transition: all 0.2s;
+  }
+  .series-nav a:hover { border-color: var(--blue-600); color: var(--blue-700); background: var(--blue-50); }
+  .series-nav a.current { background: var(--blue-900); color: white; border-color: var(--blue-900); }
+  .series-nav a.planned { border-style: dashed; opacity: 0.6; }
+
+  /* TOC */
+  .toc {
+    background: white;
+    border-radius: 12px;
+    border: 1px solid var(--gray-300);
+    padding: 28px 32px;
+    margin-bottom: 28px;
+  }
+  .toc h3 { font-size: 16px; color: var(--blue-900); margin-bottom: 14px; }
+  .toc ol { padding-left: 22px; }
+  .toc li { margin-bottom: 6px; }
+  .toc a { color: var(--blue-700); text-decoration: none; font-size: 14px; }
+  .toc a:hover { text-decoration: underline; }
+
+  /* Section */
+  .section {
+    background: white;
+    border-radius: 12px;
+    border: 1px solid var(--gray-300);
+    padding: 36px;
+    margin-bottom: 28px;
+  }
+  .section h2 {
+    font-size: 22px;
+    color: var(--blue-900);
+    margin-bottom: 18px;
+    padding-bottom: 10px;
+    border-bottom: 2px solid var(--blue-100);
+  }
+  .section h3 {
+    font-size: 17px;
+    color: var(--gray-700);
+    margin: 22px 0 10px;
+  }
+  .section h4 {
+    font-size: 15px;
+    color: var(--gray-700);
+    margin: 16px 0 8px;
+    font-weight: 600;
+  }
+  .section p, .section li {
+    font-size: 14.5px;
+    color: var(--gray-700);
+    margin-bottom: 8px;
+  }
+  .section ul, .section ol { padding-left: 20px; }
+
+  /* Code blocks */
+  pre {
+    background: #1a1b26;
+    color: #a9b1d6;
+    padding: 22px 26px;
+    border-radius: 10px;
+    overflow-x: auto;
+    font-size: 13.5px;
+    line-height: 1.65;
+    margin: 16px 0;
+    font-family: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
+  }
+  pre .comment { color: #565f89; }
+  pre .keyword { color: #bb9af7; }
+  pre .string { color: #9ece6a; }
+  pre .highlight { color: #7aa2f7; }
+  pre .accent { color: #ff9e64; }
+  pre .dim { color: #565f89; }
+  pre .type { color: #2ac3de; }
+  pre .fn { color: #7dcfff; }
+
+  code {
+    background: var(--gray-100);
+    color: var(--blue-800);
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 13px;
+    font-family: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
+  }
+
+  /* Info boxes */
+  .info-box {
+    padding: 18px 22px;
+    border-radius: 10px;
+    margin: 16px 0;
+    font-size: 14px;
+    line-height: 1.6;
+  }
+  .info-box.blue { background: var(--blue-50); border-left: 4px solid var(--blue-600); }
+  .info-box.green { background: var(--green-50); border-left: 4px solid var(--green-600); }
+  .info-box.amber { background: var(--amber-50); border-left: 4px solid var(--amber-600); }
+  .info-box.red { background: var(--red-50); border-left: 4px solid var(--red-600); }
+  .info-box.purple { background: var(--purple-50); border-left: 4px solid var(--purple-700); }
+  .info-box .label { font-weight: 700; margin-bottom: 6px; }
+  .info-box.blue .label { color: var(--blue-800); }
+  .info-box.green .label { color: var(--green-700); }
+  .info-box.amber .label { color: var(--amber-700); }
+  .info-box.red .label { color: var(--red-700); }
+  .info-box.purple .label { color: var(--purple-700); }
+
+  /* Tables */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 16px 0;
+    font-size: 13.5px;
+  }
+  th {
+    background: var(--blue-900);
+    color: white;
+    padding: 12px 16px;
+    text-align: left;
+    font-weight: 600;
+    font-size: 13px;
+  }
+  th:first-child { border-radius: 8px 0 0 0; }
+  th:last-child { border-radius: 0 8px 0 0; }
+  td {
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--gray-200);
+    color: var(--gray-700);
+  }
+  tr:nth-child(even) td { background: var(--gray-50); }
+  tr:hover td { background: var(--blue-50); }
+
+  /* Badges / Tags */
+  .badge {
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+  }
+  .badge.green { background: var(--green-100); color: var(--green-700); }
+  .badge.amber { background: var(--amber-100); color: var(--amber-700); }
+  .badge.red { background: var(--red-100); color: var(--red-700); }
+  .badge.blue { background: var(--blue-100); color: var(--blue-800); }
+  .badge.purple { background: var(--purple-100); color: var(--purple-700); }
+  .badge.gray { background: var(--gray-100); color: var(--gray-500); }
+
+  /* Diagram boxes */
+  .diagram {
+    background: #1a1b26;
+    border-radius: 12px;
+    padding: 28px 32px;
+    margin: 20px 0;
+    overflow-x: auto;
+  }
+  .diagram pre {
+    margin: 0; padding: 0;
+    background: transparent;
+  }
+
+  /* Flow diagram */
+  .flow-diagram {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    align-items: center;
+    margin: 20px 0;
+    padding: 20px;
+    background: var(--gray-50);
+    border-radius: 10px;
+    border: 1px solid var(--gray-200);
+  }
+  .flow-box {
+    padding: 10px 18px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    color: white;
+    white-space: nowrap;
+  }
+  .flow-box.blue { background: var(--blue-700); }
+  .flow-box.green { background: var(--green-700); }
+  .flow-box.amber { background: var(--amber-700); }
+  .flow-box.red { background: var(--red-700); }
+  .flow-box.purple { background: var(--purple-700); }
+  .flow-box.gray { background: var(--gray-500); color: white; }
+  .flow-box.outline { background: transparent; border: 2px dashed var(--gray-400); color: var(--gray-500); }
+  .flow-arrow { font-size: 18px; color: var(--gray-400); font-weight: bold; }
+
+  /* Signal card grid */
+  .signal-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 16px;
+    margin: 16px 0;
+  }
+  .signal-card {
+    border: 1px solid var(--gray-300);
+    border-radius: 10px;
+    padding: 20px;
+    background: white;
+  }
+  .signal-card h4 {
+    font-size: 15px;
+    margin: 0 0 10px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .signal-card .num { font-size: 28px; font-weight: 700; }
+  .signal-card .num.green { color: var(--green-700); }
+  .signal-card .num.amber { color: var(--amber-700); }
+  .signal-card .num.red { color: var(--red-700); }
+
+  /* Issue cards */
+  .issue-card {
+    border: 1px solid var(--gray-200);
+    border-radius: 10px;
+    padding: 20px 22px;
+    margin: 12px 0;
+    border-left: 4px solid;
+  }
+  .issue-card.critical { border-left-color: var(--red-600); background: var(--red-50); }
+  .issue-card.high { border-left-color: var(--amber-600); background: var(--amber-50); }
+  .issue-card.medium { border-left-color: var(--blue-600); background: var(--blue-50); }
+  .issue-card.low { border-left-color: var(--gray-400); background: var(--gray-50); }
+  .issue-card .issue-title { font-weight: 700; font-size: 14.5px; margin-bottom: 6px; }
+  .issue-card .issue-detail { font-size: 13.5px; color: var(--gray-700); line-height: 1.6; }
+
+  /* Schema table */
+  .schema-table { font-size: 13px; }
+  .schema-table td:first-child { font-family: 'JetBrains Mono', monospace; font-weight: 600; color: var(--blue-800); }
+  .schema-table td:nth-child(2) { font-family: 'JetBrains Mono', monospace; color: var(--purple-700); }
+
+  /* Status indicator */
+  .status-dot {
+    display: inline-block;
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    margin-right: 6px;
+  }
+  .status-dot.active { background: var(--green-600); }
+  .status-dot.partial { background: var(--amber-600); }
+  .status-dot.planned { background: var(--gray-400); }
+  .status-dot.dead { background: var(--red-600); }
+
+  /* Footer */
+  .footer {
+    text-align: center;
+    padding: 32px;
+    color: var(--gray-400);
+    font-size: 13px;
+  }
+
+  /* Responsive */
+  @media (max-width: 768px) {
+    .container { padding: 16px; }
+    .header { padding: 32px 24px; }
+    .header h1 { font-size: 24px; }
+    .section { padding: 24px; }
+    .signal-grid { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+<!-- Header -->
+<div class="header">
+  <h1>Deep Analysis #4 -- Feedback + Evolution Layer</h1>
+  <div class="subtitle">
+    From raw confidence signals to self-learning vision: how the platform evaluates its own answers,
+    stores execution traces, scores quality, and (eventually) evolves Skill YAML without code changes.
+  </div>
+  <div class="meta">
+    <span>Insight68 NL-API Platform</span>
+    <span>2026-03-28</span>
+    <span>P1.5 -- Self-Learning Phase</span>
+    <span>12 Files Analyzed</span>
+  </div>
+</div>
+
+<!-- Series Navigation -->
+<div class="series-nav">
+  <span class="label">Analysis Series</span>
+  <a href="1-context-engineering.html" class="planned">#1 Context Engineering</a>
+  <a href="2-routing-execution.html" class="planned">#2 Routing + Execution</a>
+  <a href="3-tool-layer.html" class="planned">#3 Tool Layer</a>
+  <a href="4-feedback-evolution.html" class="current">#4 Feedback + Evolution</a>
+</div>
+
+<!-- Table of Contents -->
+<div class="toc">
+  <h3>Table of Contents</h3>
+  <ol>
+    <li><a href="#s1">Section 1: Confidence Calculation -- 3-Signal Fusion</a></li>
+    <li><a href="#s2">Section 2: Result Presentation -- From Data to User Response</a></li>
+    <li><a href="#s3">Section 3: Trace & Session Storage -- The Audit Trail</a></li>
+    <li><a href="#s4">Section 4: Subagent Evaluation -- Generator + Evaluator</a></li>
+    <li><a href="#s5">Section 5: Self-Learning Vision -- What Exists vs What's Planned</a></li>
+    <li><a href="#s6">Section 6: Benchmark System -- 40 Test Cases as Ground Truth</a></li>
+    <li><a href="#s7">Section 7: Complete Evolution Loop -- End-to-End Diagram</a></li>
+    <li><a href="#s8">Section 8: Issues & Recommendations</a></li>
+  </ol>
+</div>
+
+<!-- ============================================================ -->
+<!-- Section 1: Confidence Calculation -->
+<!-- ============================================================ -->
+<div class="section" id="s1">
+  <h2>1. Confidence Calculation -- 3-Signal Fusion</h2>
+
+  <p>
+    The confidence system is the platform's self-assessment of answer quality. It fuses three independent
+    signals into a single <code>high | medium | low</code> level that drives both the user-facing response
+    tone and internal evolution decisions.
+  </p>
+
+  <h3>1.1 The Three Signals</h3>
+
+  <div class="signal-grid">
+    <div class="signal-card">
+      <h4><span class="badge blue">Signal 1</span> toolMatch</h4>
+      <p style="font-size:13.5px; color:var(--gray-700); margin-bottom:10px;">
+        Did the tools actually execute successfully?
+      </p>
+      <table class="schema-table" style="margin:0">
+        <tr><td>high</td><td colspan="2">All attempted calls returned data (<code>allResults.length === totalCallsAttempted</code>)</td></tr>
+        <tr><td>medium</td><td colspan="2">Partial success -- some calls succeeded, some failed</td></tr>
+        <tr><td>low</td><td colspan="2">All calls failed or zero calls attempted</td></tr>
+      </table>
+    </div>
+    <div class="signal-card">
+      <h4><span class="badge green">Signal 2</span> verdictConfidence</h4>
+      <p style="font-size:13.5px; color:var(--gray-700); margin-bottom:10px;">
+        Has the system seen this intent before?
+      </p>
+      <table class="schema-table" style="margin:0">
+        <tr><td>high</td><td colspan="2"><code>sampleCount >= 10</code> -- well-known query pattern</td></tr>
+        <tr><td>medium</td><td colspan="2"><code>sampleCount 3-9</code> -- some experience</td></tr>
+        <tr><td>low</td><td colspan="2"><code>sampleCount < 3</code> or no verdict exists</td></tr>
+      </table>
+    </div>
+    <div class="signal-card">
+      <h4><span class="badge purple">Signal 3</span> queryClarity</h4>
+      <p style="font-size:13.5px; color:var(--gray-700); margin-bottom:10px;">
+        How clear was the user's intent? (LLM-assessed)
+      </p>
+      <table class="schema-table" style="margin:0">
+        <tr><td>high</td><td colspan="2">LLM returned <code>clarity: "clear"</code></td></tr>
+        <tr><td>medium</td><td colspan="2">LLM returned <code>clarity: "ambiguous"</code></td></tr>
+        <tr><td>low</td><td colspan="2">LLM returned <code>clarity: "unsupported"</code></td></tr>
+      </table>
+    </div>
+  </div>
+
+  <h3>1.2 Fusion Logic</h3>
+  <pre>
+<span class="comment">// confidence.ts -- 27 lines, clean and deterministic</span>
+<span class="keyword">function</span> <span class="fn">computeConfidence</span>(signals: ConfidenceSignals): ConfidenceLevel {
+  <span class="keyword">const</span> values = [signals.<span class="highlight">toolMatch</span>, signals.<span class="highlight">verdictConfidence</span>, signals.<span class="highlight">queryClarity</span>]
+
+  <span class="keyword">if</span> (values.some(v => v === <span class="string">'low'</span>))  <span class="keyword">return</span> <span class="string">'low'</span>    <span class="comment">// 一票否决</span>
+  <span class="keyword">if</span> (values.every(v => v === <span class="string">'high'</span>)) <span class="keyword">return</span> <span class="string">'high'</span>   <span class="comment">// 全票通过</span>
+  <span class="keyword">return</span> <span class="string">'medium'</span>                                      <span class="comment">// 其余情况</span>
+}</pre>
+
+  <p>
+    The fusion is a <strong>pessimistic gate</strong>: any single <code>low</code> signal drags the entire confidence to
+    <code>low</code>, while all three must be <code>high</code> for the result to be <code>high</code>. This is deliberately
+    conservative -- better to show a caveat than to present garbage confidently.
+  </p>
+
+  <h3>1.3 Edge Case Analysis</h3>
+
+  <table>
+    <tr><th>Scenario</th><th>toolMatch</th><th>verdict</th><th>clarity</th><th>Result</th><th>Frequency</th></tr>
+    <tr>
+      <td>New system, first query ever, tools all succeed</td>
+      <td><span class="badge green">high</span></td>
+      <td><span class="badge red">low</span></td>
+      <td><span class="badge green">high</span></td>
+      <td><span class="badge red">low</span></td>
+      <td>Very common at cold start</td>
+    </tr>
+    <tr>
+      <td>Repeat query with history, all tools pass</td>
+      <td><span class="badge green">high</span></td>
+      <td><span class="badge green">high</span></td>
+      <td><span class="badge green">high</span></td>
+      <td><span class="badge green">high</span></td>
+      <td>Common after learning</td>
+    </tr>
+    <tr>
+      <td>Ambiguous query, tools partially succeed</td>
+      <td><span class="badge amber">medium</span></td>
+      <td><span class="badge amber">medium</span></td>
+      <td><span class="badge amber">medium</span></td>
+      <td><span class="badge amber">medium</span></td>
+      <td>Common for L3-L5</td>
+    </tr>
+    <tr>
+      <td>Unsupported query, escalation also fails</td>
+      <td><span class="badge red">low</span></td>
+      <td><span class="badge red">low</span></td>
+      <td><span class="badge red">low</span></td>
+      <td><span class="badge red">low</span></td>
+      <td>Out-of-scope</td>
+    </tr>
+    <tr>
+      <td>Well-known pattern, but tools error this time</td>
+      <td><span class="badge red">low</span></td>
+      <td><span class="badge green">high</span></td>
+      <td><span class="badge green">high</span></td>
+      <td><span class="badge red">low</span></td>
+      <td>API flakiness</td>
+    </tr>
+  </table>
+
+  <div class="info-box amber">
+    <div class="label">Key Observation: Cold Start Penalty</div>
+    Until a query pattern accumulates 3+ sessions, <code>verdictConfidence</code> is always <code>low</code>,
+    which forces the entire result to <code>low</code> regardless of perfect tool execution and clear intent.
+    For a new deployment, <strong>every single response starts at low confidence</strong> until the verdict
+    table builds up. This is correct for safety but pessimistic for user experience.
+  </div>
+
+  <h3>1.4 Signal Reliability with 12-Tool Design</h3>
+
+  <table>
+    <tr><th>Signal</th><th>Reliability</th><th>Assessment</th></tr>
+    <tr>
+      <td><code>toolMatch</code></td>
+      <td><span class="badge green">Solid</span></td>
+      <td>Directly measured from execution results. Objective ground truth. 12-tool design makes it even more reliable -- fewer tools means fewer failure modes.</td>
+    </tr>
+    <tr>
+      <td><code>verdictConfidence</code></td>
+      <td><span class="badge amber">Fragile</span></td>
+      <td>Depends on <code>intentHash</code> aggregation. With 12 tools, intent hashes may fragment less (fewer distinct routing paths), but the underlying problem remains: hash is computed from <code>{domains, operation, filters}</code> and slight wording variations produce different hashes for semantically identical queries.</td>
+    </tr>
+    <tr>
+      <td><code>queryClarity</code></td>
+      <td><span class="badge amber">Soft</span></td>
+      <td>LLM self-assessment of query clarity. Defaulting to <code>'high'</code> when not returned means most queries get high clarity. The LLM has weak incentive to report ambiguity honestly -- it tends to try to answer everything.</td>
+    </tr>
+  </table>
+
+  <h3>1.5 How Confidence Affects User Response</h3>
+  <p>The router passes <code>finalConfidence</code> into <code>buildStructuredResult</code>, which becomes part of
+     <code>StructuredResult</code>. The frontend can:</p>
+  <ul>
+    <li><strong>high</strong> -- present answer directly, full confidence styling</li>
+    <li><strong>medium</strong> -- present answer with caveat: "based on available data..."</li>
+    <li><strong>low</strong> -- trigger clarification flow or show degraded response</li>
+  </ul>
+  <p>Additionally, when the router detects <code>unsupported</code> from both mini and escalated model, it uses the
+     LLM <code>summarize()</code> to generate a <em>contextual</em> unsupported message (not a hardcoded string),
+     which is significantly better UX.</p>
+</div>
+
+<!-- ============================================================ -->
+<!-- Section 2: Result Presentation -->
+<!-- ============================================================ -->
+<div class="section" id="s2">
+  <h2>2. Result Presentation -- From Data to User Response</h2>
+
+  <h3>2.1 Display Format Detection</h3>
+  <pre>
+<span class="comment">// result-presenter.ts -- detectDisplayFormat()</span>
+<span class="keyword">function</span> <span class="fn">detectDisplayFormat</span>(data: <span class="type">unknown</span>): <span class="type">DisplayFormat</span> {
+  <span class="keyword">if</span> (Array.isArray(data))                    <span class="keyword">return</span> <span class="string">'multi_step'</span>
+  <span class="keyword">if</span> (<span class="type">object</span> with 'trend' or date series)    <span class="keyword">return</span> <span class="string">'timeseries'</span>
+  <span class="keyword">if</span> (<span class="type">object</span> with 'items' array)               <span class="keyword">return</span> <span class="string">'list'</span>
+  <span class="keyword">return</span> <span class="string">'single_value'</span>
+}</pre>
+
+  <table>
+    <tr><th>Format</th><th>Data Shape</th><th>When Used</th></tr>
+    <tr><td><code>multi_step</code></td><td>Array (multiple tool results)</td><td>L3/L4 cross-domain queries with multiple tool calls</td></tr>
+    <tr><td><code>timeseries</code></td><td>Object with <code>trend</code> or date arrays</td><td>eam.trend results, monthly stats</td></tr>
+    <tr><td><code>list</code></td><td>Object with <code>items</code> array</td><td>Search results (equipment.search, fault.search)</td></tr>
+    <tr><td><code>single_value</code></td><td>Everything else</td><td>Profile lookups, dashboard stats, fallback</td></tr>
+  </table>
+
+  <div class="info-box blue">
+    <div class="label">Architecture Insight</div>
+    <code>detectDisplayFormat</code> is a <em>hint</em> passed to the LLM summarizer, not a hard UI decision.
+    The LLM <code>summarize()</code> receives <code>formatHint</code> and returns its own <code>display</code> choice
+    (<code>text | table | chart</code>). This creates a two-stage format decision: structural detection + LLM judgment.
+    The LLM can override the structural hint based on the actual data content, which is the right design -- format
+    should depend on semantics, not just data shape.
+  </div>
+
+  <h3>2.2 Summary Generation (LLM Summarize)</h3>
+  <pre>
+<span class="comment">// codex-proxy.ts -- summarize() prompt (abridged)</span>
+<span class="string">"你是数据解读助手。根据查询结果生成简洁的中文回答。
+
+严格规则：
+- 只能基于提供的数据回答，绝对不能编造数据中没有的数字
+- 宁可说"数据不足"也不能给出没有依据的数字
+- 如果数据中有 unsupported 标记，基于 aiAnalysis 生成友好说明
+
+followUp 规则（类似 Perplexity 的深入引导）：
+- 3-5 个有价值的后续探索方向
+- 祈使句写成可直接执行的指令"</span></pre>
+
+  <p>Key quality controls in the summarizer:</p>
+  <ul>
+    <li><strong>Anti-hallucination rule:</strong> "Only based on provided data, never fabricate numbers" -- this is the
+        most important rule for enterprise use cases where wrong numbers can cause real damage.</li>
+    <li><strong>Graceful unsupported handling:</strong> When data contains <code>unsupported</code> marker, the summarizer
+        generates a contextual explanation based on <code>aiAnalysis</code> from the escalated model's reasoning.</li>
+    <li><strong>Follow-up generation:</strong> Perplexity-style imperative suggestions ("View equipment details for the
+        most faulted device") that can be directly executed as new queries.</li>
+  </ul>
+
+  <h3>2.3 buildStructuredResult</h3>
+  <pre>
+<span class="comment">// The final assembly -- pure data passthrough, no transformation</span>
+<span class="keyword">function</span> <span class="fn">buildStructuredResult</span>(
+  answer: <span class="type">string</span>,               <span class="comment">// LLM-generated natural language</span>
+  data: <span class="type">Record&lt;string, unknown&gt;[]</span>,  <span class="comment">// Raw tool data</span>
+  display: <span class="type">string</span>,              <span class="comment">// table | text | chart</span>
+  confidence: <span class="type">ConfidenceLevel</span>,   <span class="comment">// high | medium | low</span>
+  columns?: <span class="type">string[]</span>,           <span class="comment">// Table column hints</span>
+  followUp?: <span class="type">string[]</span>,          <span class="comment">// Perplexity-style suggestions</span>
+): <span class="type">StructuredResult</span>
+</pre>
+
+  <p>This function is a pure assembler -- it attaches no behavior. The router adds <code>sources</code>,
+     <code>trace</code>, and <code>lessonEval</code> after the call. This clean separation means the result
+     object carries everything the frontend needs: answer + raw data + metadata + debugging info.</p>
+
+  <h3>2.4 Sources Tracking</h3>
+  <p>
+    Sources are collected in the router during tool execution. Each successful tool call adds a
+    <code>{ tool, description }</code> entry, deduplicated by tool name. The <code>trace.addSource()</code>
+    also deduplicates, but the router maintains its own sources array independently. This dual tracking
+    is slightly redundant but harmless.
+  </p>
+</div>
+
+<!-- ============================================================ -->
+<!-- Section 3: Trace & Session Storage -->
+<!-- ============================================================ -->
+<div class="section" id="s3">
+  <h2>3. Trace & Session Storage -- The Audit Trail</h2>
+
+  <h3>3.1 TraceCollector Architecture</h3>
+  <pre>
+<span class="comment">// trace.ts -- What gets captured in every query</span>
+<span class="type">ExecutionTrace</span> {
+  traceId:          <span class="string">"t-xxxxxxxx"</span>          <span class="comment">// UUID-based unique ID</span>
+  query:            <span class="string">"用户原始问题"</span>
+  startTime/endTime: <span class="type">number</span>                <span class="comment">// ms timestamps</span>
+  rounds: [                                  <span class="comment">// ReAct loop records</span>
+    { round: 0, thought: <span class="string">"..."</span>,
+      calls: [{ tool, arguments, result, status, durationMs }],
+      observation: <span class="string">"..."</span> }
+  ]
+  intent:           <span class="type">IntentTags</span>              <span class="comment">// domains, operation, filters, hash</span>
+  verdict:          <span class="type">MemoryVerdict | null</span>    <span class="comment">// historical verdict if exists</span>
+  confidence:       <span class="type">ConfidenceSignals</span>       <span class="comment">// 3-signal breakdown</span>
+  finalConfidence:  <span class="type">ConfidenceLevel</span>         <span class="comment">// fused result</span>
+  validation:       <span class="type">ValidationResult[]</span>      <span class="comment">// (currently unused)</span>
+  sources:          <span class="type">Array&lt;{tool, description}&gt;</span>
+}</pre>
+
+  <div class="info-box green">
+    <div class="label">Trace Completeness Assessment</div>
+    The trace captures <strong>everything needed for debugging</strong>: the full reasoning chain (thought per round),
+    every tool call with arguments and results, timing data, intent extraction, verdict state, and confidence breakdown.
+    This is excellent infrastructure -- you can replay any query's execution path from the trace alone.
+    The <code>validation</code> array exists in the type but is never populated in the current router code (no validators
+    are invoked). This is a hook for future use.
+  </div>
+
+  <h3>3.2 Database Schema -- 6 Tables</h3>
+
+  <table>
+    <tr><th>Table</th><th>Purpose</th><th>Key</th><th>Indexes</th></tr>
+    <tr>
+      <td><code>nl_memory_sessions</code></td>
+      <td>Every query execution -- query, intent hash, tool chain, result, feedback</td>
+      <td><code>(tenant_id, session_id)</code></td>
+      <td><code>intent_hash + created_at DESC</code></td>
+    </tr>
+    <tr>
+      <td><code>nl_memory_verdicts</code></td>
+      <td>Aggregated intent-to-toolchain verdict with scoring</td>
+      <td><code>(tenant_id, intent_hash)</code></td>
+      <td>Primary key</td>
+    </tr>
+    <tr>
+      <td><code>nl_memory_preferences</code></td>
+      <td>User preferences (JSON blob)</td>
+      <td><code>(tenant_id, user_id)</code></td>
+      <td>Primary key</td>
+    </tr>
+    <tr>
+      <td><code>nl_traces</code></td>
+      <td>Full execution trace as JSON blob</td>
+      <td><code>trace_id</code></td>
+      <td><code>tenant_id + created_at DESC</code></td>
+    </tr>
+    <tr>
+      <td><code>nl_lessons</code></td>
+      <td>Self-learning lessons from subagent eval</td>
+      <td><code>id</code> (auto-increment)</td>
+      <td><code>intent_hash + created_at DESC</code></td>
+    </tr>
+    <tr>
+      <td><code>benchmark_runs</code></td>
+      <td>Benchmark execution history with full results</td>
+      <td><code>run_id</code> (unique)</td>
+      <td><code>timestamp DESC</code></td>
+    </tr>
+  </table>
+
+  <h3>3.3 Session Data -- What's Stored</h3>
+  <pre>
+<span class="comment">// Written in router.ts after every successful query</span>
+<span class="type">MemorySession</span> {
+  sessionId:        traceId,                <span class="comment">// Reuses trace ID as session ID</span>
+  userId, tenantId, query,
+  intentHash:       intent?.intentHash ?? <span class="string">''</span>,
+  toolChain:        allResults.map(r => r.tool),
+  resultSummary:    answer.slice(0, 200),   <span class="comment">// Truncated!</span>
+  routingDecision:  { rounds, confidence },
+  expiresAt:        now + 30 days           <span class="comment">// 30-day retention</span>
+}</pre>
+
+  <div class="info-box amber">
+    <div class="label">Data Retention Design</div>
+    Sessions expire after 30 days (set at creation, not enforced by cleanup).
+    There is <strong>no cleanup job</strong> that actually deletes expired sessions.
+    The <code>expiresAt</code> field is written but never checked by any query.
+    The verdict system also sets 30-day expiry, also never enforced.
+    For a production system, this means data grows unbounded.
+  </div>
+
+  <h3>3.4 Trace Storage Pattern</h3>
+  <p>
+    Traces are stored as a monolithic JSON blob in <code>trace_json TEXT</code>. This makes them
+    trivially easy to store and retrieve but impossible to query at the SQL level. You can't ask
+    "show me all traces where eam.fault.search took more than 2 seconds" without parsing every JSON blob.
+  </p>
+  <p>
+    For the current scale (single-tenant, tens of queries per day), this is fine. At scale, this would need
+    either: (a) extract key metrics to indexed columns, or (b) use a JSON-aware database.
+  </p>
+
+  <h3>3.5 Benchmark Storage</h3>
+  <p>
+    Benchmark runs store the full config + summary + per-question results as JSON blobs.
+    The <code>getBenchmarkRuns()</code> method returns summaries for the Dashboard, and
+    <code>getBenchmarkRun(runId)</code> retrieves full detail for drill-down.
+    This enables historical comparison ("did recall improve after this prompt change?")
+    and is the best implementation of experiment tracking in the codebase.
+  </p>
+</div>
+
+<!-- ============================================================ -->
+<!-- Section 4: Subagent Evaluation -->
+<!-- ============================================================ -->
+<div class="section" id="s4">
+  <h2>4. Subagent Evaluation -- Generator + Evaluator Architecture</h2>
+
+  <h3>4.1 How evaluateWithSubagent Works</h3>
+
+  <div class="diagram">
+    <pre>
+<span class="highlight">Router (generator)</span>              <span class="accent">Subagent (evaluator)</span>
+       |                                   |
+  User query                               |
+       |                                   |
+  [ReAct loop]                             |
+  Selects tools                            |
+  Executes calls                           |
+  Gets data                                |
+       |                                   |
+       +------- query + data fields -------&gt;
+       |        + data sample (200 chars)  |
+       |                                   |
+       |        <span class="comment">Isolated context:</span>           |
+       |        <span class="comment">- Doesn't see tool selection</span> |
+       |        <span class="comment">- Doesn't see routing logic</span>  |
+       |        <span class="comment">- Only sees question + data</span>  |
+       |                                   |
+       &lt;------- quality + reason + lesson --+
+       |                                   |
+  Writes lesson if quality != 'good'</pre>
+  </div>
+
+  <h3>4.2 The Evaluator Prompt</h3>
+  <pre>
+<span class="string">"你是结果质量评估员。你不知道 AI 是怎么选工具的，也不需要知道。
+你只需要判断：给定的数据能回答用户的问题吗？
+
+规则：
+- 只看数据和问题，不要猜测或推理
+- 数据字段和问题主题明显不匹配 → bad
+- 数据有部分相关但不够完整 → partial
+- 数据足以回答问题 → good"</span></pre>
+
+  <p>This is the <strong>Anthropic generator + evaluator pattern</strong>: the evaluator is deliberately
+     isolated from the generator's reasoning. It can't see <em>why</em> tools were chosen, only <em>what</em>
+     data came back. This eliminates the circular self-evaluation problem ("I chose well because I chose well").</p>
+
+  <h3>4.3 Quality Assessment Output</h3>
+  <table>
+    <tr><th>Quality</th><th>Meaning</th><th>Action</th></tr>
+    <tr>
+      <td><span class="badge green">good</span></td>
+      <td>Data is sufficient to answer the question</td>
+      <td>No lesson written. Positive signal for verdict.</td>
+    </tr>
+    <tr>
+      <td><span class="badge amber">partial</span></td>
+      <td>Data is partially relevant but incomplete</td>
+      <td>Lesson written with <code>[subagent]</code> prefix. Missing fields logged.</td>
+    </tr>
+    <tr>
+      <td><span class="badge red">bad</span></td>
+      <td>Data doesn't match the question at all</td>
+      <td>Lesson written. Strong negative signal for verdict.</td>
+    </tr>
+  </table>
+
+  <h3>4.4 Lesson Generation and Storage</h3>
+  <pre>
+<span class="comment">// Written in router.ts after subagent evaluation</span>
+<span class="keyword">if</span> (subagentResult.quality !== <span class="string">'good'</span> && intent?.intentHash) {
+  storage.insertLesson({
+    intentHash, tenantId, query,
+    selectedTools: allResults.map(r => r.tool),
+    quality: subagentResult.quality,
+    errorReason: subagentResult.reason,
+    betterPath: subagentResult.missing,          <span class="comment">// What's needed</span>
+    lesson: <span class="string">`[subagent] ${subagentResult.lesson}`</span>,
+    source: <span class="string">'self_eval'</span>,                       <span class="comment">// Marked as AI-generated</span>
+  })
+}</pre>
+
+  <p>Lesson storage uses <strong>upsert-by-source</strong> semantics: for the same <code>(tenant_id, intent_hash, source)</code>,
+     only the latest lesson is kept. This prevents lesson accumulation from repeated queries.</p>
+
+  <h3>4.5 Historical Context: The 78 Deleted Lessons</h3>
+
+  <div class="info-box red">
+    <div class="label">Previous Experiment Failure</div>
+    <p>During P1 self-learning experiments, the subagent evaluator (then with a different, less isolated prompt)
+       produced 78 lessons that were all garbage -- vague, repetitive, and unhelpful. They were manually bulk-deleted.
+       The root cause was that the original evaluator had access to the routing reasoning, making it a
+       circular self-evaluation (AI evaluating its own reasoning is like a student grading their own exam).</p>
+    <p style="margin-top:8px">The current isolated subagent design addresses this by cutting off access to the routing
+       context. However, the <code>source: 'self_eval'</code> tag means these lessons are still distinguishable
+       from human feedback, allowing different trust levels.</p>
+  </div>
+
+  <h3>4.6 Current Status: Still Running?</h3>
+  <p>
+    <span class="status-dot active"></span><strong>Yes, the subagent evaluator runs on every query.</strong>
+    Looking at router.ts, the evaluation block runs unconditionally after every successful query
+    (lines 239-261). There is no confidence gate or cost optimization -- every query pays for an extra
+    LLM call for evaluation. The earlier design doc proposed "confidence high → skip evaluator" but
+    this was <strong>not implemented</strong>.
+  </p>
+
+  <h3>4.7 Integration with Skill Evolution Vision</h3>
+  <p>
+    Lessons from the subagent are stored with <code>selectedTools</code> and <code>betterPath</code> (missing info).
+    In the Skill evolution vision, these would be aggregated to identify which Skills consistently produce
+    <code>partial</code> or <code>bad</code> results and what data they're missing, then fed to a higher-level
+    AI to propose YAML modifications. Currently, this aggregation and YAML modification is entirely manual.
+  </p>
+</div>
+
+<!-- ============================================================ -->
+<!-- Section 5: Self-Learning Vision -->
+<!-- ============================================================ -->
+<div class="section" id="s5">
+  <h2>5. Self-Learning Vision -- Implemented vs Planned</h2>
+
+  <h3>5.1 Current State Map</h3>
+
+  <table>
+    <tr><th>Component</th><th>Status</th><th>Detail</th></tr>
+    <tr>
+      <td>TraceCollector</td>
+      <td><span class="badge green">Implemented</span></td>
+      <td>Full execution trace on every query, stored in SQLite</td>
+    </tr>
+    <tr>
+      <td>Session storage</td>
+      <td><span class="badge green">Implemented</span></td>
+      <td>Every query creates a session with intent hash, tool chain, summary</td>
+    </tr>
+    <tr>
+      <td>Verdict system</td>
+      <td><span class="badge green">Implemented</span></td>
+      <td>Intent hash to best tool chain aggregation with scoring</td>
+    </tr>
+    <tr>
+      <td>Subagent evaluator</td>
+      <td><span class="badge green">Implemented</span></td>
+      <td>Isolated quality assessment, lesson writing</td>
+    </tr>
+    <tr>
+      <td>User feedback (thumbs up/down)</td>
+      <td><span class="badge amber">Schema ready</span></td>
+      <td>Table has <code>feedback</code> column, API endpoint exists, but no frontend integration</td>
+    </tr>
+    <tr>
+      <td>Verdict injection into prompt</td>
+      <td><span class="badge green">Implemented</span></td>
+      <td>prompt-assembler injects verdict as "historical recommended path"</td>
+    </tr>
+    <tr>
+      <td>Lesson injection into routing</td>
+      <td><span class="badge red">Not implemented</span></td>
+      <td>Lessons are stored but never read during routing. <code>getLessonsByIntentHash</code> is only called by verdict calculation.</td>
+    </tr>
+    <tr>
+      <td>Skill YAML auto-modification</td>
+      <td><span class="badge red">Not implemented</span></td>
+      <td>The core vision: higher-level AI reads traces + lessons, modifies Skill YAML. Entirely manual today.</td>
+    </tr>
+    <tr>
+      <td>Benchmark as validation gate</td>
+      <td><span class="badge green">Implemented</span></td>
+      <td>40-question benchmark with recall/precision scoring, historical runs stored</td>
+    </tr>
+    <tr>
+      <td>Auto-benchmark after YAML change</td>
+      <td><span class="badge red">Not implemented</span></td>
+      <td>Benchmark is manually triggered. No CI/CD integration.</td>
+    </tr>
+    <tr>
+      <td>Data retention / cleanup</td>
+      <td><span class="badge red">Not implemented</span></td>
+      <td><code>expiresAt</code> is written but never enforced</td>
+    </tr>
+  </table>
+
+  <h3>5.2 Skill YAML as Evolution Target</h3>
+
+  <div class="diagram">
+    <pre>
+<span class="comment">  Current state: MCP Tool = Skill (1:1 mapping, mostly)</span>
+
+  <span class="highlight">MCP Tool Layer</span> (fixed)          <span class="accent">Skill Layer</span> (evolves)
+  +-----------------+              +-----------------------+
+  | eam/equipment   |  <---1:1---  | eam.equipment.profile |
+  | eam/fault       |  <---1:1---  | eam.fault.search      |
+  | eam/repair      |  <---1:1---  | eam.repair.search     |
+  | ...12 tools     |              | ...12 skills          |
+  +-----------------+              +-----------------------+
+
+<span class="comment">  Vision: Skill = capability (1:N mapping)</span>
+
+  <span class="highlight">MCP Tool Layer</span> (fixed)          <span class="accent">Skill Layer</span> (evolves)
+  +-----------------+              +-----------------------+
+  | eam/equipment   |  <--+        | eam.equipment.health  | <span class="comment">composite</span>
+  | eam/fault       |  <--+---     |   tools: [equipment.  |
+  | eam/maintenance |  <--+        |     profile, fault.   |
+  | eam/repair      |              |     search, maint.    |
+  +-----------------+              |     search]           |
+                                   +-----------------------+</pre>
+  </div>
+
+  <p>The insight from the Skill layer design: <strong>Skill YAML is the perfect self-learning target</strong>
+     because it's pure text that a high-level AI can safely modify. Changing <code>when_to_use</code>,
+     <code>description</code>, or <code>tools</code> in a YAML file requires zero code changes and can be
+     validated immediately by re-running the benchmark.</p>
+
+  <h3>5.3 Feedback Sources Analysis</h3>
+
+  <table>
+    <tr><th>Source</th><th>Quality</th><th>Volume</th><th>Current State</th></tr>
+    <tr>
+      <td>Execution traces</td>
+      <td><span class="badge green">Objective</span></td>
+      <td>Every query</td>
+      <td>Stored, readable, but not aggregated for analysis</td>
+    </tr>
+    <tr>
+      <td>Subagent lessons</td>
+      <td><span class="badge amber">Moderate</span></td>
+      <td>Every non-good query</td>
+      <td>Stored, but previous experiment showed garbage quality</td>
+    </tr>
+    <tr>
+      <td>User feedback</td>
+      <td><span class="badge green">Highest</span></td>
+      <td>Near zero</td>
+      <td>Schema exists, no frontend, users rarely click thumbs</td>
+    </tr>
+    <tr>
+      <td>Benchmark results</td>
+      <td><span class="badge green">Gold standard</span></td>
+      <td>Per benchmark run</td>
+      <td>40 curated cases with expert-defined acceptable paths</td>
+    </tr>
+    <tr>
+      <td>Tool return values</td>
+      <td><span class="badge green">Objective</span></td>
+      <td>Every call</td>
+      <td>Captured in traces but no automated "empty = wrong" signal extraction</td>
+    </tr>
+  </table>
+
+  <h3>5.4 intentHash Fragmentation Issue</h3>
+
+  <pre>
+<span class="comment">// intent.ts -- How the hash is computed</span>
+<span class="keyword">function</span> <span class="fn">computeIntentHash</span>(domains, operation, filters) {
+  <span class="keyword">const</span> normalized = {
+    d: [...domains].sort(),
+    o: operation,
+    f: [...filters].sort(),
+  }
+  <span class="keyword">return</span> sha256(JSON.stringify(normalized)).slice(0, 16)
+}</pre>
+
+  <div class="info-box red">
+    <div class="label">Fragmentation Problem</div>
+    <p>Two queries that are semantically identical but phrased differently will produce different
+       intent hashes if the LLM extracts different <code>filters</code> or <code>operation</code> values:</p>
+    <ul style="margin-top:8px">
+      <li>"Show me equipment EQ-001 details" → <code>{d:["equipment"], o:"detail", f:["EQ-001"]}</code></li>
+      <li>"What's the info for device EQ-001?" → <code>{d:["equipment"], o:"query", f:["EQ-001"]}</code></li>
+    </ul>
+    <p style="margin-top:8px">Different <code>operation</code> → different hash → different verdict entry → learning
+       never aggregates. With 12 tools this is somewhat mitigated (fewer routing paths), but the fundamental
+       problem remains: <strong>verdict learning is only as good as intent hash stability</strong>.</p>
+  </div>
+
+  <h3>5.5 Verdict System -- Current Value Assessment</h3>
+
+  <p>The verdict system (<code>verdict.ts</code>) aggregates session data into a per-intent-hash scoring:</p>
+  <ul>
+    <li><strong>User feedback weighted 3x</strong> (thumbs up = 1.0 * 3, thumbs down = 0.0 * 3)</li>
+    <li><strong>No feedback = neutral</strong> (0.5 * 1 weight)</li>
+    <li><strong>Lesson quality deduction</strong> (bad = -0.5, partial = -0.2)</li>
+    <li><strong>Winner chain</strong> = most frequent tool chain across sessions</li>
+  </ul>
+
+  <p>The verdict is <strong>injected into the prompt</strong> as "historical recommended path" by the prompt-assembler,
+     giving the LLM a hint about what worked before. It also contributes to <code>verdictConfidence</code>,
+     the second confidence signal.</p>
+
+  <div class="info-box amber">
+    <div class="label">Verdict Effectiveness Assessment</div>
+    <p>In theory, verdicts should improve routing accuracy for repeated query patterns. In practice:</p>
+    <ul>
+      <li>Without user feedback, most sessions have <code>feedback: null</code>, scoring 0.5 with weight 1 -- essentially noise</li>
+      <li>Subagent lessons deduct from score, but their quality was previously proven unreliable</li>
+      <li>The hash fragmentation issue means verdicts rarely aggregate enough samples</li>
+      <li>The prompt injection is a soft hint ("historical path") that the LLM may or may not follow</li>
+    </ul>
+    <p style="margin-top:8px"><strong>Net assessment:</strong> The verdict system is architecturally sound but has
+       weak input signals. It's infrastructure waiting for better data (user feedback, stable hashes).</p>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- Section 6: Benchmark System -->
+<!-- ============================================================ -->
+<div class="section" id="s6">
+  <h2>6. Benchmark System -- 40 Test Cases as Ground Truth</h2>
+
+  <h3>6.1 Test Case Design</h3>
+
+  <table>
+    <tr><th>Level</th><th>Count</th><th>Description</th><th>Example</th></tr>
+    <tr>
+      <td><span class="badge blue">L1</span></td><td>10</td>
+      <td>Simple queries -- single tool, no filters</td>
+      <td>"How many devices total?" → <code>eam.dashboard</code></td>
+    </tr>
+    <tr>
+      <td><span class="badge green">L2</span></td><td>10</td>
+      <td>Single domain with conditions/filters</td>
+      <td>"Most faulted device last month?" → <code>eam.fault.search</code></td>
+    </tr>
+    <tr>
+      <td><span class="badge amber">L3</span></td><td>8</td>
+      <td>Cross-domain / multi-step queries</td>
+      <td>"BOM parts low on stock for EQ-003?" → <code>eam.spare.search</code> or <code>eam.equipment.profile</code></td>
+    </tr>
+    <tr>
+      <td><span class="badge purple">L4</span></td><td>6</td>
+      <td>Cross-domain analysis</td>
+      <td>"Highest fault rate device -- is maintenance on track?" → <code>eam.fault.search</code> + <code>eam.maintenance.search</code></td>
+    </tr>
+    <tr>
+      <td><span class="badge red">L5</span></td><td>6</td>
+      <td>Trend / advanced analysis</td>
+      <td>"Which line's faults trending up with low stock?" → <code>eam.trend</code> + <code>eam.spare.search</code></td>
+    </tr>
+  </table>
+
+  <h3>6.2 acceptablePaths -- Multiple Valid Routes</h3>
+  <p>
+    Each test case defines <code>acceptablePaths: string[][]</code> -- a list of valid tool sequences.
+    This is a critical design decision: <strong>there is no single "correct" answer</strong>, only multiple
+    acceptable paths. For example, T06 "Patrol anomaly stats" accepts three paths:
+  </p>
+  <pre>
+acceptablePaths: [
+  [<span class="string">'eam.dashboard'</span>],          <span class="comment">// Dashboard has anomaly stats</span>
+  [<span class="string">'eam.anomaly.search'</span>],      <span class="comment">// Direct anomaly search</span>
+  [<span class="string">'eam.patrol.search'</span>],       <span class="comment">// Patrol search also has anomaly data</span>
+]</pre>
+
+  <h3>6.3 Scoring: calcBestMatch Algorithm</h3>
+  <pre>
+<span class="keyword">function</span> <span class="fn">calcBestMatch</span>(actual: <span class="type">string[]</span>, acceptablePaths: <span class="type">string[][]</span>) {
+  <span class="comment">// For each acceptable path, compute recall and precision</span>
+  <span class="comment">// Return the path that gives the highest recall (ties broken by precision)</span>
+
+  <span class="keyword">for</span> (<span class="keyword">const</span> expected <span class="keyword">of</span> acceptablePaths) {
+    recall    = <span class="accent">|expected ∩ actual|</span> / <span class="accent">|expected|</span>   <span class="comment">// Did we hit the expected tools?</span>
+    precision = <span class="accent">|expected ∩ actual|</span> / <span class="accent">|actual|</span>     <span class="comment">// Were our calls relevant?</span>
+  }
+  <span class="comment">// Best match = highest recall, then highest precision</span>
+}</pre>
+
+  <p>Key properties:</p>
+  <ul>
+    <li><strong>Recall</strong>: "Did we call the tools we should have called?" -- 100% means all expected tools were called</li>
+    <li><strong>Precision</strong>: "Were all our calls useful?" -- 100% means no wasted calls</li>
+    <li><strong>Multiple paths</strong>: A query that routes to any acceptable path scores well</li>
+    <li><strong>Set-based</strong>: Order doesn't matter, only which tools were called</li>
+  </ul>
+
+  <h3>6.4 Current Results: 95% Recall, 37/40 Perfect</h3>
+
+  <div class="signal-grid">
+    <div class="signal-card">
+      <h4>Overall Recall</h4>
+      <div class="num green">95.0%</div>
+      <p style="font-size:13px; color:var(--gray-500)">Across all 40 questions</p>
+    </div>
+    <div class="signal-card">
+      <h4>Perfect Recall (100%)</h4>
+      <div class="num green">37/40</div>
+      <p style="font-size:13px; color:var(--gray-500)">92.5% of questions perfectly routed</p>
+    </div>
+    <div class="signal-card">
+      <h4>Remaining Failures</h4>
+      <div class="num red">3</div>
+      <p style="font-size:13px; color:var(--gray-500)">Imperfect recall questions</p>
+    </div>
+  </div>
+
+  <h3>6.5 The 3 Remaining Failures -- Root Cause Analysis</h3>
+
+  <p>Based on the test case definitions and the system's routing patterns, the most likely failure categories are:</p>
+
+  <div class="issue-card high">
+    <div class="issue-title">L4/L5 Multi-Tool Chains -- Second Tool Not Called</div>
+    <div class="issue-detail">
+      <p>For queries like T29 "Highest fault rate device -- is maintenance on track?" that require
+         <code>eam.fault.search</code> + <code>eam.maintenance.search</code>, the LLM may stop after the first
+         tool and attempt to answer from partial data. The ReAct loop should trigger a chase round but the
+         LLM's "finish" signal fires too early.</p>
+      <p style="margin-top:6px"><strong>Root cause:</strong> The observation injection shows fields from the first call,
+         and the LLM decides "this is enough" without realizing the question has two parts.</p>
+      <p style="margin-top:6px"><strong>Fix direction:</strong> Strengthen the Reflexion prompt in the observation message.
+         Currently it says "if covered then finish" -- could add "check if ALL parts of the question are covered".</p>
+    </div>
+  </div>
+
+  <div class="issue-card high">
+    <div class="issue-title">L5 Trend + Cross-Domain -- Composite Skill Gap</div>
+    <div class="issue-detail">
+      <p>Questions like T35 "Which line has rising faults AND low spare stock?" require combining
+         <code>eam.trend</code> with <code>eam.spare.search</code>. With 1:1 Skill mapping, the LLM must
+         independently decide to call both. When these become composite Skills with explicit tool lists,
+         the LLM won't need to figure out the combination itself.</p>
+      <p style="margin-top:6px"><strong>Fix direction:</strong> Create composite Skills for common cross-domain patterns.
+         This is exactly the Skill evolution vision.</p>
+    </div>
+  </div>
+
+  <div class="issue-card medium">
+    <div class="issue-title">Ambiguous Domain Mapping -- Dashboard vs Search</div>
+    <div class="issue-detail">
+      <p>Several L1 queries accept both <code>eam.dashboard</code> and domain-specific search as valid paths.
+         The LLM may choose the "wrong" one for the benchmark even though both would answer the question.
+         This is more a benchmark design question than a routing failure.</p>
+      <p style="margin-top:6px"><strong>Note:</strong> The <code>acceptablePaths</code> design already handles this
+         by allowing multiple valid routes. Any remaining "failures" in this category would indicate the LLM
+         chose a path not in the acceptable set at all.</p>
+    </div>
+  </div>
+
+  <h3>6.6 Benchmark as Evolution Driver</h3>
+  <p>
+    The benchmark is currently the <strong>strongest feedback signal</strong> in the entire system. It provides:
+  </p>
+  <ul>
+    <li><strong>Objective measurement</strong>: recall/precision against expert-defined ground truth</li>
+    <li><strong>Per-level breakdown</strong>: shows exactly where complexity starts causing failures</li>
+    <li><strong>Historical tracking</strong>: runs stored in SQLite, Dashboard shows trends</li>
+    <li><strong>Reproducible</strong>: same 40 questions, deterministic scoring</li>
+  </ul>
+  <p>
+    In the evolution loop, benchmark is the validation gate: any Skill YAML change must pass the benchmark
+    before deployment. This is the equivalent of a test suite for AI behavior.
+  </p>
+</div>
+
+<!-- ============================================================ -->
+<!-- Section 7: Complete Evolution Loop -->
+<!-- ============================================================ -->
+<div class="section" id="s7">
+  <h2>7. Complete Evolution Loop -- End-to-End</h2>
+
+  <h3>7.1 The Full Feedback Loop</h3>
+
+  <div class="flow-diagram" style="flex-direction: column; align-items: stretch;">
+    <div style="display: flex; gap: 6px; align-items: center; flex-wrap: wrap; justify-content: center;">
+      <div class="flow-box blue">User Query</div>
+      <span class="flow-arrow">--&gt;</span>
+      <div class="flow-box blue">Router (ReAct)</div>
+      <span class="flow-arrow">--&gt;</span>
+      <div class="flow-box green">Tool Execution</div>
+      <span class="flow-arrow">--&gt;</span>
+      <div class="flow-box green">LLM Summarize</div>
+      <span class="flow-arrow">--&gt;</span>
+      <div class="flow-box blue">Response</div>
+    </div>
+    <div style="text-align: center; color: var(--gray-400); font-size: 24px; margin: 8px 0;">&#8595;</div>
+    <div style="display: flex; gap: 6px; align-items: center; flex-wrap: wrap; justify-content: center;">
+      <div class="flow-box purple">Trace Stored</div>
+      <span class="flow-arrow">+</span>
+      <div class="flow-box purple">Session Stored</div>
+      <span class="flow-arrow">+</span>
+      <div class="flow-box purple">Subagent Eval</div>
+      <span class="flow-arrow">--&gt;</span>
+      <div class="flow-box amber">Lesson Written</div>
+    </div>
+    <div style="text-align: center; color: var(--gray-400); font-size: 24px; margin: 8px 0;">&#8595;</div>
+    <div style="display: flex; gap: 6px; align-items: center; flex-wrap: wrap; justify-content: center;">
+      <div class="flow-box outline">User Feedback</div>
+      <span class="flow-arrow">+</span>
+      <div class="flow-box amber">Verdict Updated</div>
+      <span class="flow-arrow">--&gt;</span>
+      <div class="flow-box outline">Prompt Injection</div>
+    </div>
+    <div style="text-align: center; color: var(--gray-400); font-size: 24px; margin: 8px 0;">&#8595;</div>
+    <div style="display: flex; gap: 6px; align-items: center; flex-wrap: wrap; justify-content: center;">
+      <div class="flow-box outline">Trace Analysis</div>
+      <span class="flow-arrow">--&gt;</span>
+      <div class="flow-box outline">AI YAML Modification</div>
+      <span class="flow-arrow">--&gt;</span>
+      <div class="flow-box green">Benchmark Validation</div>
+      <span class="flow-arrow">--&gt;</span>
+      <div class="flow-box outline">Deploy Updated Skills</div>
+    </div>
+  </div>
+
+  <div style="margin-top: 16px; display: flex; gap: 20px; flex-wrap: wrap;">
+    <div style="display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--gray-500);">
+      <div style="width: 32px; height: 16px; border-radius: 4px; background: var(--blue-700);"></div>
+      Implemented (automated)
+    </div>
+    <div style="display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--gray-500);">
+      <div style="width: 32px; height: 16px; border-radius: 4px; background: var(--green-700);"></div>
+      Implemented (manual trigger)
+    </div>
+    <div style="display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--gray-500);">
+      <div style="width: 32px; height: 16px; border-radius: 4px; background: var(--purple-700);"></div>
+      Implemented (automated, async)
+    </div>
+    <div style="display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--gray-500);">
+      <div style="width: 32px; height: 16px; border-radius: 4px; background: var(--amber-700);"></div>
+      Partially implemented
+    </div>
+    <div style="display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--gray-500);">
+      <div style="width: 32px; height: 16px; border-radius: 4px; border: 2px dashed var(--gray-400);"></div>
+      Planned / Not implemented
+    </div>
+  </div>
+
+  <h3>7.2 Detailed Component Status</h3>
+
+  <table>
+    <tr><th>Step</th><th>Component</th><th>Status</th><th>Automation Level</th></tr>
+    <tr>
+      <td>1</td><td>Query → Execution → Response</td>
+      <td><span class="badge green">Live</span></td>
+      <td>Fully automated (ReAct loop with escalation)</td>
+    </tr>
+    <tr>
+      <td>2</td><td>Trace + Session storage</td>
+      <td><span class="badge green">Live</span></td>
+      <td>Automatic on every query, no-block</td>
+    </tr>
+    <tr>
+      <td>3</td><td>Subagent evaluation → Lesson</td>
+      <td><span class="badge green">Live</span></td>
+      <td>Automatic on every query (no confidence gate)</td>
+    </tr>
+    <tr>
+      <td>4</td><td>User feedback collection</td>
+      <td><span class="badge amber">Partial</span></td>
+      <td>Backend API exists, no frontend UI</td>
+    </tr>
+    <tr>
+      <td>5</td><td>Verdict calculation + update</td>
+      <td><span class="badge green">Live</span></td>
+      <td>Code exists (<code>maybeUpdateVerdict</code>) but <strong>never called by router</strong></td>
+    </tr>
+    <tr>
+      <td>6</td><td>Verdict → Prompt injection</td>
+      <td><span class="badge green">Live</span></td>
+      <td>prompt-assembler injects verdict if it exists in DB</td>
+    </tr>
+    <tr>
+      <td>7</td><td>Trace aggregation / analysis</td>
+      <td><span class="badge red">Not built</span></td>
+      <td>No scripts or tools to aggregate traces</td>
+    </tr>
+    <tr>
+      <td>8</td><td>AI-driven YAML modification</td>
+      <td><span class="badge red">Not built</span></td>
+      <td>The core evolution step -- entirely manual today</td>
+    </tr>
+    <tr>
+      <td>9</td><td>Benchmark validation</td>
+      <td><span class="badge green">Live</span></td>
+      <td>Manual trigger (<code>npx tsx scripts/benchmark.ts</code>)</td>
+    </tr>
+    <tr>
+      <td>10</td><td>Skill deployment</td>
+      <td><span class="badge gray">N/A</span></td>
+      <td>YAML files in <code>skills/</code> directory, hot-reload on restart</td>
+    </tr>
+  </table>
+
+  <div class="info-box purple">
+    <div class="label">Critical Gap: Step 5 -- Verdict Never Triggered</div>
+    <p><code>maybeUpdateVerdict()</code> exists in <code>verdict.ts</code> but is <strong>never called from
+       the router</strong>. The router writes sessions and lessons but does not trigger verdict recalculation.
+       This means:</p>
+    <ul>
+      <li>The verdict table stays empty unless manually populated</li>
+      <li><code>verdictConfidence</code> is always <code>'low'</code> (no verdict found)</li>
+      <li>The "historical recommended path" is never injected into prompts</li>
+      <li>The entire experience aggregation layer is inert</li>
+    </ul>
+    <p style="margin-top:8px">A single line added after session insertion would activate this:
+       <code>await maybeUpdateVerdict(storage, tenantId, intent.intentHash)</code></p>
+  </div>
+
+  <h3>7.3 What Closing the Loop Looks Like</h3>
+
+  <div class="diagram">
+    <pre>
+<span class="comment">Phase 1 (Now → Next sprint): Wire up existing components</span>
+  <span class="highlight">1.</span> Call <span class="fn">maybeUpdateVerdict()</span> after session insertion
+  <span class="highlight">2.</span> Add confidence gate to subagent eval (skip if high confidence)
+  <span class="highlight">3.</span> Build frontend thumbs-up/down widget
+  <span class="highlight">4.</span> Add data retention cleanup job
+
+<span class="comment">Phase 2 (P2): Semi-automated evolution</span>
+  <span class="highlight">5.</span> Build trace aggregation script (group by Skill, compute failure rates)
+  <span class="highlight">6.</span> Build "suggest YAML changes" prompt that reads traces + benchmark delta
+  <span class="highlight">7.</span> Human reviews and applies YAML changes
+  <span class="highlight">8.</span> Benchmark validates
+
+<span class="comment">Phase 3 (P3): Fully automated</span>
+  <span class="highlight">9.</span> CI pipeline: YAML change → benchmark → auto-deploy if recall >= threshold
+  <span class="highlight">10.</span> Higher-level AI (5.4) periodically analyzes traces, proposes YAML changes
+  <span class="highlight">11.</span> A/B testing: new YAML vs old YAML on live traffic</pre>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- Section 8: Issues & Recommendations -->
+<!-- ============================================================ -->
+<div class="section" id="s8">
+  <h2>8. Issues & Recommendations</h2>
+
+  <div class="issue-card critical">
+    <div class="issue-title">
+      <span class="badge red">P0</span> Verdict Never Triggered -- Experience Layer is Dead Code
+    </div>
+    <div class="issue-detail">
+      <p><strong>File:</strong> <code>lib/brain/router.ts</code> / <code>lib/brain/verdict.ts</code></p>
+      <p><code>maybeUpdateVerdict()</code> is never called. Sessions are written, verdicts are checked,
+         but the bridge between them -- recalculating the verdict from accumulated sessions -- doesn't exist in
+         the running code. The entire verdict aggregation system (scoring, winner chain, confidence, bonus points)
+         is exercised only in tests.</p>
+      <p style="margin-top:6px"><strong>Fix:</strong> Add <code>maybeUpdateVerdict(storage, tenantId, intent.intentHash)</code>
+         after <code>storage.insertSession()</code> in router.ts. One line, high impact.</p>
+    </div>
+  </div>
+
+  <div class="issue-card critical">
+    <div class="issue-title">
+      <span class="badge red">P0</span> Subagent Evaluator Runs Unconditionally -- Cost Waste
+    </div>
+    <div class="issue-detail">
+      <p><strong>File:</strong> <code>lib/brain/router.ts</code> lines 239-261</p>
+      <p>Every query pays for an extra LLM call to evaluate itself. The design doc specified a confidence gate
+         (skip evaluation when confidence is high), but this was never implemented. At scale, this doubles LLM costs
+         for queries that are clearly correct.</p>
+      <p style="margin-top:6px"><strong>Fix:</strong> Add <code>if (finalConfidence !== 'high') { ... evaluate ... }</code>
+         guard. But note: until verdictConfidence is fixed (P0 above), confidence is never 'high', so the gate
+         won't help until the verdict system is live.</p>
+    </div>
+  </div>
+
+  <div class="issue-card high">
+    <div class="issue-title">
+      <span class="badge amber">P1</span> intentHash Fragmentation -- Learning Doesn't Aggregate
+    </div>
+    <div class="issue-detail">
+      <p><strong>File:</strong> <code>lib/brain/intent.ts</code></p>
+      <p>The hash over <code>{domains, operation, filters}</code> is too sensitive to LLM output variation.
+         "What's device EQ-001's status?" and "Show me equipment EQ-001 details" may produce different
+         operations ("query" vs "detail") and thus different hashes.</p>
+      <p style="margin-top:6px"><strong>Options:</strong></p>
+      <ul>
+        <li>(a) Normalize operation to a smaller set (query/detail/list/trend/alert) with explicit mapping</li>
+        <li>(b) Use the actual <code>tool chain</code> as the aggregation key instead of intent hash</li>
+        <li>(c) Add fuzzy matching: if two hashes resolve to the same tool chain, merge their verdicts</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="issue-card high">
+    <div class="issue-title">
+      <span class="badge amber">P1</span> Lessons Written but Never Read During Routing
+    </div>
+    <div class="issue-detail">
+      <p><strong>File:</strong> <code>lib/brain/router.ts</code> / <code>lib/brain/prompt-assembler.ts</code></p>
+      <p>Lessons are written to <code>nl_lessons</code> on every non-good evaluation, but they're only read by
+         the verdict scoring function (as a negative signal). They're never injected into the routing prompt
+         as "avoid this pattern" hints. The prompt-assembler has no lesson injection.</p>
+      <p style="margin-top:6px"><strong>Fix:</strong> Either inject top lessons into the prompt (risky -- proven to
+         produce garbage before) or use lessons only for verdict scoring + Skill YAML evolution (safer).</p>
+    </div>
+  </div>
+
+  <div class="issue-card high">
+    <div class="issue-title">
+      <span class="badge amber">P1</span> No Data Retention Enforcement
+    </div>
+    <div class="issue-detail">
+      <p><strong>File:</strong> <code>lib/storage/sqlite.ts</code></p>
+      <p><code>expiresAt</code> is set on sessions and verdicts (30-day TTL) but no cleanup job exists.
+         Traces and lessons have no expiry at all. Data grows unbounded.</p>
+      <p style="margin-top:6px"><strong>Fix:</strong> Add a periodic cleanup: <code>DELETE FROM nl_memory_sessions WHERE expires_at &lt; datetime('now')</code>.
+         For traces, consider archiving old traces to file before deletion.</p>
+    </div>
+  </div>
+
+  <div class="issue-card medium">
+    <div class="issue-title">
+      <span class="badge blue">P2</span> Cold Start Confidence Penalty
+    </div>
+    <div class="issue-detail">
+      <p><strong>File:</strong> <code>lib/brain/confidence.ts</code></p>
+      <p>New deployments always show low confidence because <code>verdictConfidence</code> starts at <code>low</code>.
+         This is technically correct but creates a poor first impression.</p>
+      <p style="margin-top:6px"><strong>Options:</strong></p>
+      <ul>
+        <li>(a) Pre-seed verdicts from benchmark results (37/40 known-good paths)</li>
+        <li>(b) Weight verdictConfidence less in the fusion (don't let one signal veto)</li>
+        <li>(c) Use 2-of-3 voting instead of pessimistic gate for first N queries</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="issue-card medium">
+    <div class="issue-title">
+      <span class="badge blue">P2</span> Trace Storage Not Queryable
+    </div>
+    <div class="issue-detail">
+      <p><strong>File:</strong> <code>lib/storage/migrations/002-trace.sql</code></p>
+      <p>Traces stored as monolithic JSON in <code>trace_json TEXT</code>. Cannot query "show me all traces
+         where a specific tool failed" or "average latency for eam.fault.search" without parsing every record.</p>
+      <p style="margin-top:6px"><strong>Fix:</strong> Extract key metrics (total_duration_ms, tool_count, has_error,
+         final_confidence) into indexed columns. Keep the full JSON for detail views.</p>
+    </div>
+  </div>
+
+  <div class="issue-card medium">
+    <div class="issue-title">
+      <span class="badge blue">P2</span> displayFormat Detection Misses Common Patterns
+    </div>
+    <div class="issue-detail">
+      <p><strong>File:</strong> <code>lib/brain/result-presenter.ts</code></p>
+      <p><code>detectDisplayFormat</code> checks for <code>trend</code>, date series, and <code>items</code> array,
+         but many EAM API responses don't follow these patterns. Equipment profile returns a flat object
+         (→ <code>single_value</code>), search results may return <code>records</code> instead of <code>items</code>,
+         etc. The detection is fragile against API response shape variation.</p>
+      <p style="margin-top:6px"><strong>Mitigated by:</strong> The LLM summarizer can override the format hint,
+         so this is a soft problem. But tighter detection would produce better default suggestions.</p>
+    </div>
+  </div>
+
+  <div class="issue-card low">
+    <div class="issue-title">
+      <span class="badge gray">P3</span> Dual Source Tracking (Router + TraceCollector)
+    </div>
+    <div class="issue-detail">
+      <p><strong>File:</strong> <code>lib/brain/router.ts</code></p>
+      <p>The router maintains its own <code>sources</code> array AND the TraceCollector has <code>addSource()</code>.
+         Both deduplicate independently. This is harmless but slightly confusing. The router's sources end up on the
+         result; the trace's sources end up in the trace JSON. They should always be identical.</p>
+      <p style="margin-top:6px"><strong>Fix:</strong> Use only TraceCollector's sources and copy them to the result at the end.</p>
+    </div>
+  </div>
+
+  <div class="issue-card low">
+    <div class="issue-title">
+      <span class="badge gray">P3</span> ValidationResult Type Defined but Never Used
+    </div>
+    <div class="issue-detail">
+      <p><strong>File:</strong> <code>lib/types.ts</code> / <code>lib/brain/trace.ts</code></p>
+      <p><code>ValidationResult</code> is defined with types <code>numeric_range | empty_result | unit_mismatch</code>
+         and the TraceCollector has <code>addValidation()</code>, but no code ever calls it. The validator layer
+         (Layer 0 in the self-learning design) was planned but not built.</p>
+      <p style="margin-top:6px"><strong>Action:</strong> Either implement basic validators (empty result detection,
+         numeric range checks) or remove the dead types to reduce confusion.</p>
+    </div>
+  </div>
+
+  <h3>8.1 Priority Summary</h3>
+
+  <table>
+    <tr><th>Priority</th><th>Issue</th><th>Effort</th><th>Impact</th></tr>
+    <tr>
+      <td><span class="badge red">P0</span></td>
+      <td>Wire up <code>maybeUpdateVerdict()</code></td>
+      <td>1 line</td>
+      <td>Activates entire experience layer</td>
+    </tr>
+    <tr>
+      <td><span class="badge red">P0</span></td>
+      <td>Add confidence gate to subagent eval</td>
+      <td>3 lines</td>
+      <td>Halves LLM costs once verdicts work</td>
+    </tr>
+    <tr>
+      <td><span class="badge amber">P1</span></td>
+      <td>Fix intentHash fragmentation</td>
+      <td>Medium</td>
+      <td>Enables verdict aggregation to actually learn</td>
+    </tr>
+    <tr>
+      <td><span class="badge amber">P1</span></td>
+      <td>Add data retention cleanup</td>
+      <td>Small</td>
+      <td>Prevents unbounded DB growth</td>
+    </tr>
+    <tr>
+      <td><span class="badge blue">P2</span></td>
+      <td>Pre-seed verdicts from benchmark</td>
+      <td>Small</td>
+      <td>Eliminates cold-start confidence penalty</td>
+    </tr>
+    <tr>
+      <td><span class="badge blue">P2</span></td>
+      <td>Extract trace metrics to indexed columns</td>
+      <td>Medium</td>
+      <td>Enables trace-based analytics for evolution</td>
+    </tr>
+    <tr>
+      <td><span class="badge blue">P2</span></td>
+      <td>Build trace aggregation script</td>
+      <td>Medium</td>
+      <td>First step toward AI-driven Skill YAML evolution</td>
+    </tr>
+  </table>
+</div>
+
+<!-- Footer -->
+<div class="footer">
+  Insight68 NL-API Platform -- Deep Analysis Series #4<br>
+  Generated 2026-03-28 | 12 source files analyzed | 6 DB tables | 40 benchmark cases
+</div>
+
+</div>
+</body>
+</html>

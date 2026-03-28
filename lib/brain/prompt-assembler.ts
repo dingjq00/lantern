@@ -93,13 +93,15 @@ export function assemblePrompt(
   const systems = [...new Set(tools.map(t => t.system))]
   const domains = [...new Set(tools.flatMap(t => t.domains))]
 
-  // 工具描述（项目工具变化时才变）
+  // 工具描述（项目工具变化时才变）— 包含 when_to_use/when_not_to_use
   const toolDescriptions = tools.map(t => {
     const params = Object.entries(t.inputSchema.properties)
       .map(([k, v]) => `  - ${k} (${v.type}): ${v.description || ''}`)
       .join('\n')
-    return `- **${t.name}**: ${t.description}\n${params || '  (无参数)'}`
-  }).join('\n')
+    const whenUse = t.whenToUse ? `  适用: ${t.whenToUse.trim()}` : ''
+    const whenNot = t.whenNotToUse ? `  不适用: ${t.whenNotToUse.trim()}` : ''
+    return `- **${t.name}** [${t.operation}]: ${t.description}\n${params || '  (无参数)'}${whenUse ? '\n' + whenUse : ''}${whenNot ? '\n' + whenNot : ''}`
+  }).join('\n\n')
 
   // ============ 组装：六层顺序 ============
   const sections = [

@@ -3,6 +3,7 @@ import { assemblePrompt } from './prompt-assembler'
 import { computeConfidence, computeVerdictConfidence } from './confidence'
 import { detectDisplayFormat, buildStructuredResult } from './result-presenter'
 import { extractIntentFromThinkResult } from './intent'
+import { maybeUpdateVerdict } from './verdict'
 import { extractDataFields } from './relevance-checker'
 import { evaluateWithSubagent } from './subagent-evaluator'
 import { TraceCollector } from './trace'
@@ -66,8 +67,17 @@ export async function processQuery(
   let finished = false
 
   while (!finished && round <= MAX_CHASE_ROUNDS) {
-    // think
-    const thinkResult = await llm.think(messages)
+    // think（网络/超时容错）
+    let thinkResult: Awaited<ReturnType<LLMProvider['think']>>
+    try {
+      thinkResult = await llm.think(messages)
+    } catch (err) {
+      console.warn(`[Router] LLM think 调用失败 (round=${round}):`, (err as Error).message)
+      // LLM 不可用时直接返回超纲响应
+      const result = buildStructuredResult('抱歉，系统暂时无法处理您的请求，请稍后重试。', [], 'text', 'low')
+      result.trace = trace.build()
+      return result
+    }
 
     // 首轮提取 intent（可选——LLM 可能返回也可能不返回）
     if (round === 0) {
@@ -210,11 +220,17 @@ export async function processQuery(
   const finalConfidence = computeConfidence(signals)
   trace.setConfidence(signals, finalConfidence)
 
-  // LLM 总结
+  // LLM 总结（容错）
   const mergedData = allResults.map(r => r.data)
   const firstData = mergedData.length === 1 ? mergedData[0] : mergedData
   const formatHint = detectDisplayFormat(firstData)
-  const summary = await llm.summarize(firstData, query, formatHint)
+  let summary: Awaited<ReturnType<LLMProvider['summarize']>>
+  try {
+    summary = await llm.summarize(firstData, query, formatHint)
+  } catch (err) {
+    console.warn('[Router] LLM summarize 失败:', (err as Error).message)
+    summary = { answer: '已获取到数据，但总结生成失败。请查看原始数据。', display: 'text' }
+  }
 
   // 去重 sources
   const uniqueSources = sources.filter((s, i) => sources.findIndex(x => x.tool === s.tool) === i)
@@ -233,6 +249,12 @@ export async function processQuery(
     }
     storage.insertSession(session)
     storage.insertTrace(tenantId, trace.build(), session.sessionId)
+    // 触发 verdict 更新（异步，冷启动阈值 3）
+    if (intent?.intentHash) {
+      maybeUpdateVerdict(storage, tenantId, intent.intentHash, 3).catch(err =>
+        console.warn('[Router] Verdict 更新失败:', err)
+      )
+    }
   } catch (err) { console.warn('[Router] Session/trace 写入失败:', err) }
 
   // subagent 评估（和 result 一起返回，前端可展示）

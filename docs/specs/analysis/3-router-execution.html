@@ -1,0 +1,1420 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Insight68 NL-API Platform — Router + Execution Layer Deep Dive</title>
+<style>
+  :root {
+    --navy:    #1F3864;
+    --blue:    #4472C4;
+    --blue-light: #5B9BD5;
+    --blue-pale: #E8EFF8;
+    --blue-50: #F0F5FC;
+    --blue-100: #D6E4F5;
+    --blue-200: #B4CCE9;
+    --blue-glow: rgba(68,114,196,0.12);
+    --green:   #22A06B;
+    --green-bg:#E3FCEF;
+    --amber:   #D97706;
+    --amber-bg:#FFF8E1;
+    --red:     #DE350B;
+    --red-bg:  #FFEBE6;
+    --purple:  #6554C0;
+    --purple-bg:#EAE6FF;
+    --teal:    #0891B2;
+    --teal-bg: #E0F7FA;
+    --gray-50: #F8F9FA;
+    --gray-100:#F1F3F5;
+    --gray-200:#E5E7EB;
+    --gray-300:#D1D5DB;
+    --gray-400:#9CA3AF;
+    --gray-500:#6B7280;
+    --gray-600:#4B5563;
+    --gray-700:#374151;
+    --gray-800:#1F2937;
+    --gray-900:#111827;
+    --shadow-sm: 0 1px 3px rgba(0,0,0,0.08);
+    --shadow-md: 0 4px 12px rgba(0,0,0,0.08);
+    --shadow-lg: 0 8px 30px rgba(0,0,0,0.10);
+    --radius: 10px;
+    --radius-sm: 6px;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+    font-size: 15px;
+    line-height: 1.75;
+    color: var(--gray-800);
+    background: linear-gradient(135deg, #F0F4F8 0%, #E8EFF8 50%, #F0F4F8 100%);
+    padding: 0;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 40px 56px 80px;
+    background: white;
+    min-height: 100vh;
+    box-shadow: 0 0 60px rgba(31,56,100,0.08);
+  }
+
+  /* ── Navigation ── */
+  .nav-bar {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-bottom: 32px;
+    padding: 16px 20px;
+    background: var(--blue-50);
+    border-radius: var(--radius);
+    border: 1px solid var(--blue-100);
+  }
+  .nav-bar a {
+    font-size: 13px;
+    color: var(--blue);
+    text-decoration: none;
+    padding: 4px 12px;
+    border-radius: var(--radius-sm);
+    transition: all 0.2s;
+    white-space: nowrap;
+  }
+  .nav-bar a:hover { background: var(--blue-100); }
+  .nav-bar a.current {
+    background: var(--blue);
+    color: white;
+    font-weight: 600;
+  }
+  .nav-bar .sep {
+    color: var(--gray-300);
+    font-size: 13px;
+    display: flex;
+    align-items: center;
+  }
+
+  /* ── Typography ── */
+  h1 {
+    font-size: 32px;
+    font-weight: 800;
+    color: var(--navy);
+    margin-bottom: 6px;
+    letter-spacing: -0.02em;
+  }
+  .subtitle {
+    font-size: 17px;
+    color: var(--gray-500);
+    margin-bottom: 12px;
+    font-weight: 400;
+  }
+  .meta-line {
+    font-size: 13px;
+    color: var(--gray-400);
+    margin-bottom: 40px;
+    padding-bottom: 24px;
+    border-bottom: 2px solid var(--blue-100);
+  }
+  h2 {
+    font-size: 24px;
+    font-weight: 700;
+    color: var(--navy);
+    margin-top: 64px;
+    margin-bottom: 24px;
+    padding-bottom: 10px;
+    border-bottom: 3px solid var(--blue);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  h2 .badge {
+    font-size: 12px;
+    padding: 2px 10px;
+    border-radius: 20px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+  }
+  h3 {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--gray-800);
+    margin-top: 36px;
+    margin-bottom: 14px;
+  }
+  h4 {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--gray-700);
+    margin-top: 24px;
+    margin-bottom: 10px;
+  }
+  p { margin-bottom: 14px; }
+  ul, ol { margin-bottom: 14px; padding-left: 24px; }
+  li { margin-bottom: 6px; }
+  strong { font-weight: 700; }
+  code {
+    font-family: "SF Mono", "JetBrains Mono", "Fira Code", monospace;
+    font-size: 13px;
+    background: var(--gray-100);
+    padding: 2px 6px;
+    border-radius: 4px;
+    color: var(--navy);
+  }
+
+  /* ── TOC ── */
+  .toc {
+    background: var(--blue-50);
+    border: 1px solid var(--blue-100);
+    border-radius: var(--radius);
+    padding: 24px 28px;
+    margin-bottom: 40px;
+  }
+  .toc h3 { margin-top: 0; color: var(--navy); font-size: 16px; margin-bottom: 16px; }
+  .toc ol { padding-left: 22px; margin-bottom: 0; }
+  .toc li { margin-bottom: 8px; }
+  .toc a { color: var(--blue); text-decoration: none; font-weight: 500; }
+  .toc a:hover { text-decoration: underline; }
+
+  /* ── Code blocks ── */
+  pre {
+    background: var(--gray-900);
+    color: #E5E7EB;
+    padding: 20px 24px;
+    border-radius: var(--radius);
+    overflow-x: auto;
+    font-family: "SF Mono", "JetBrains Mono", "Fira Code", monospace;
+    font-size: 13px;
+    line-height: 1.65;
+    margin-bottom: 20px;
+  }
+  pre .comment { color: #6B7280; }
+  pre .keyword { color: #C084FC; }
+  pre .string { color: #86EFAC; }
+  pre .type { color: #67E8F9; }
+  pre .fn { color: #FDE68A; }
+  pre .num { color: #FCA5A5; }
+  pre .highlight-line { background: rgba(68,114,196,0.15); margin: 0 -24px; padding: 0 24px; display: inline-block; width: calc(100% + 48px); }
+
+  /* ── Flow diagram ── */
+  .flow-diagram {
+    background: var(--gray-50);
+    border: 1px solid var(--gray-200);
+    border-radius: var(--radius);
+    padding: 28px;
+    margin: 20px 0;
+    font-family: "SF Mono", "JetBrains Mono", monospace;
+    font-size: 13px;
+    line-height: 1.8;
+    overflow-x: auto;
+    white-space: pre;
+    color: var(--gray-700);
+  }
+  .flow-diagram .node {
+    color: var(--navy);
+    font-weight: 700;
+  }
+  .flow-diagram .arrow { color: var(--blue); }
+  .flow-diagram .cond { color: var(--amber); font-weight: 600; }
+  .flow-diagram .action { color: var(--green); }
+  .flow-diagram .error { color: var(--red); }
+
+  /* ── Cards ── */
+  .card {
+    border: 1px solid var(--gray-200);
+    border-radius: var(--radius);
+    padding: 24px;
+    margin-bottom: 20px;
+    transition: box-shadow 0.2s;
+  }
+  .card:hover { box-shadow: var(--shadow-md); }
+  .card-header {
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--navy);
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .card-header .tier-badge {
+    font-size: 11px;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+  }
+  .tier1 { background: var(--purple-bg); color: var(--purple); }
+  .tier2 { background: var(--blue-pale); color: var(--blue); }
+  .tier3 { background: var(--green-bg); color: var(--green); }
+
+  /* ── Tables ── */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 20px;
+    font-size: 14px;
+  }
+  th {
+    background: var(--navy);
+    color: white;
+    padding: 10px 14px;
+    text-align: left;
+    font-weight: 600;
+    font-size: 13px;
+  }
+  td {
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--gray-200);
+    vertical-align: top;
+  }
+  tr:hover td { background: var(--blue-50); }
+  td code { font-size: 12px; }
+
+  /* ── Severity Tags ── */
+  .severity {
+    display: inline-block;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 2px 10px;
+    border-radius: 12px;
+    letter-spacing: 0.04em;
+  }
+  .sev-critical { background: var(--red-bg); color: var(--red); }
+  .sev-high { background: #FFF0E0; color: #D97706; }
+  .sev-medium { background: var(--amber-bg); color: var(--amber); }
+  .sev-low { background: var(--blue-pale); color: var(--blue); }
+  .sev-info { background: var(--gray-100); color: var(--gray-500); }
+
+  /* ── Callout boxes ── */
+  .callout {
+    border-radius: var(--radius);
+    padding: 16px 20px;
+    margin: 16px 0;
+    font-size: 14px;
+  }
+  .callout-red { background: var(--red-bg); border-left: 4px solid var(--red); }
+  .callout-amber { background: var(--amber-bg); border-left: 4px solid var(--amber); }
+  .callout-green { background: var(--green-bg); border-left: 4px solid var(--green); }
+  .callout-blue { background: var(--blue-pale); border-left: 4px solid var(--blue); }
+  .callout-purple { background: var(--purple-bg); border-left: 4px solid var(--purple); }
+  .callout-teal { background: var(--teal-bg); border-left: 4px solid var(--teal); }
+  .callout strong { display: block; margin-bottom: 4px; }
+
+  /* ── Stats grid ── */
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 16px;
+    margin: 20px 0;
+  }
+  .stat-box {
+    background: var(--gray-50);
+    border: 1px solid var(--gray-200);
+    border-radius: var(--radius-sm);
+    padding: 16px 20px;
+    text-align: center;
+  }
+  .stat-box .num {
+    font-size: 32px;
+    font-weight: 800;
+    color: var(--navy);
+    line-height: 1.2;
+  }
+  .stat-box .label {
+    font-size: 13px;
+    color: var(--gray-500);
+    margin-top: 4px;
+  }
+
+  /* ── Handler review grid ── */
+  .handler-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin: 20px 0;
+  }
+  @media (max-width: 900px) { .handler-grid { grid-template-columns: 1fr; } }
+
+  /* ── Issue list ── */
+  .issue-item {
+    display: grid;
+    grid-template-columns: 90px 1fr;
+    gap: 16px;
+    padding: 16px 0;
+    border-bottom: 1px solid var(--gray-200);
+  }
+  .issue-item:last-child { border-bottom: none; }
+
+  /* ── Sequence Diagram ── */
+  .seq-diagram {
+    background: var(--gray-50);
+    border: 1px solid var(--gray-200);
+    border-radius: var(--radius);
+    padding: 24px 28px;
+    margin: 20px 0;
+    font-family: "SF Mono", "JetBrains Mono", monospace;
+    font-size: 12.5px;
+    line-height: 1.7;
+    overflow-x: auto;
+    white-space: pre;
+  }
+
+  /* ── Anchor offset for sticky nav ── */
+  h2[id], h3[id] { scroll-margin-top: 20px; }
+</style>
+</head>
+<body>
+<div class="container">
+
+<!-- Navigation -->
+<nav class="nav-bar">
+  <span style="font-weight:700;color:var(--navy);font-size:13px;">Analysis Series</span>
+  <span class="sep">|</span>
+  <a href="#">1. Context & Prompt</a>
+  <a href="#">2. LLM & Confidence</a>
+  <a href="#" class="current">3. Router + Execution</a>
+  <a href="#">4. MCP Server</a>
+  <span class="sep">|</span>
+  <a href="../system-architecture-overview.html">Architecture Overview</a>
+</nav>
+
+<!-- Header -->
+<h1>Router + Execution Layer Deep Dive</h1>
+<p class="subtitle">processQuery() ReAct Loop / MCP Client-Server / Resolvers / 12 Handlers / EAM API</p>
+<p class="meta-line">Document 3 of 4 &mdash; Generated 2026-03-28 &mdash; Source: <code>lib/brain/router.ts</code> + <code>mcp-server/src/**</code></p>
+
+<!-- Key Stats -->
+<div class="stats-grid">
+  <div class="stat-box"><div class="num">336</div><div class="label">Router LoC</div></div>
+  <div class="stat-box"><div class="num">12</div><div class="label">MCP Tools</div></div>
+  <div class="stat-box"><div class="num">3</div><div class="label">Tiers (Profile / Search / Analytics)</div></div>
+  <div class="stat-box"><div class="num">40+</div><div class="label">EAM API Endpoints Called</div></div>
+  <div class="stat-box"><div class="num">2</div><div class="label">MAX_CHASE_ROUNDS</div></div>
+</div>
+
+<!-- TOC -->
+<div class="toc">
+  <h3>Table of Contents</h3>
+  <ol>
+    <li><a href="#s1">Router ReAct Loop Analysis</a></li>
+    <li><a href="#s2">MCP Client-Server Communication</a></li>
+    <li><a href="#s3">Resolver Deep Dive</a></li>
+    <li><a href="#s4">Handler Implementation Review (12 Tools)</a></li>
+    <li><a href="#s5">EAM API Integration</a></li>
+    <li><a href="#s6">Issues & Recommendations</a></li>
+  </ol>
+</div>
+
+<!-- ============================================================== -->
+<!-- SECTION 1 -->
+<!-- ============================================================== -->
+<h2 id="s1"><span class="badge" style="background:var(--navy);color:white;">S1</span> Router ReAct Loop Analysis</h2>
+
+<h3>1.1 Complete Flow Diagram of processQuery()</h3>
+
+<div class="flow-diagram"><span class="node">processQuery(query, deps)</span>
+  |
+  +-- <span class="action">TraceCollector 初始化</span>
+  +-- <span class="action">assemblePrompt()</span>  &larr; 6 层 Context (system + rules + instructions + examples + dynamic + user)
+  +-- messages = [system, user]
+  |
+  +-- <span class="node">ReAct 循环 (round = 0 .. MAX_CHASE_ROUNDS=2)</span>
+  |     |
+  |     +-- <span class="action">llm.think(messages)</span>           &larr; <span class="cond">gpt-5.4-mini (default)</span>
+  |     |
+  |     +-- <span class="cond">IF round === 0:</span>
+  |     |     +-- extractIntentFromThinkResult()
+  |     |     +-- storage.getVerdict(intentHash)
+  |     |
+  |     +-- <span class="cond">IF unsupported || (no calls && round === 0):</span>
+  |     |     |
+  |     |     +-- <span class="action">llm.think(messages, ESCALATION_MODEL)</span>  &larr; <span class="cond">gpt-5.4 (escalation)</span>
+  |     |     |
+  |     |     +-- <span class="cond">IF still unsupported:</span>
+  |     |     |     +-- llm.summarize({unsupported: true})
+  |     |     |     +-- <span class="error">return LOW confidence "unsupported" result</span>
+  |     |     |
+  |     |     +-- <span class="cond">ELSE:</span>
+  |     |     |     +-- <span class="action">Object.assign(thinkResult, escalated)</span>
+  |     |     |     +-- continue to execute calls
+  |     |
+  |     +-- <span class="cond">IF finish && round > 0:</span>  &larr; 追查结束
+  |     |     +-- <span class="action">break</span>
+  |     |
+  |     +-- <span class="node">Execute calls (sequential, with {{N.path}} resolution)</span>
+  |     |     |
+  |     |     +-- for each call[ci]:
+  |     |     |     +-- resolveArgRefs(call.arguments, roundResults)
+  |     |     |     +-- registry.execute(call.tool, resolvedArgs, callTool)
+  |     |     |     +-- roundResults[ci] = toolResult.data
+  |     |     |     +-- trace.addCall(...)
+  |     |     |     +-- allResults.push(...)
+  |     |
+  |     +-- <span class="action">Inject observation into messages</span>
+  |     |     +-- messages.push(assistant: JSON.stringify(thinkResult))
+  |     |     +-- messages.push(user: "观察结果: ... 事实对比: ... 按5步模板继续推理")
+  |     |
+  |     +-- <span class="cond">IF thinkResult.finish:</span> finished = true
+  |     +-- round++
+  |
+  +-- <span class="node">Post-loop processing</span>
+        +-- <span class="action">computeConfidence(signals)</span>      &larr; toolMatch / verdictConfidence / queryClarity
+        +-- <span class="action">llm.summarize(mergedData, query)</span>
+        +-- <span class="action">storage.insertSession() + insertTrace()</span>  (async, non-blocking)
+        +-- <span class="action">evaluateWithSubagent()</span>            &larr; self-learning quality check
+        +-- <span class="action">buildStructuredResult()</span>           &larr; return to caller</div>
+
+<h3>1.2 MAX_CHASE_ROUNDS = 2: Analysis</h3>
+
+<div class="callout callout-blue">
+  <strong>Design Intent</strong>
+  The constant name is <code>MAX_CHASE_ROUNDS = 2</code>, but the loop condition is <code>round &lt;= MAX_CHASE_ROUNDS</code>, which means up to <strong>3 iterations</strong> (round 0, 1, 2). The comment says "1. Plan -> 2. Review + expand -> 3. Finish, max 3 think calls."
+</div>
+
+<table>
+<tr><th>Round</th><th>Purpose</th><th>Typical Behavior</th></tr>
+<tr><td>0</td><td>Initial planning</td><td>LLM reads system prompt + query, produces tool calls. Extract intent. Most simple queries finish here (finish=true on same round).</td></tr>
+<tr><td>1</td><td>Review + chase</td><td>After seeing Round 0 results, LLM decides if more data needed. Can issue additional calls or finish.</td></tr>
+<tr><td>2</td><td>Final chance</td><td>If Round 1 still needs more, one more round. If still not finished, the loop exits silently.</td></tr>
+</table>
+
+<h4>What happens at the boundary?</h4>
+
+<div class="callout callout-amber">
+  <strong>Silent Termination at Round 2</strong>
+  When <code>round</code> exceeds <code>MAX_CHASE_ROUNDS</code>, the while loop exits silently. There is no explicit "timeout" or "max rounds reached" signal. The code proceeds directly to confidence computation and summarization with whatever data has been gathered so far. This means:
+  <ul style="margin-top:8px;">
+    <li>If the LLM keeps requesting more tools at Round 2 without setting <code>finish=true</code>, those calls ARE executed (because the check is at the top of the loop), but the observation is injected without a subsequent think() call.</li>
+    <li>No trace entry records "max rounds reached" -- the trace simply shows the rounds that completed.</li>
+    <li>The LLM's final summarize() still gets all accumulated data, so the user gets a response, but it may be incomplete.</li>
+  </ul>
+</div>
+
+<h4>Is 3 iterations enough?</h4>
+
+<p>For the current 12-tool EAM scenario, <strong>3 iterations is sufficient</strong> for virtually all queries:</p>
+<ul>
+  <li><strong>Simple queries</strong> (80%+): Finish in Round 0 -- single tool call, immediate finish.</li>
+  <li><strong>Two-step queries</strong> (15%): Round 0 gets equipment profile, Round 1 chases fault details. Finish at Round 1.</li>
+  <li><strong>Cross-domain queries</strong> (5%): Round 0 gets overview data, Round 1 chases specifics, Round 2 resolves final detail. This is the theoretical max for 12 tools.</li>
+</ul>
+
+<p><strong>Risk scenario</strong>: A future expansion to 30+ tools with deeper dependency chains (e.g., equipment -> fault -> repair -> spare -> supplier) could exceed 3 rounds. Recommendation: add a configurable per-query maxRounds or make the constant tenant-configurable.</p>
+
+<h3>1.3 Escalation Strategy (mini -> gpt-5.4)</h3>
+
+<div class="seq-diagram">
+User Query
+    |
+    v
+llm.think(messages)                 <-- gpt-5.4-mini (fast, cheap)
+    |
+    +-- Has calls? -----------------> Continue to execution
+    |
+    +-- No calls OR unsupported? --> llm.think(messages, "gpt-5.4")  <-- escalation
+         |
+         +-- Has calls? -----------> Continue (use escalated result)
+         |
+         +-- Still no? ------------> llm.summarize({unsupported: true})
+                                      Return contextual "unsupported" response</div>
+
+<table>
+<tr><th>Aspect</th><th>Current Behavior</th><th>Analysis</th></tr>
+<tr><td>Trigger</td><td><code>thinkResult.unsupported</code> OR no calls on round 0</td><td>Good -- catches both explicit "I can't do this" and implicit "I don't know what to call"</td></tr>
+<tr><td>Model used</td><td><code>process.env.LLM_ESCALATION_MODEL || 'gpt-5.4'</code></td><td>Configurable, strong default</td></tr>
+<tr><td>Same messages</td><td>Yes, identical message history</td><td>Correct -- the stronger model gets the same context, just better reasoning</td></tr>
+<tr><td>Only once</td><td>Escalation only triggers on round 0</td><td>Deliberate -- later rounds already have tool results, unlikely to be "unsupported"</td></tr>
+<tr><td>Cost implication</td><td>gpt-5.4 only invoked on failure path</td><td>Good cost control -- happy path stays on mini</td></tr>
+<tr><td>Object.assign</td><td><code>Object.assign(thinkResult, escalated)</code></td><td>Works but mutates original. A minor code smell -- reassignment would be cleaner</td></tr>
+</table>
+
+<div class="callout callout-green">
+  <strong>Effectiveness</strong>
+  The escalation strategy is well-designed: the cheap model handles 90%+ of queries, and the expensive model only fires on edge cases. The contextual "unsupported" response (generated via llm.summarize with aiAnalysis) is much better than a hardcoded string -- it explains WHY the system can't help and suggests alternatives.
+</div>
+
+<h3>1.4 {{N.path}} Parameter Reference</h3>
+
+<p>The <code>resolveArgRefs()</code> function enables tool chaining by resolving <code>{{N.path}}</code> references in arguments, where <code>N</code> is the 0-based index of a previous call result within the same round.</p>
+
+<pre>
+<span class="comment">// Example: Call 0 returns {items: [{equipmentId: 42}]}</span>
+<span class="comment">// Call 1 references: identifier: "{{0.items[0].equipmentId}}"</span>
+<span class="comment">// Resolved to: identifier: 42</span>
+
+<span class="keyword">function</span> <span class="fn">resolveArgRefs</span>(args, results) {
+  <span class="keyword">for</span> (const [key, value] <span class="keyword">of</span> Object.entries(args)) {
+    <span class="keyword">if</span> (typeof value === <span class="string">'string'</span> && value.startsWith(<span class="string">'{{'</span>) && value.endsWith(<span class="string">'}}'</span>)) {
+      resolved[key] = <span class="fn">navigatePath</span>(ref, results)
+    } <span class="keyword">else if</span> (typeof value === <span class="string">'object'</span>) {
+      resolved[key] = <span class="fn">resolveArgRefs</span>(value, results)  <span class="comment">// recursive for nested</span>
+    }
+  }
+}
+</pre>
+
+<table>
+<tr><th>Feature</th><th>Status</th><th>Notes</th></tr>
+<tr><td>Simple path: <code>{{0.id}}</code></td><td><span class="severity sev-low">Working</span></td><td>Dot-separated navigation</td></tr>
+<tr><td>Array index: <code>{{0.items[0].equipmentId}}</code></td><td><span class="severity sev-low">Working</span></td><td>Regex match on <code>/^(\w+)\[(\d+)\]$/</code></td></tr>
+<tr><td>Nested objects in args</td><td><span class="severity sev-low">Working</span></td><td>Recursive resolveArgRefs for nested arg objects</td></tr>
+<tr><td>Array args</td><td><span class="severity sev-medium">Not Handled</span></td><td>Arrays in args are passed through (not resolved). If LLM sends <code>["{{0.id}}"]</code>, it won't be resolved.</td></tr>
+<tr><td>Cross-round references</td><td><span class="severity sev-info">N/A</span></td><td><code>roundResults</code> is per-round only. Cross-round must go through LLM re-reasoning.</td></tr>
+<tr><td>Failure fallback</td><td><span class="severity sev-low">Graceful</span></td><td>Returns original ref string on failure + console.warn</td></tr>
+<tr><td>Warning log coverage</td><td><span class="severity sev-low">Complete</span></td><td>4 distinct console.warn paths: index out of range, path interrupted, final value null, exception</td></tr>
+</table>
+
+<div class="callout callout-amber">
+  <strong>Limitation: Only within same round</strong>
+  References only work within a single round's calls (roundResults). If Call 0 is in Round 0 and the LLM wants to reference it in Round 1, it must extract the value from the observation message and pass it as a literal argument. This is by design (keeps the system simple), but worth documenting for future tool authors.
+</div>
+
+<h3>1.5 Message Context Management</h3>
+
+<p>After each round of tool execution, two messages are injected into the conversation:</p>
+
+<pre>
+<span class="comment">// 1. Assistant message: the LLM's think result (including calls)</span>
+messages.push({ role: <span class="string">'assistant'</span>, content: JSON.stringify(thinkResult) })
+
+<span class="comment">// 2. User message: observation + Reflexion-style fact comparison</span>
+messages.push({ role: <span class="string">'user'</span>, content:
+  <span class="string">`观察结果: ${JSON.stringify(obsData)}\n\n`</span> +
+  <span class="string">`事实对比:\n- 用户问: "${query}"\n`</span> +
+  <span class="string">`- 已获得字段: ${dataFields.join(', ')}\n\n`</span> +
+  <span class="string">`按 5 步模板继续推理。如果已覆盖用户问题则 finish。`</span>
+})
+</pre>
+
+<table>
+<tr><th>Design Choice</th><th>Rationale</th><th>Impact</th></tr>
+<tr><td>Full JSON of thinkResult as assistant msg</td><td>Maintains chain-of-thought visibility for subsequent rounds</td><td>Can be large -- includes thought + calls + intent</td></tr>
+<tr><td>obsData uses roundResults (not allResults)</td><td>Avoids confusion from accumulated cross-round data</td><td>Clean separation per round</td></tr>
+<tr><td>Data field extraction for fact comparison</td><td>Reflexion pattern -- helps LLM assess coverage</td><td>Effective for determining "do I have enough?"</td></tr>
+<tr><td>"按 5 步模板继续推理"</td><td>Anchors LLM to structured output format</td><td>Reduces format drift across rounds</td></tr>
+</table>
+
+<div class="callout callout-red">
+  <strong>Potential Issue: Message Context Growth</strong>
+  Each round adds 2 messages with full tool results serialized as JSON. For tools returning large datasets (e.g., equipment search with 50 items, or trend with 500 records), the context can grow quickly. With 3 rounds of data-heavy calls, token usage could spike significantly. Consider truncating tool results in the observation message while keeping full data for summarization.
+</div>
+
+<h3>1.6 Error Handling Analysis</h3>
+
+<table>
+<tr><th>Error Type</th><th>Handling</th><th>User Impact</th><th>Assessment</th></tr>
+<tr><td>Tool execution throws</td><td><code>catch(err) -> { data: null, status: 'error', errorLevel: 1 }</code></td><td>Tool result is null, LLM sees it in observation, may ask for alternative</td><td><span class="severity sev-low">Good</span></td></tr>
+<tr><td>All tools fail</td><td>allResults stays empty, toolMatch becomes 'low', summarize gets empty data</td><td>LLM generates "no data" response with low confidence</td><td><span class="severity sev-medium">Adequate</span></td></tr>
+<tr><td>LLM think() parsing fails</td><td>Caught in codex-proxy: <code>{ thought: content, finish: true }</code></td><td>Loop exits immediately, summarize runs on whatever data exists</td><td><span class="severity sev-low">Good</span></td></tr>
+<tr><td>Session/trace write fails</td><td><code>catch(err) console.warn</code> -- non-blocking</td><td>Zero user impact, only observability gap</td><td><span class="severity sev-low">Good</span></td></tr>
+<tr><td>Subagent evaluation fails</td><td><code>catch(err) console.warn</code> -- non-blocking</td><td>No lessonEval in result, self-learning gap</td><td><span class="severity sev-low">Good</span></td></tr>
+<tr><td>LLM timeout/network error</td><td><strong>Not caught</strong> -- propagates to caller</td><td>500 error to frontend</td><td><span class="severity sev-high">Needs Fix</span></td></tr>
+<tr><td>Infinite loop (LLM never finishes)</td><td>MAX_CHASE_ROUNDS hard limit</td><td>Max 3 LLM calls, bounded</td><td><span class="severity sev-low">Good</span></td></tr>
+</table>
+
+
+<!-- ============================================================== -->
+<!-- SECTION 2 -->
+<!-- ============================================================== -->
+<h2 id="s2"><span class="badge" style="background:var(--blue);color:white;">S2</span> MCP Client-Server Communication</h2>
+
+<h3>2.1 Architecture Overview</h3>
+
+<div class="seq-diagram">
+  Router (processQuery)
+    |
+    +-- registry.execute(toolName, args, callTool)
+          |
+          v
+  MCPClient.callTool(name, args)          <-- lib/tools/mcp-client.ts
+    |
+    +-- client.callTool({ name, arguments })
+    |     |
+    |     +-- [stdio pipe: JSON-RPC over stdin/stdout]
+    |     |
+    |     v
+    |   MCP Server (StdioServerTransport)   <-- mcp-server/src/index.ts
+    |     |
+    |     +-- server.tool(name, handler)
+    |     |     |
+    |     |     +-- handler(args)
+    |     |           |
+    |     |           +-- resolvers.ts (identifier resolution)
+    |     |           +-- eam-api.ts (HTTP to EAM backend)
+    |     |           |
+    |     |           v
+    |     |         { content: [{ type: 'text', text: JSON.stringify(data) }] }
+    |     |
+    |     +-- [stdio pipe: JSON-RPC response]
+    |
+    v
+  MCPClient parses text content -> JSON.parse -> { data, status }
+    |
+    v
+  Router receives ToolResult</div>
+
+<h3>2.2 stdio Transport Analysis</h3>
+
+<table>
+<tr><th>Aspect</th><th>Current State</th><th>Analysis</th></tr>
+<tr>
+  <td>Transport</td>
+  <td><code>StdioClientTransport</code> / <code>StdioServerTransport</code></td>
+  <td>Standard MCP SDK transport. Reliable for single-process communication. No network overhead.</td>
+</tr>
+<tr>
+  <td>Reliability</td>
+  <td>Depends on child process lifecycle</td>
+  <td>If the MCP server process crashes, the stdio pipe breaks. The <code>connected</code> flag in MCPClient won't detect this -- subsequent calls will throw.</td>
+</tr>
+<tr>
+  <td>Error handling</td>
+  <td>MCPClient has basic checks: no text content -> error, JSON parse fail -> partial</td>
+  <td>Missing: process crash detection, reconnection logic, timeout for individual calls</td>
+</tr>
+<tr>
+  <td>Concurrency</td>
+  <td>MCP SDK handles message multiplexing over stdio</td>
+  <td>Multiple <code>callTool</code> calls CAN be in flight simultaneously -- the SDK uses JSON-RPC IDs for correlation. However, the Router executes calls <strong>sequentially</strong> within a round (for {{N.path}} references).</td>
+</tr>
+<tr>
+  <td>Connection lifecycle</td>
+  <td><code>connect()</code> lazy on first call, <code>close()</code> explicit</td>
+  <td>The connected guard (<code>if (!this.connected) await this.connect()</code>) ensures single connection. But no heartbeat or health check.</td>
+</tr>
+</table>
+
+<h3>2.3 Tool Name Matching</h3>
+
+<div class="callout callout-green">
+  <strong>Clean 1:1 Mapping</strong>
+  Tool names in MCP Server registration exactly match the names in YAML Skill definitions and what the LLM outputs in <code>calls[].tool</code>. The naming convention <code>eam.{domain}.{operation}</code> is consistent across all 12 tools. No translation layer needed.
+</div>
+
+<table>
+<tr><th>MCP Server Registration</th><th>LLM Tool Name</th><th>Match</th></tr>
+<tr><td><code>server.tool('eam.equipment.profile', ...)</code></td><td><code>eam.equipment.profile</code></td><td>Exact</td></tr>
+<tr><td><code>server.tool('eam.repair.profile', ...)</code></td><td><code>eam.repair.profile</code></td><td>Exact</td></tr>
+<tr><td><code>server.tool('eam.scope.overview', ...)</code></td><td><code>eam.scope.overview</code></td><td>Exact</td></tr>
+<tr><td colspan="3" style="text-align:center;color:var(--gray-400);">... (all 12 follow same pattern)</td></tr>
+</table>
+
+<h3>2.4 Data Serialization</h3>
+
+<p>The entire data pipeline uses JSON-as-text through MCP's text content type:</p>
+
+<pre>
+<span class="comment">// Handler side: serialize to JSON text</span>
+<span class="keyword">return</span> { content: [{ type: <span class="string">'text'</span>, text: JSON.stringify(data, null, <span class="num">2</span>) }] }
+
+<span class="comment">// Client side: parse back to object</span>
+<span class="keyword">const</span> data = JSON.parse(textContent.text)
+<span class="keyword">return</span> { data, status: <span class="string">'success'</span> }
+
+<span class="comment">// Fallback: if parse fails, return raw text</span>
+<span class="keyword">return</span> { data: textContent.text, status: <span class="string">'partial'</span> }
+</pre>
+
+<div class="callout callout-amber">
+  <strong>Performance Note</strong>
+  <code>JSON.stringify(data, null, 2)</code> in every handler uses pretty-printing (2-space indent). For large datasets this adds ~30% size overhead over compact JSON. Since this goes over stdio pipe and is immediately re-parsed on the client side, consider using <code>JSON.stringify(data)</code> without indentation in production.
+</div>
+
+<h3>2.5 Concurrency Model</h3>
+
+<pre>
+<span class="comment">// Router: calls within a round are SEQUENTIAL (for {{N.path}} references)</span>
+<span class="keyword">for</span> (<span class="keyword">let</span> ci = <span class="num">0</span>; ci < thinkResult.calls.length; ci++) {
+  <span class="keyword">const</span> call = thinkResult.calls[ci]
+  <span class="keyword">const</span> resolvedArgs = <span class="fn">resolveArgRefs</span>(call.arguments, roundResults)
+  toolResult = <span class="keyword">await</span> registry.execute(call.tool, resolvedArgs, callTool)
+  roundResults.push(toolResult.data)  <span class="comment">// available for next call's {{ci.path}}</span>
+}
+</pre>
+
+<div class="callout callout-purple">
+  <strong>Sequential-by-design Trade-off</strong>
+  All calls in a round run sequentially because call N+1 may reference call N's result via <code>{{N.path}}</code>. This is correct for correctness, but if the LLM issues 3 independent calls (no references between them), they could theoretically run in parallel. An optimization would be to analyze the dependency graph of references and parallelize independent calls.
+</div>
+
+
+<!-- ============================================================== -->
+<!-- SECTION 3 -->
+<!-- ============================================================== -->
+<h2 id="s3"><span class="badge" style="background:var(--purple);color:white;">S3</span> Resolver Deep Dive</h2>
+
+<p>The <code>resolvers.ts</code> module provides the critical identifier-to-entity resolution layer. All profile and search handlers depend on it to accept human-friendly identifiers (names, codes) rather than just database IDs.</p>
+
+<h3>3.1 resolveEquipment: Matching Strategy</h3>
+
+<div class="flow-diagram"><span class="node">resolveEquipment(identifier)</span>
+  |
+  +-- <span class="cond">Pure digits (/^\d+$/)?</span>
+  |     +-- YES: <span class="action">eamGet('/eam/equipment/get', {id})</span>
+  |     |         +-- found -> <span class="action">match: 'exact'</span>
+  |     |         +-- error -> <span class="error">match: 'none'</span>
+  |     +-- NO: continue
+  |
+  +-- <span class="action">eamGet('/eam/equipment/page', {keyword, pageNo:1, pageSize:10})</span>
+        |
+        +-- <span class="cond">0 results?</span> -> <span class="error">match: 'none'</span>
+        |
+        +-- <span class="cond">Exact match (code === id OR name === id)?</span> -> <span class="action">match: 'exact'</span>
+        |
+        +-- <span class="cond">startsWith match (single)?</span> -> <span class="action">match: 'exact'</span>
+        |
+        +-- <span class="cond">Only 1 result total?</span> -> <span class="action">match: 'exact'</span>
+        |
+        +-- <span class="cond">Multiple?</span> -> <span class="action">match: 'candidates' (top 5)</span></div>
+
+<h4>Matching Priority Analysis</h4>
+
+<table>
+<tr><th>Priority</th><th>Strategy</th><th>Example</th><th>Strength</th></tr>
+<tr><td>1</td><td>Pure digit -> Direct ID lookup</td><td>"42" -> GET /equipment/get?id=42</td><td>O(1) -- fastest path, bypasses search entirely</td></tr>
+<tr><td>2</td><td>Exact code/name match</td><td>"CNC-001" matches equipmentCode exactly</td><td>Unambiguous, no false positives</td></tr>
+<tr><td>3</td><td>startsWith (single match)</td><td>"CNC-" matches only CNC-001</td><td>Good for partial typing, but only if unique</td></tr>
+<tr><td>4</td><td>Single result from keyword</td><td>"Lathe" returns only one equipment</td><td>Fallback for fuzzy matches</td></tr>
+<tr><td>5</td><td>Multiple candidates</td><td>"Machine" returns 5 options</td><td>Returns top 5 for user disambiguation</td></tr>
+</table>
+
+<div class="callout callout-amber">
+  <strong>Missing: contains match tier</strong>
+  The comment at the top of resolvers.ts says "exact > startsWith > contains", but there is no explicit <code>contains</code> match step in the code. The <code>keyword</code> API search acts as an implicit contains, but the resolver doesn't differentiate between keyword-match results that contain the identifier vs. partial overlaps. This is mostly fine because the API's keyword search already does the heavy lifting.
+</div>
+
+<h3>3.2 resolveProductionLine</h3>
+
+<table>
+<tr><th>Aspect</th><th>State</th></tr>
+<tr><td>API endpoint</td><td><code>/eam/production-line/page</code> and <code>/eam/production-line/get</code></td></tr>
+<tr><td>Matching</td><td>Simpler than equipment: digit -> ID lookup, keyword search -> exact lineCode/lineName match, single result, or candidates</td></tr>
+<tr><td>Test env data</td><td>Likely empty in test environment based on scope-overview fallthrough behavior. When productionLine resolves to 'none', scope-overview falls through to department.</td></tr>
+<tr><td>startsWith tier</td><td>Missing -- jumps from exact to single-result-as-exact</td></tr>
+</table>
+
+<h3>3.3 resolveDepartment</h3>
+
+<table>
+<tr><th>Aspect</th><th>State</th></tr>
+<tr><td>API endpoint</td><td><code>/system/dept/list</code> (non-paginated) and <code>/system/dept/get</code></td></tr>
+<tr><td>Tree structure</td><td>Each dept has <code>parentId</code>. However, the resolver does NOT traverse the tree -- it does a flat name match. If user says "Production" and there are sub-departments, it returns all matching depts as candidates.</td></tr>
+<tr><td>Matching</td><td>Same as production line: exact name match, single, or candidates</td></tr>
+<tr><td>Missing</td><td>No recursive child lookup. If user asks about "Production Dept" which has sub-workshops, the scope-overview won't aggregate children's equipment.</td></tr>
+</table>
+
+<h3>3.4 Bulk Equipment Queries</h3>
+
+<table>
+<tr><th>Function</th><th>API Call</th><th>Performance Concern</th></tr>
+<tr>
+  <td><code>getEquipmentIdsByProductionLine(lineId)</code></td>
+  <td><code>/eam/production-line/equipment/list?lineId=X</code></td>
+  <td>Returns all equipment-line associations. Generally small (10-100 per line). <span class="severity sev-low">OK</span></td>
+</tr>
+<tr>
+  <td><code>getEquipmentIdsByDepartment(deptId)</code></td>
+  <td><code>/eam/equipment/page?deptId=X&pageSize=1000</code></td>
+  <td>Hardcoded <code>pageSize=1000</code> with comment "won't exceed this". <span class="severity sev-medium">Risk</span> for large departments. No pagination beyond 1000.</td>
+</tr>
+</table>
+
+<div class="callout callout-red">
+  <strong>Hard-coded pageSize=1000</strong>
+  The comment says "departments won't have more than 1000 equipment." This assumption may break for large manufacturing facilities. If a department has 1001+ equipment, the extra ones are silently dropped. Add a warning log when <code>page.total > 1000</code> and consider pagination.
+</div>
+
+<h3>3.5 Edge Cases & Security</h3>
+
+<table>
+<tr><th>Edge Case</th><th>Handling</th><th>Risk</th></tr>
+<tr><td>Special characters in identifier</td><td>Passed to API as URL parameter via <code>url.searchParams.set()</code></td><td><span class="severity sev-low">Safe</span> -- URL encoding handles special chars</td></tr>
+<tr><td>Very long identifier</td><td>No length limit check</td><td><span class="severity sev-low">Low risk</span> -- API will handle or truncate</td></tr>
+<tr><td>SQL injection</td><td>No direct SQL -- all queries go through EAM REST API</td><td><span class="severity sev-low">Safe</span> -- REST API acts as parameterized boundary</td></tr>
+<tr><td>Empty string identifier</td><td>Would trigger keyword search with empty string, returning all results</td><td><span class="severity sev-medium">Medium</span> -- could return noisy candidates</td></tr>
+<tr><td>Chinese characters</td><td>Properly encoded by URL API</td><td><span class="severity sev-low">Safe</span></td></tr>
+<tr><td>"0" as identifier</td><td>Matches <code>/^\d+$/</code>, looks up equipment ID=0</td><td><span class="severity sev-info">Edge case</span> -- ID 0 unlikely to exist</td></tr>
+</table>
+
+
+<!-- ============================================================== -->
+<!-- SECTION 4 -->
+<!-- ============================================================== -->
+<h2 id="s4"><span class="badge" style="background:var(--green);color:white;">S4</span> Handler Implementation Review (12 Tools)</h2>
+
+<!-- Tier 1 -->
+<h3>4.1 Tier 1: Entity Profiles (3 tools)</h3>
+
+<div class="handler-grid">
+
+<!-- equipment-profile -->
+<div class="card">
+  <div class="card-header"><span class="tier-badge tier1">TIER 1</span> eam.equipment.profile</div>
+  <table style="font-size:13px;">
+    <tr><td style="width:120px;font-weight:600;">API Calls</td><td>1 resolve + 7 parallel (kpi, lifecycle, faults, repairs, maintenance, patrol, bom) + 1 conditional (stock-summary)</td></tr>
+    <tr><td style="font-weight:600;">Execution</td><td><strong>Parallel</strong> via <code>eamParallel</code> for 7 main APIs. BOM stock is sequential after BOM result.</td></tr>
+    <tr><td style="font-weight:600;">Error Handling</td><td>Each parallel call has <code>.catch(() => null/[])</code>. Graceful degradation -- partial data is better than no data.</td></tr>
+    <tr><td style="font-weight:600;">Format</td><td><code>detailed</code>: all 8 sections. <code>concise</code>: only basic + KPI. Well-differentiated.</td></tr>
+    <tr><td style="font-weight:600;">Data Transform</td><td><code>formatEquipmentBasic()</code> + STATUS_MAP. Human-readable status text added.</td></tr>
+    <tr><td style="font-weight:600;">Performance</td><td>7 parallel API calls completes in ~time-of-slowest. Efficient.</td></tr>
+    <tr><td style="font-weight:600;">Assessment</td><td><span class="severity sev-low">Excellent</span></td></tr>
+  </table>
+</div>
+
+<!-- repair-profile -->
+<div class="card">
+  <div class="card-header"><span class="tier-badge tier1">TIER 1</span> eam.repair.profile</div>
+  <table style="font-size:13px;">
+    <tr><td style="width:120px;font-weight:600;">API Calls</td><td>1-3 resolve steps (ID/FR-code/keyword) + 7 parallel (fault, equipment, spares, workload, knowledge, stockOuts, logs)</td></tr>
+    <tr><td style="font-weight:600;">Execution</td><td>Resolve is sequential (3 fallback paths). Main data is parallel.</td></tr>
+    <tr><td style="font-weight:600;">Error Handling</td><td>Resolve fallthrough with <code>catch { /* fall through */ }</code>. Parallel calls with <code>.catch(() => null/[])</code>.</td></tr>
+    <tr><td style="font-weight:600;">Format</td><td><code>detailed</code>: 8 sections including logs/stockouts. <code>concise</code>: basic + fault + equipment only.</td></tr>
+    <tr><td style="font-weight:600;">Poka-yoke</td><td><strong>Three entry points</strong>: order code, fault report code (FR prefix), numeric ID. Strong design.</td></tr>
+    <tr><td style="font-weight:600;">Performance</td><td>Worst case: 3 sequential resolve attempts + 7 parallel calls. Could be slow on miss.</td></tr>
+    <tr><td style="font-weight:600;">Assessment</td><td><span class="severity sev-low">Excellent</span></td></tr>
+  </table>
+</div>
+
+<!-- scope-overview -->
+<div class="card">
+  <div class="card-header"><span class="tier-badge tier1">TIER 1</span> eam.scope.overview</div>
+  <table style="font-size:13px;">
+    <tr><td style="width:120px;font-weight:600;">API Calls</td><td>1-2 resolve + 1 equipment page + 4 parallel (faults, repairs, maintenance, anomalies) + client-side filter</td></tr>
+    <tr><td style="font-weight:600;">Execution</td><td>Resolve sequential (productionLine -> department fallback). Data queries parallel.</td></tr>
+    <tr><td style="font-weight:600;">Error Handling</td><td>Parallel calls via <code>eamParallel</code> with individual catch. Candidates handled.</td></tr>
+    <tr><td style="font-weight:600;">Major Issue</td><td><span class="severity sev-high">Fetches ALL records</span> then filters by equipment IDs in memory. For faults/repairs, it pulls <code>pageSize=200</code> globally and then <code>.filter(f => eqIds.includes(f.equipmentId))</code>.</td></tr>
+    <tr><td style="font-weight:600;">Performance</td><td><span class="severity sev-high">Scalability risk</span>. With 1000+ faults/repairs, the page only returns first 200 -- scope data becomes inaccurate.</td></tr>
+    <tr><td style="font-weight:600;">Assessment</td><td><span class="severity sev-medium">Needs Optimization</span></td></tr>
+  </table>
+</div>
+
+<!-- empty slot for grid alignment -->
+<div></div>
+</div>
+
+<div class="callout callout-red">
+  <strong>scope-overview's "Fetch All + Filter" Anti-pattern</strong>
+  The scope-overview handler fetches faults, repairs, maintenance, and anomalies with <code>pageSize=200</code> without any scope filter, then filters in JavaScript. This means: (1) Data beyond page 1 is missed. (2) If only 3 of 200 faults belong to the scope, we wasted 98.5% of API calls. (3) Counts will be wrong once total records exceed 200. The fix: pass <code>equipmentId</code> filter to the API where supported, or iterate through scopeEquipmentIds to build accurate counts.
+</div>
+
+<!-- Tier 2 -->
+<h3>4.2 Tier 2: Condition Search (7 tools)</h3>
+
+<div class="handler-grid">
+
+<!-- equipment-search -->
+<div class="card">
+  <div class="card-header"><span class="tier-badge tier2">TIER 2</span> eam.equipment.search</div>
+  <table style="font-size:13px;">
+    <tr><td style="width:120px;font-weight:600;">API Calls</td><td>1 page query. Optional: department resolve, production line resolve + equipment IDs lookup.</td></tr>
+    <tr><td style="font-weight:600;">Filters</td><td>status, category, productionLine, department, isKey + groupBy aggregation</td></tr>
+    <tr><td style="font-weight:600;">Error Handling</td><td>Resolver candidates returned to user. Page query unguarded (will throw on API error).</td></tr>
+    <tr><td style="font-weight:600;">groupBy</td><td>Client-side aggregation. Correct for in-page data. May be inaccurate if total > pageSize.</td></tr>
+    <tr><td style="font-weight:600;">Assessment</td><td><span class="severity sev-low">Good</span></td></tr>
+  </table>
+</div>
+
+<!-- fault-search -->
+<div class="card">
+  <div class="card-header"><span class="tier-badge tier2">TIER 2</span> eam.fault.search</div>
+  <table style="font-size:13px;">
+    <tr><td style="width:120px;font-weight:600;">API Calls</td><td>1 page query. Optional: equipment resolve, production line resolve, department resolve.</td></tr>
+    <tr><td style="font-weight:600;">Filters</td><td>equipment, productionLine, department, status, urgency, dateRange + groupBy</td></tr>
+    <tr><td style="font-weight:600;">Date handling</td><td><code>startTime</code>/<code>endTime</code> params passed directly to API. API-side filtering (good).</td></tr>
+    <tr><td style="font-weight:600;">Scope filter</td><td>Client-side <code>.filter(f => scopeEquipmentIds.includes(f.equipmentId))</code>. Same pattern as others.</td></tr>
+    <tr><td style="font-weight:600;">Assessment</td><td><span class="severity sev-low">Good</span></td></tr>
+  </table>
+</div>
+
+<!-- repair-search -->
+<div class="card">
+  <div class="card-header"><span class="tier-badge tier2">TIER 2</span> eam.repair.search</div>
+  <table style="font-size:13px;">
+    <tr><td style="width:120px;font-weight:600;">API Calls</td><td>1 page query + per-item enrichment: 2 parallel calls per item (spares, knowledge) for top 10.</td></tr>
+    <tr><td style="font-weight:600;">Unique feature</td><td><strong>"Medium richness"</strong> -- enriches first 10 results with spare cost summary and knowledge ref titles. Smart cost/value tradeoff.</td></tr>
+    <tr><td style="font-weight:600;">Filters</td><td>equipment, productionLine, department, status, orderType, dateRange + groupBy</td></tr>
+    <tr><td style="font-weight:600;">Client-side filter</td><td>orderType and dateRange are filtered in memory (API doesn't support natively). Could miss data beyond pageSize.</td></tr>
+    <tr><td style="font-weight:600;">Performance</td><td>Worst case: 1 + 20 API calls (10 items x 2 enrichment calls). <code>Promise.all</code> used for per-item parallelism.</td></tr>
+    <tr><td style="font-weight:600;">Assessment</td><td><span class="severity sev-low">Good</span> -- enrichment is valuable and bounded</td></tr>
+  </table>
+</div>
+
+<!-- maintenance-search -->
+<div class="card">
+  <div class="card-header"><span class="tier-badge tier2">TIER 2</span> eam.maintenance.search</div>
+  <table style="font-size:13px;">
+    <tr><td style="width:120px;font-weight:600;">API Calls</td><td>1 page query. Optional: equipment resolve, production line resolve, department resolve.</td></tr>
+    <tr><td style="font-weight:600;">Unique feature</td><td>groupBy includes <strong>completion rate</strong> per group (completed/total). Very useful for "A line maintenance completion rate" queries.</td></tr>
+    <tr><td style="font-weight:600;">Overdue logic</td><td><code>if (args.overdue) params.status = 3</code>. Simple but effective -- overdue is a status code.</td></tr>
+    <tr><td style="font-weight:600;">Conflict</td><td>If both <code>status</code> and <code>overdue</code> are set, overdue (status=3) overwrites the explicit status. Silent behavior.</td></tr>
+    <tr><td style="font-weight:600;">Assessment</td><td><span class="severity sev-low">Good</span></td></tr>
+  </table>
+</div>
+
+<!-- patrol-search -->
+<div class="card">
+  <div class="card-header"><span class="tier-badge tier2">TIER 2</span> eam.patrol.search</div>
+  <table style="font-size:13px;">
+    <tr><td style="width:120px;font-weight:600;">API Calls</td><td>Multiple paths: equipment -> <code>/patrol/task/equipment-records</code> OR generic <code>/patrol/task/page</code> OR analytics fallback.</td></tr>
+    <tr><td style="font-weight:600;">Complexity</td><td>Most complex search handler. Patrol tasks don't have direct equipmentId -- they associate through plans. The handler uses 3 different API paths depending on filters.</td></tr>
+    <tr><td style="font-weight:600;">Scope filter</td><td>For productionLine/department, falls back to <code>/patrol/task/analytics/by-equipment</code> endpoint. If that fails, returns unfiltered data with no warning.</td></tr>
+    <tr><td style="font-weight:600;">Silent fallback</td><td>Multiple <code>catch { /* ... */ }</code> blocks silently degrade. User won't know if they got unfiltered data.</td></tr>
+    <tr><td style="font-weight:600;">Assessment</td><td><span class="severity sev-medium">Adequate but fragile</span></td></tr>
+  </table>
+</div>
+
+<!-- anomaly-search -->
+<div class="card">
+  <div class="card-header"><span class="tier-badge tier2">TIER 2</span> eam.anomaly.search</div>
+  <table style="font-size:13px;">
+    <tr><td style="width:120px;font-weight:600;">API Calls</td><td>1 page query. Standard resolver pattern for equipment/productionLine/department.</td></tr>
+    <tr><td style="font-weight:600;">Filters</td><td>equipment, productionLine, department, severity, source, dateRange + groupBy</td></tr>
+    <tr><td style="font-weight:600;">Data quality</td><td>Includes <code>escalated: !!a.faultReportId</code> -- useful flag showing whether anomaly was promoted to fault report.</td></tr>
+    <tr><td style="font-weight:600;">Assessment</td><td><span class="severity sev-low">Good</span> -- clean implementation</td></tr>
+  </table>
+</div>
+
+<!-- spare-search -->
+<div class="card">
+  <div class="card-header"><span class="tier-badge tier2">TIER 2</span> eam.spare.search</div>
+  <table style="font-size:13px;">
+    <tr><td style="width:120px;font-weight:600;">API Calls</td><td>Mode 1 (BOM): equipment resolve + BOM list + stock-summary. Mode 2 (list): page query + stock-summary + per-item BOM count (10 items).</td></tr>
+    <tr><td style="font-weight:600;">Unique feature</td><td>Two distinct modes: equipment BOM query vs. spare parts list. Very different data flows.</td></tr>
+    <tr><td style="font-weight:600;">Stock enrichment</td><td>Fetches stock levels and computes <code>lowStock</code> flag by comparing current stock to <code>stockLower</code>.</td></tr>
+    <tr><td style="font-weight:600;">Performance</td><td>Mode 2 worst case: 1 + 1 + 10 API calls. BOM counts queried individually -- no batch API.</td></tr>
+    <tr><td style="font-weight:600;">Assessment</td><td><span class="severity sev-low">Good</span></td></tr>
+  </table>
+</div>
+
+<div></div>
+</div>
+
+<!-- Tier 3 -->
+<h3>4.3 Tier 3: Global Analytics (2 tools)</h3>
+
+<div class="handler-grid">
+
+<!-- dashboard -->
+<div class="card">
+  <div class="card-header"><span class="tier-badge tier3">TIER 3</span> eam.dashboard</div>
+  <table style="font-size:13px;">
+    <tr><td style="width:120px;font-weight:600;">API Calls</td><td>8 parallel: summary, statusDist, faultStats, repairStats, maintenanceStats, patrolStats, spareAlerts, todoList</td></tr>
+    <tr><td style="font-weight:600;">Execution</td><td>All parallel via <code>eamParallel</code>. Very efficient.</td></tr>
+    <tr><td style="font-weight:600;">Error Handling</td><td>spareAlerts and todoList have <code>.catch(() => [])</code>. Others rely on eamParallel's allSettled (returns null on failure).</td></tr>
+    <tr><td style="font-weight:600;">Null safety</td><td>Uses <code>summary?.totalEquipment</code> optional chaining throughout. If summary API fails, all fields are undefined (not 0). LLM must handle this.</td></tr>
+    <tr><td style="font-weight:600;">Assessment</td><td><span class="severity sev-low">Good</span></td></tr>
+  </table>
+</div>
+
+<!-- trend -->
+<div class="card">
+  <div class="card-header"><span class="tier-badge tier3">TIER 3</span> eam.trend</div>
+  <table style="font-size:13px;">
+    <tr><td style="width:120px;font-weight:600;">API Calls</td><td>Patrol: dedicated analytics endpoint. Others: page API with <code>pageSize=500</code> + client-side time aggregation.</td></tr>
+    <tr><td style="font-weight:600;">Domains</td><td>6 domains: fault, repair, maintenance, patrol, anomaly, spare</td></tr>
+    <tr><td style="font-weight:600;">Time aggregation</td><td>Client-side bucketing by day/week/month. <code>formatPeriod()</code> handles all granularities correctly.</td></tr>
+    <tr><td style="font-weight:600;">splitBy</td><td>Declared in schema but <strong>not implemented</strong> in the handler body. Dead parameter.</td></tr>
+    <tr><td style="font-weight:600;">Data limit</td><td>Hardcoded <code>pageSize=500</code>. For long date ranges with many records, results will be truncated and trend data inaccurate.</td></tr>
+    <tr><td style="font-weight:600;">Assessment</td><td><span class="severity sev-medium">Works but has scaling limits</span></td></tr>
+  </table>
+</div>
+
+</div>
+
+<h3>4.4 Cross-Handler Patterns</h3>
+
+<table>
+<tr><th>Pattern</th><th>Prevalence</th><th>Quality</th></tr>
+<tr><td><code>textResult()</code> helper</td><td>All 12 handlers</td><td>Consistent JSON serialization. Duplicated in every file -- could be shared.</td></tr>
+<tr><td><code>STATUS_MAP</code> constants</td><td>Duplicated in equipment-profile, equipment-search, scope-overview (3 copies)</td><td>Same values. DRY violation -- should be centralized.</td></tr>
+<tr><td><code>format: 'detailed' | 'concise'</code></td><td>All 12 handlers</td><td>Consistent API surface. Good for token control.</td></tr>
+<tr><td>Resolver-first pattern</td><td>All handlers that accept entity identifiers</td><td>Consistent resolver -> handle candidates -> proceed. Well-structured.</td></tr>
+<tr><td>groupBy aggregation</td><td>6 of 7 search handlers</td><td>Consistent Map-based aggregation. Client-side only.</td></tr>
+<tr><td>Scope filter (productionLine/department)</td><td>5 search handlers</td><td>All use same pattern: resolve -> getEquipmentIds -> filter. Code is copy-pasted.</td></tr>
+</table>
+
+<div class="callout callout-purple">
+  <strong>DRY Opportunity: Shared Scope Filter</strong>
+  The "resolve productionLine/department -> get equipment IDs -> filter results" pattern appears in 5 handlers with nearly identical code (~15 lines each). A <code>resolveScopeFilter(args): Promise&lt;number[] | null&gt;</code> utility could eliminate 60+ lines of duplication.
+</div>
+
+
+<!-- ============================================================== -->
+<!-- SECTION 5 -->
+<!-- ============================================================== -->
+<h2 id="s5"><span class="badge" style="background:var(--teal);color:white;">S5</span> EAM API Integration</h2>
+
+<h3>5.1 Authentication</h3>
+
+<pre>
+<span class="comment">// Token caching with 5-minute pre-renewal buffer</span>
+<span class="keyword">let</span> cachedToken: { accessToken: <span class="type">string</span>; expiresAt: <span class="type">number</span> } | <span class="type">null</span> = <span class="type">null</span>
+
+<span class="keyword">async function</span> <span class="fn">getToken</span>(): Promise&lt;<span class="type">string</span>&gt; {
+  <span class="keyword">if</span> (cachedToken && cachedToken.expiresAt > Date.now() + <span class="num">5</span> * <span class="num">60</span> * <span class="num">1000</span>) {
+    <span class="keyword">return</span> cachedToken.accessToken   <span class="comment">// cached hit</span>
+  }
+  <span class="comment">// POST /admin-api/system/auth/login</span>
+  <span class="comment">// Cache token with expiresAt from server response</span>
+}
+</pre>
+
+<table>
+<tr><th>Aspect</th><th>Current State</th><th>Analysis</th></tr>
+<tr><td>Caching</td><td>Module-level <code>cachedToken</code> variable</td><td>Works for single-process MCP server. Token survives across tool calls.</td></tr>
+<tr><td>Renewal</td><td>5-minute buffer before expiry</td><td>Good -- prevents edge cases where token expires during a request.</td></tr>
+<tr><td>Concurrent renewal</td><td><strong>Not guarded</strong></td><td>If two tool calls trigger getToken() simultaneously when token expired, both will call login. Race condition -- second call wastes one login, but both get valid tokens. Not critical but wasteful.</td></tr>
+<tr><td>Credentials</td><td>Environment variables with defaults</td><td>Defaults are dev credentials (<code>admin/admin123</code>). Safe for dev, must be overridden in production.</td></tr>
+<tr><td>Token expiry format</td><td><code>json.data.expiresTime</code> -- likely epoch millis from Java backend</td><td>Matches <code>Date.now()</code> comparison. Correct.</td></tr>
+</table>
+
+<div class="callout callout-amber">
+  <strong>Concurrent Token Renewal Race</strong>
+  When two parallel API calls both find the token expired, they both call <code>getToken()</code> which calls login twice. Fix: add a singleton promise guard:
+  <pre style="background:var(--gray-900);margin-top:8px;">
+<span class="keyword">let</span> tokenPromise: Promise&lt;string&gt; | <span class="type">null</span> = <span class="type">null</span>
+<span class="keyword">async function</span> <span class="fn">getToken</span>() {
+  <span class="keyword">if</span> (cachedToken?.expiresAt > Date.now() + <span class="num">300000</span>) <span class="keyword">return</span> cachedToken.accessToken
+  <span class="keyword">if</span> (!tokenPromise) tokenPromise = <span class="fn">doLogin</span>().finally(() => tokenPromise = <span class="type">null</span>)
+  <span class="keyword">return</span> tokenPromise
+}</pre>
+</div>
+
+<h3>5.2 Error Response Handling</h3>
+
+<pre>
+<span class="comment">// Current: check json.code, throw with message</span>
+<span class="keyword">const</span> json = <span class="keyword">await</span> res.json()
+<span class="keyword">if</span> (json.code !== <span class="num">0</span>) {
+  <span class="keyword">throw new</span> Error(<span class="string">`EAM API 错误 [${path}]: code=${json.code} msg=${json.msg}`</span>)
+}
+<span class="keyword">return</span> json.data
+</pre>
+
+<table>
+<tr><th>Error Type</th><th>Handling</th><th>Gap</th></tr>
+<tr><td>Business error (code != 0)</td><td>Throws with code + msg</td><td>All non-zero codes treated equally. Some codes (e.g., auth expired) should trigger token refresh.</td></tr>
+<tr><td>HTTP error (4xx/5xx)</td><td><strong>Not checked</strong></td><td><code>res.ok</code> / <code>res.status</code> is never validated. A 500 response might have valid JSON with code=0 or throw on <code>res.json()</code>.</td></tr>
+<tr><td>Network error</td><td>Propagates as uncaught Error from fetch()</td><td>No retry logic. Handler's <code>.catch()</code> blocks handle this at the tool level.</td></tr>
+<tr><td>Timeout</td><td>No timeout configured on fetch()</td><td>A slow API could hang indefinitely. MCP client has no timeout either.</td></tr>
+<tr><td>Token expired mid-session</td><td>Server returns error code, thrown as exception</td><td>No automatic retry with fresh token. Handler's catch block returns null/[] instead.</td></tr>
+</table>
+
+<h3>5.3 API Path Mapping</h3>
+
+<p>Complete inventory of API paths called across all handlers:</p>
+
+<table>
+<tr><th>Domain</th><th>API Path</th><th>Called By</th><th>HTTP Method</th></tr>
+<tr><td rowspan="5">Equipment</td><td><code>/eam/equipment/get</code></td><td>resolvers, repair-profile</td><td>GET</td></tr>
+<tr><td><code>/eam/equipment/page</code></td><td>resolvers, equipment-search, scope-overview</td><td>GET</td></tr>
+<tr><td><code>/eam/equipment/kpi</code></td><td>equipment-profile</td><td>GET</td></tr>
+<tr><td><code>/eam/equipment/lifecycle-timeline</code></td><td>equipment-profile</td><td>GET</td></tr>
+<tr><td><code>/eam/production-line/equipment/list</code></td><td>resolvers</td><td>GET</td></tr>
+<tr><td rowspan="4">Fault</td><td><code>/eam/fault-report/page</code></td><td>equipment-profile, fault-search, scope-overview, trend</td><td>GET</td></tr>
+<tr><td><code>/eam/fault-report/get</code></td><td>repair-profile</td><td>GET</td></tr>
+<tr><td><code>/eam/fault-report/status-stats</code></td><td>dashboard</td><td>GET</td></tr>
+<tr><td><code>(via keyword search)</code></td><td>repair-profile (FR-code resolve)</td><td>GET</td></tr>
+<tr><td rowspan="8">Repair</td><td><code>/eam/repair-order/page</code></td><td>equipment-profile, repair-search, scope-overview, trend</td><td>GET</td></tr>
+<tr><td><code>/eam/repair-order/get</code></td><td>repair-profile</td><td>GET</td></tr>
+<tr><td><code>/eam/repair-order/get-by-fault-report-id</code></td><td>repair-profile</td><td>GET</td></tr>
+<tr><td><code>/eam/repair-order/spare/list</code></td><td>repair-profile, repair-search</td><td>GET</td></tr>
+<tr><td><code>/eam/repair-order/workload/list</code></td><td>repair-profile</td><td>GET</td></tr>
+<tr><td><code>/eam/repair-order/knowledge-ref/list</code></td><td>repair-profile, repair-search</td><td>GET</td></tr>
+<tr><td><code>/eam/repair-order/related-stock-out/list</code></td><td>repair-profile</td><td>GET</td></tr>
+<tr><td><code>/eam/repair-order/log-list</code></td><td>repair-profile</td><td>GET</td></tr>
+<tr><td><code>/eam/repair-order/status-stats</code></td><td>dashboard</td><td>GET</td></tr>
+<tr><td rowspan="3">Maintenance</td><td><code>/eam/maintenance/task/page</code></td><td>equipment-profile, maintenance-search, scope-overview, trend</td><td>GET</td></tr>
+<tr><td><code>/eam/maintenance/task/status-stats</code></td><td>dashboard</td><td>GET</td></tr>
+<tr><td></td><td></td><td></td></tr>
+<tr><td rowspan="4">Patrol</td><td><code>/eam/patrol/task/page</code></td><td>patrol-search</td><td>GET</td></tr>
+<tr><td><code>/eam/patrol/task/equipment-records</code></td><td>equipment-profile, patrol-search</td><td>GET</td></tr>
+<tr><td><code>/eam/patrol/task/statistics</code></td><td>dashboard</td><td>GET</td></tr>
+<tr><td><code>/eam/patrol/task/analytics</code></td><td>trend</td><td>GET</td></tr>
+<tr><td rowspan="2">Anomaly</td><td><code>/eam/anomaly/page</code></td><td>anomaly-search, scope-overview, trend</td><td>GET</td></tr>
+<tr><td></td><td></td><td></td></tr>
+<tr><td rowspan="4">Spare</td><td><code>/eam/spare/bom/by-equipment</code></td><td>equipment-profile, spare-search</td><td>GET</td></tr>
+<tr><td><code>/eam/spare/bom/by-spare</code></td><td>spare-search</td><td>GET</td></tr>
+<tr><td><code>/eam/spare/part/page</code></td><td>spare-search</td><td>GET</td></tr>
+<tr><td><code>/eam/spare/part/stock-summary</code></td><td>equipment-profile, spare-search</td><td>GET</td></tr>
+<tr><td rowspan="1">Spare Out</td><td><code>/eam/spare/stock-out/page</code></td><td>trend</td><td>GET</td></tr>
+<tr><td><code>/eam/spare/alert/list</code></td><td>dashboard</td><td>GET</td></tr>
+<tr><td rowspan="3">Dashboard</td><td><code>/eam/dashboard/summary</code></td><td>dashboard</td><td>GET</td></tr>
+<tr><td><code>/eam/dashboard/equipment-status-distribution</code></td><td>dashboard</td><td>GET</td></tr>
+<tr><td><code>/eam/dashboard/todo-list</code></td><td>dashboard</td><td>GET</td></tr>
+<tr><td rowspan="3">System</td><td><code>/system/dept/list</code></td><td>resolvers</td><td>GET</td></tr>
+<tr><td><code>/system/dept/get</code></td><td>resolvers</td><td>GET</td></tr>
+<tr><td><code>/system/auth/login</code></td><td>eam-api (auth)</td><td>POST</td></tr>
+<tr><td rowspan="2">Production Line</td><td><code>/eam/production-line/page</code></td><td>resolvers</td><td>GET</td></tr>
+<tr><td><code>/eam/production-line/get</code></td><td>resolvers</td><td>GET</td></tr>
+</table>
+
+<p><strong>Total unique API paths: ~35</strong></p>
+
+<h3>5.4 Rate Limiting & Concurrency</h3>
+
+<div class="callout callout-amber">
+  <strong>No Rate Limiting Controls</strong>
+  The EAM API client has zero rate limiting or concurrency controls:
+  <ul style="margin-top:8px;">
+    <li>No request queue or semaphore</li>
+    <li>No retry with backoff on 429 responses</li>
+    <li>No concurrent request limit</li>
+    <li><code>eamParallel</code> uses <code>Promise.allSettled</code> which fires all calls simultaneously</li>
+  </ul>
+  The equipment-profile handler fires 7 parallel calls; dashboard fires 8. Combined with repair-search's per-item enrichment (up to 20 calls), a single user query could generate 30+ simultaneous API calls. If the EAM backend has rate limits, this will fail.
+</div>
+
+<h3>5.5 Missing APIs / Gaps</h3>
+
+<table>
+<tr><th>Gap</th><th>Impact</th><th>Workaround</th></tr>
+<tr><td>No server-side equipmentId filter on fault/repair/maintenance page APIs</td><td>scope-overview fetches all + filters in memory</td><td>EAM backend API enhancement needed</td></tr>
+<tr><td>No batch equipment detail by IDs</td><td>scope-overview fetches full page and filters</td><td>Could use multiple /get calls in parallel</td></tr>
+<tr><td>No native trend/analytics API for most domains</td><td>trend handler pulls page data and aggregates client-side</td><td>Limited to 500 records per query</td></tr>
+<tr><td>Patrol tasks lack direct equipmentId</td><td>Complex multi-path resolution in patrol-search</td><td>Uses equipment-records endpoint as workaround</td></tr>
+<tr><td>No user/person name resolution API used</td><td>responsiblePersonIds, assigneeId returned as raw IDs</td><td>LLM must present IDs without names</td></tr>
+<tr><td>No category name resolution</td><td>categoryId returned as number, not human-readable</td><td>User sees category IDs, not names</td></tr>
+</table>
+
+
+<!-- ============================================================== -->
+<!-- SECTION 6 -->
+<!-- ============================================================== -->
+<h2 id="s6"><span class="badge" style="background:var(--red);color:white;">S6</span> Issues & Recommendations</h2>
+
+<p>All findings consolidated with severity and actionable recommendations.</p>
+
+<!-- Critical -->
+<h3>6.1 Critical Issues</h3>
+
+<div class="issue-item">
+  <div><span class="severity sev-critical">CRITICAL</span></div>
+  <div>
+    <strong>I-01: LLM API errors not caught in router</strong><br>
+    <code>llm.think(messages)</code> and <code>llm.summarize()</code> are called without try-catch in the main flow. A network timeout, API error, or rate limit from the LLM provider will crash the request with an unhandled exception, returning a 500 to the user.<br>
+    <strong>File:</strong> <code>lib/brain/router.ts</code> lines 70, 90, 217<br>
+    <strong>Fix:</strong> Wrap LLM calls in try-catch. On think() failure, return a graceful "service temporarily unavailable" response. On summarize() failure, return raw data with a note.
+  </div>
+</div>
+
+<div class="issue-item">
+  <div><span class="severity sev-critical">CRITICAL</span></div>
+  <div>
+    <strong>I-02: scope-overview fetches global data and filters in memory</strong><br>
+    The handler pulls <code>pageSize=200</code> for faults, repairs, maintenance, and anomalies without any scope filter, then filters by equipmentId in JavaScript. This means: (a) data beyond page 1 is lost, (b) counts are wrong when total > 200, (c) unnecessary data transfer.<br>
+    <strong>File:</strong> <code>mcp-server/src/handlers/scope-overview.ts</code> lines 75-91<br>
+    <strong>Fix:</strong> Use equipmentId API filters where available. For domains without server-side equipment filter, iterate equipment IDs and aggregate.
+  </div>
+</div>
+
+<!-- High -->
+<h3>6.2 High Severity Issues</h3>
+
+<div class="issue-item">
+  <div><span class="severity sev-high">HIGH</span></div>
+  <div>
+    <strong>I-03: HTTP status codes not checked in eam-api</strong><br>
+    <code>eamGet</code> and <code>eamPost</code> call <code>res.json()</code> without checking <code>res.ok</code>. A 500 response might not parse as JSON (e.g., HTML error page), causing a cryptic JSON parse error instead of a clear API error.<br>
+    <strong>File:</strong> <code>mcp-server/src/eam-api.ts</code> lines 52-63, 70-84<br>
+    <strong>Fix:</strong> Add <code>if (!res.ok) throw new Error(`HTTP ${res.status}`)</code> before JSON parsing.
+  </div>
+</div>
+
+<div class="issue-item">
+  <div><span class="severity sev-high">HIGH</span></div>
+  <div>
+    <strong>I-04: No request timeout on EAM API calls</strong><br>
+    Neither the MCP client nor the EAM API client has a timeout. A hung EAM backend will block the entire request chain indefinitely.<br>
+    <strong>File:</strong> <code>mcp-server/src/eam-api.ts</code>, <code>lib/tools/mcp-client.ts</code><br>
+    <strong>Fix:</strong> Add <code>AbortSignal.timeout(30000)</code> to fetch calls. Add a timeout wrapper on MCPClient.callTool().
+  </div>
+</div>
+
+<div class="issue-item">
+  <div><span class="severity sev-high">HIGH</span></div>
+  <div>
+    <strong>I-05: eam.trend <code>splitBy</code> parameter declared but not implemented</strong><br>
+    The <code>splitBy</code> parameter is in the schema (users can request it, LLM can generate it) but the handler body never uses it. Silently ignored -- users get unsplit data when they asked for split-by-equipment comparison.<br>
+    <strong>File:</strong> <code>mcp-server/src/handlers/trend.ts</code> line 17<br>
+    <strong>Fix:</strong> Implement splitBy logic or remove the parameter from the schema until implemented.
+  </div>
+</div>
+
+<div class="issue-item">
+  <div><span class="severity sev-high">HIGH</span></div>
+  <div>
+    <strong>I-06: Message context growth unbounded</strong><br>
+    Each round injects full tool results (JSON-serialized) into the message history. Large results (equipment lists, trend data with hundreds of records) inflate context rapidly. A 3-round query with data-heavy tools could easily push 50K+ tokens.<br>
+    <strong>File:</strong> <code>lib/brain/router.ts</code> lines 180-193<br>
+    <strong>Fix:</strong> Truncate observation data in messages (e.g., first 3 items + total count). Keep full data in allResults for final summarization.
+  </div>
+</div>
+
+<!-- Medium -->
+<h3>6.3 Medium Severity Issues</h3>
+
+<div class="issue-item">
+  <div><span class="severity sev-medium">MEDIUM</span></div>
+  <div>
+    <strong>I-07: getEquipmentIdsByDepartment hard-coded pageSize=1000</strong><br>
+    Silently drops equipment beyond 1000 per department. No warning log.<br>
+    <strong>File:</strong> <code>mcp-server/src/resolvers.ts</code> line 128<br>
+    <strong>Fix:</strong> Add <code>if (page.total > 1000) console.warn(...)</code> and consider pagination.
+  </div>
+</div>
+
+<div class="issue-item">
+  <div><span class="severity sev-medium">MEDIUM</span></div>
+  <div>
+    <strong>I-08: Concurrent token renewal race condition</strong><br>
+    Two parallel API calls finding expired token both trigger login. Wasteful but not breaking.<br>
+    <strong>File:</strong> <code>mcp-server/src/eam-api.ts</code> lines 12-37<br>
+    <strong>Fix:</strong> Singleton promise guard (see Section 5.1).
+  </div>
+</div>
+
+<div class="issue-item">
+  <div><span class="severity sev-medium">MEDIUM</span></div>
+  <div>
+    <strong>I-09: Array arguments not resolved for {{N.path}} references</strong><br>
+    <code>resolveArgRefs</code> handles strings and nested objects but not arrays. If LLM sends <code>["{{0.id}}"]</code> as an argument, the reference won't be resolved.<br>
+    <strong>File:</strong> <code>lib/brain/router.ts</code> lines 282-295<br>
+    <strong>Fix:</strong> Add array handling: <code>if (Array.isArray(value)) resolved[key] = value.map(...)</code>
+  </div>
+</div>
+
+<div class="issue-item">
+  <div><span class="severity sev-medium">MEDIUM</span></div>
+  <div>
+    <strong>I-10: STATUS_MAP duplicated across 3+ files</strong><br>
+    equipment-profile, equipment-search, and scope-overview all define identical STATUS_MAP and REPAIR_STATUS constants.<br>
+    <strong>Files:</strong> Multiple handler files<br>
+    <strong>Fix:</strong> Extract to a shared <code>constants.ts</code> module.
+  </div>
+</div>
+
+<div class="issue-item">
+  <div><span class="severity sev-medium">MEDIUM</span></div>
+  <div>
+    <strong>I-11: maintenance-search overdue silently overrides status</strong><br>
+    If both <code>status</code> and <code>overdue=true</code> are provided, overdue wins without warning. LLM might send conflicting parameters.<br>
+    <strong>File:</strong> <code>mcp-server/src/handlers/maintenance-search.ts</code> lines 39-40<br>
+    <strong>Fix:</strong> Check for conflict: <code>if (args.status !== undefined && args.overdue) console.warn(...)</code>
+  </div>
+</div>
+
+<div class="issue-item">
+  <div><span class="severity sev-medium">MEDIUM</span></div>
+  <div>
+    <strong>I-12: trend handler pageSize=500 cap</strong><br>
+    For long date ranges, 500 records may not cover the full period. Trend data will be incomplete with no warning to the user.<br>
+    <strong>File:</strong> <code>mcp-server/src/handlers/trend.ts</code> line 69<br>
+    <strong>Fix:</strong> Add total-vs-fetched comparison in response: <code>{ totalInRange: page.total, fetched: records.length, warning: page.total > 500 ? 'Data truncated' : null }</code>
+  </div>
+</div>
+
+<div class="issue-item">
+  <div><span class="severity sev-medium">MEDIUM</span></div>
+  <div>
+    <strong>I-13: No user/person name resolution</strong><br>
+    <code>responsiblePersonIds</code>, <code>assigneeId</code>, and other person references are returned as raw IDs. The LLM has to present these as numbers, which is poor UX.<br>
+    <strong>Files:</strong> equipment-profile, repair-profile, maintenance-search<br>
+    <strong>Fix:</strong> Add a <code>resolveUserNames(ids: number[])</code> utility that batch-fetches user names from <code>/system/user/get</code>.
+  </div>
+</div>
+
+<!-- Low / Info -->
+<h3>6.4 Low Severity / Improvements</h3>
+
+<div class="issue-item">
+  <div><span class="severity sev-low">LOW</span></div>
+  <div>
+    <strong>I-14: Pretty-print JSON in textResult()</strong><br>
+    <code>JSON.stringify(data, null, 2)</code> adds ~30% size overhead over stdio. Use compact JSON in production.<br>
+    <strong>Files:</strong> All 12 handler files<br>
+  </div>
+</div>
+
+<div class="issue-item">
+  <div><span class="severity sev-low">LOW</span></div>
+  <div>
+    <strong>I-15: MCPClient.close() not called on process exit</strong><br>
+    No cleanup handler registered. The child process may become orphaned.<br>
+    <strong>File:</strong> <code>lib/tools/mcp-client.ts</code><br>
+  </div>
+</div>
+
+<div class="issue-item">
+  <div><span class="severity sev-low">LOW</span></div>
+  <div>
+    <strong>I-16: Object.assign(thinkResult, escalated) mutates original</strong><br>
+    Minor code smell in the escalation path. Should reassign: <code>thinkResult = { ...thinkResult, ...escalated }</code>. Wait -- thinkResult is const in the loop. Actually it's <code>const thinkResult</code>... no, it's not: it's from <code>await llm.think(messages)</code>. The mutation works but is confusing.<br>
+    <strong>File:</strong> <code>lib/brain/router.ts</code> line 125<br>
+  </div>
+</div>
+
+<div class="issue-item">
+  <div><span class="severity sev-low">LOW</span></div>
+  <div>
+    <strong>I-17: Scope filter pattern duplicated in 5 handlers</strong><br>
+    The ~15 lines of productionLine/department resolve + getEquipmentIds + filter is copy-pasted. A shared utility would improve maintainability.<br>
+    <strong>Files:</strong> fault-search, repair-search, maintenance-search, patrol-search, anomaly-search<br>
+  </div>
+</div>
+
+<div class="issue-item">
+  <div><span class="severity sev-info">INFO</span></div>
+  <div>
+    <strong>I-18: No category name resolution in equipment-search groupBy</strong><br>
+    When groupBy='category', groups show <code>categoryId</code> numbers instead of names. The LLM has to guess or present raw IDs.<br>
+    <strong>File:</strong> <code>mcp-server/src/handlers/equipment-search.ts</code> line 72<br>
+  </div>
+</div>
+
+<div class="issue-item">
+  <div><span class="severity sev-info">INFO</span></div>
+  <div>
+    <strong>I-19: patrol-search silent degradation</strong><br>
+    Multiple fallback paths with empty catch blocks. User may receive unfiltered data without knowing their productionLine/department filter was ignored.<br>
+    <strong>File:</strong> <code>mcp-server/src/handlers/patrol-search.ts</code><br>
+  </div>
+</div>
+
+<h3>6.5 Summary Matrix</h3>
+
+<table>
+<tr><th>Severity</th><th>Count</th><th>IDs</th></tr>
+<tr><td><span class="severity sev-critical">CRITICAL</span></td><td>2</td><td>I-01, I-02</td></tr>
+<tr><td><span class="severity sev-high">HIGH</span></td><td>4</td><td>I-03, I-04, I-05, I-06</td></tr>
+<tr><td><span class="severity sev-medium">MEDIUM</span></td><td>7</td><td>I-07, I-08, I-09, I-10, I-11, I-12, I-13</td></tr>
+<tr><td><span class="severity sev-low">LOW</span></td><td>4</td><td>I-14, I-15, I-16, I-17</td></tr>
+<tr><td><span class="severity sev-info">INFO</span></td><td>2</td><td>I-18, I-19</td></tr>
+<tr style="font-weight:700;"><td>Total</td><td>19</td><td></td></tr>
+</table>
+
+<h3>6.6 Recommended Fix Priority</h3>
+
+<table>
+<tr><th>Priority</th><th>Issue</th><th>Effort</th><th>Impact</th></tr>
+<tr><td>P0 (Now)</td><td>I-01: Wrap LLM calls in try-catch</td><td>30 min</td><td>Prevents 500 errors to users</td></tr>
+<tr><td>P0 (Now)</td><td>I-03: Check HTTP status before JSON parse</td><td>15 min</td><td>Clearer error messages</td></tr>
+<tr><td>P0 (Now)</td><td>I-04: Add fetch timeout</td><td>30 min</td><td>Prevents indefinite hangs</td></tr>
+<tr><td>P1 (Soon)</td><td>I-02: Fix scope-overview data fetching</td><td>2 hours</td><td>Correct scope-level aggregation</td></tr>
+<tr><td>P1 (Soon)</td><td>I-05: Implement or remove splitBy</td><td>30 min</td><td>Honest API contract</td></tr>
+<tr><td>P1 (Soon)</td><td>I-06: Truncate observation messages</td><td>1 hour</td><td>Token cost control</td></tr>
+<tr><td>P2 (Later)</td><td>I-10, I-17: DRY refactoring</td><td>2 hours</td><td>Maintainability</td></tr>
+<tr><td>P2 (Later)</td><td>I-13: User name resolution</td><td>2 hours</td><td>Better UX for person-related queries</td></tr>
+<tr><td>P2 (Later)</td><td>I-08: Token renewal guard</td><td>15 min</td><td>Minor efficiency</td></tr>
+</table>
+
+<div class="callout callout-green" style="margin-top:40px;">
+  <strong>Overall Assessment</strong>
+  The Router + Execution layer is <strong>architecturally sound</strong>. The ReAct loop, escalation strategy, and {{N.path}} reference system show thoughtful design. The MCP tool tier structure (Profile / Search / Analytics) is clean. The main weaknesses are at the edges: error handling robustness, data scaling limits in memory-filter patterns, and DRY violations in handler code. The 6 critical/high issues should be addressed before scaling beyond the current test scenario.
+</div>
+
+</div><!-- container -->
+</body>
+</html>

@@ -1,0 +1,1819 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Insight68 NL-API — Skill + Prompt Layer Deep Analysis</title>
+<style>
+  :root {
+    --navy:    #1F3864;
+    --blue:    #4472C4;
+    --blue-light: #5B9BD5;
+    --blue-pale: #E8EFF8;
+    --blue-50: #F0F5FC;
+    --blue-100: #D6E4F5;
+    --blue-200: #B4CCE9;
+    --blue-glow: rgba(68,114,196,0.12);
+    --green:   #22A06B;
+    --green-bg:#E3FCEF;
+    --amber:   #D97706;
+    --amber-bg:#FFF8E1;
+    --red:     #DE350B;
+    --red-bg:  #FFEBE6;
+    --purple:  #6554C0;
+    --purple-bg:#EAE6FF;
+    --gray-50: #F8F9FA;
+    --gray-100:#F1F3F5;
+    --gray-200:#E5E7EB;
+    --gray-300:#D1D5DB;
+    --gray-400:#9CA3AF;
+    --gray-500:#6B7280;
+    --gray-600:#4B5563;
+    --gray-700:#374151;
+    --gray-800:#1F2937;
+    --gray-900:#111827;
+    --shadow-sm: 0 1px 3px rgba(0,0,0,0.08);
+    --shadow-md: 0 4px 12px rgba(0,0,0,0.08);
+    --shadow-lg: 0 8px 30px rgba(0,0,0,0.10);
+    --radius: 10px;
+    --radius-sm: 6px;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+    font-size: 15px;
+    line-height: 1.75;
+    color: var(--gray-800);
+    background: linear-gradient(135deg, #F0F4F8 0%, #E8EFF8 50%, #F0F4F8 100%);
+    padding: 0;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 40px 56px 80px;
+    background: white;
+    min-height: 100vh;
+    box-shadow: 0 0 60px rgba(31,56,100,0.08);
+  }
+
+  /* Typography */
+  h1 {
+    font-size: 32px;
+    font-weight: 800;
+    color: var(--navy);
+    margin-bottom: 6px;
+    letter-spacing: -0.02em;
+  }
+
+  .subtitle {
+    font-size: 17px;
+    color: var(--gray-500);
+    margin-bottom: 12px;
+    font-weight: 400;
+  }
+
+  .meta-line {
+    font-size: 13px;
+    color: var(--gray-400);
+    margin-bottom: 40px;
+    padding-bottom: 24px;
+    border-bottom: 2px solid var(--blue-100);
+  }
+
+  h2 {
+    font-size: 24px;
+    font-weight: 700;
+    color: var(--navy);
+    margin-top: 64px;
+    margin-bottom: 24px;
+    padding-bottom: 10px;
+    border-bottom: 3px solid var(--blue);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  h2 .section-num {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 34px;
+    height: 34px;
+    background: var(--navy);
+    color: white;
+    border-radius: 50%;
+    font-size: 15px;
+    font-weight: 700;
+    flex-shrink: 0;
+  }
+
+  h3 {
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--blue);
+    margin-top: 36px;
+    margin-bottom: 14px;
+  }
+
+  h4 {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--gray-700);
+    margin-top: 20px;
+    margin-bottom: 8px;
+  }
+
+  p { margin-bottom: 14px; }
+  strong { color: var(--gray-900); }
+
+  /* Navigation bar */
+  .nav-bar {
+    display: flex;
+    gap: 12px;
+    margin: 24px 0;
+    flex-wrap: wrap;
+  }
+
+  .nav-bar a {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 16px;
+    background: var(--blue-50);
+    border: 1px solid var(--blue-200);
+    border-radius: var(--radius-sm);
+    color: var(--blue);
+    text-decoration: none;
+    font-size: 13px;
+    font-weight: 600;
+    transition: all 0.2s;
+  }
+
+  .nav-bar a:hover {
+    background: var(--blue);
+    color: white;
+    border-color: var(--blue);
+  }
+
+  .nav-bar a.current {
+    background: var(--navy);
+    color: white;
+    border-color: var(--navy);
+    cursor: default;
+  }
+
+  /* TOC */
+  .toc {
+    background: var(--blue-50);
+    border: 1px solid var(--blue-200);
+    border-radius: var(--radius);
+    padding: 24px 32px;
+    margin: 32px 0;
+  }
+
+  .toc-title {
+    font-size: 14px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--blue);
+    margin-bottom: 14px;
+  }
+
+  .toc ol {
+    list-style: none;
+    counter-reset: toc-counter;
+    padding: 0;
+    columns: 2;
+    column-gap: 32px;
+  }
+
+  .toc li {
+    counter-increment: toc-counter;
+    margin-bottom: 6px;
+    break-inside: avoid;
+  }
+
+  .toc li::before {
+    content: counter(toc-counter) ".";
+    color: var(--blue);
+    font-weight: 600;
+    margin-right: 6px;
+  }
+
+  .toc a {
+    color: var(--gray-700);
+    text-decoration: none;
+    font-size: 14px;
+  }
+
+  .toc a:hover { color: var(--blue); text-decoration: underline; }
+
+  /* Cards */
+  .card {
+    background: white;
+    border: 1px solid var(--gray-200);
+    border-radius: var(--radius);
+    padding: 24px 28px;
+    margin: 16px 0;
+    box-shadow: var(--shadow-sm);
+  }
+
+  .card.blue-accent { border-left: 4px solid var(--blue); }
+  .card.green-accent { border-left: 4px solid var(--green); }
+  .card.amber-accent { border-left: 4px solid var(--amber); }
+  .card.red-accent { border-left: 4px solid var(--red); }
+  .card.purple-accent { border-left: 4px solid var(--purple); }
+
+  .card-title {
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--navy);
+    margin-bottom: 8px;
+  }
+
+  /* Layer diagram */
+  .layer-stack {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    margin: 24px 0;
+  }
+
+  .layer-item {
+    display: flex;
+    border: 1px solid var(--gray-200);
+    border-bottom: none;
+    overflow: hidden;
+  }
+
+  .layer-item:first-child { border-radius: var(--radius) var(--radius) 0 0; }
+  .layer-item:last-child { border-bottom: 1px solid var(--gray-200); border-radius: 0 0 var(--radius) var(--radius); }
+
+  .layer-label {
+    width: 180px;
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 16px 12px;
+    font-weight: 700;
+    font-size: 13px;
+    text-align: center;
+    line-height: 1.3;
+    color: white;
+  }
+
+  .layer-label small {
+    font-size: 11px;
+    font-weight: 400;
+    opacity: 0.8;
+    margin-top: 2px;
+  }
+
+  .layer-content {
+    flex: 1;
+    padding: 16px 20px;
+    background: white;
+    font-size: 14px;
+  }
+
+  .layer-content code {
+    font-size: 12px;
+    background: var(--gray-100);
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-family: "SF Mono", "Fira Code", "JetBrains Mono", Consolas, monospace;
+  }
+
+  /* Code blocks */
+  pre {
+    background: var(--gray-50);
+    border: 1px solid var(--gray-200);
+    border-radius: var(--radius-sm);
+    padding: 16px 20px;
+    margin: 12px 0;
+    overflow-x: auto;
+    font-family: "SF Mono", "Fira Code", "JetBrains Mono", Consolas, monospace;
+    font-size: 13px;
+    line-height: 1.6;
+    color: var(--gray-800);
+  }
+
+  code {
+    font-family: "SF Mono", "Fira Code", "JetBrains Mono", Consolas, monospace;
+    font-size: 13px;
+    background: var(--gray-100);
+    padding: 1px 5px;
+    border-radius: 3px;
+  }
+
+  /* Tables */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 16px 0;
+    font-size: 13px;
+  }
+
+  th {
+    background: var(--navy);
+    color: white;
+    padding: 10px 14px;
+    text-align: left;
+    font-weight: 600;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    white-space: nowrap;
+  }
+
+  td {
+    padding: 8px 14px;
+    border-bottom: 1px solid var(--gray-200);
+    vertical-align: top;
+  }
+
+  tr:nth-child(even) { background: var(--gray-50); }
+  tr:hover { background: var(--blue-pale); }
+
+  /* Status badges */
+  .badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+  }
+
+  .badge-critical { background: var(--red-bg); color: var(--red); }
+  .badge-medium { background: var(--amber-bg); color: var(--amber); }
+  .badge-low { background: var(--green-bg); color: var(--green); }
+  .badge-info { background: var(--purple-bg); color: var(--purple); }
+  .badge-ok { background: var(--green-bg); color: var(--green); }
+  .badge-warn { background: var(--amber-bg); color: var(--amber); }
+
+  /* Issue list */
+  .issue-item {
+    display: flex;
+    gap: 12px;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--gray-100);
+    align-items: flex-start;
+  }
+
+  .issue-item:last-child { border-bottom: none; }
+
+  /* Conflict matrix */
+  .matrix-wrapper {
+    overflow-x: auto;
+    margin: 16px 0;
+  }
+
+  .matrix-wrapper table {
+    font-size: 11px;
+    min-width: 900px;
+  }
+
+  .matrix-wrapper th,
+  .matrix-wrapper td {
+    padding: 5px 6px;
+    text-align: center;
+    white-space: nowrap;
+  }
+
+  .matrix-wrapper th {
+    font-size: 10px;
+    writing-mode: horizontal-tb;
+  }
+
+  .matrix-wrapper td.self { background: var(--gray-300); color: var(--gray-500); }
+  .matrix-wrapper td.overlap-high { background: #FFCDD2; color: var(--red); font-weight: 700; }
+  .matrix-wrapper td.overlap-medium { background: var(--amber-bg); color: var(--amber); }
+  .matrix-wrapper td.overlap-low { background: var(--blue-pale); color: var(--blue); }
+  .matrix-wrapper td.none { background: white; color: var(--gray-300); }
+
+  /* Simulation block */
+  .sim-block {
+    background: var(--gray-50);
+    border: 1px solid var(--gray-200);
+    border-radius: var(--radius);
+    padding: 20px 24px;
+    margin: 16px 0;
+  }
+
+  .sim-query {
+    font-weight: 700;
+    color: var(--navy);
+    margin-bottom: 8px;
+    font-size: 14px;
+  }
+
+  .sim-step {
+    display: flex;
+    gap: 8px;
+    margin: 4px 0;
+    font-size: 13px;
+  }
+
+  .sim-label {
+    font-weight: 600;
+    color: var(--blue);
+    min-width: 80px;
+  }
+
+  .cache-tag {
+    display: inline-block;
+    padding: 1px 6px;
+    border-radius: 3px;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+  }
+
+  .cache-static { background: var(--green-bg); color: var(--green); }
+  .cache-dynamic { background: var(--amber-bg); color: var(--amber); }
+
+  /* Section separator */
+  .section-sep {
+    border: none;
+    border-top: 2px solid var(--blue-100);
+    margin: 48px 0 0 0;
+  }
+
+  /* Skill card grid */
+  .skill-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 20px;
+    margin: 24px 0;
+  }
+
+  .skill-card {
+    border: 1px solid var(--gray-200);
+    border-radius: var(--radius);
+    overflow: hidden;
+    box-shadow: var(--shadow-sm);
+  }
+
+  .skill-header {
+    padding: 14px 20px;
+    font-weight: 700;
+    font-size: 15px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .skill-body {
+    padding: 16px 20px;
+    font-size: 13px;
+  }
+
+  .skill-body dt {
+    font-weight: 700;
+    color: var(--gray-700);
+    margin-top: 10px;
+    margin-bottom: 2px;
+  }
+
+  .skill-body dt:first-child { margin-top: 0; }
+
+  .skill-body dd {
+    margin-left: 0;
+    color: var(--gray-600);
+    margin-bottom: 4px;
+  }
+
+  .tier-1 .skill-header { background: linear-gradient(135deg, var(--navy) 0%, #2B5096 100%); color: white; }
+  .tier-2 .skill-header { background: linear-gradient(135deg, var(--blue) 0%, var(--blue-light) 100%); color: white; }
+  .tier-3 .skill-header { background: linear-gradient(135deg, var(--purple) 0%, #8777D9 100%); color: white; }
+
+  .tag-row {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    margin: 4px 0;
+  }
+
+  .tag {
+    display: inline-block;
+    padding: 1px 8px;
+    border-radius: 3px;
+    font-size: 11px;
+    font-weight: 600;
+    background: var(--blue-pale);
+    color: var(--blue);
+  }
+
+  /* Lists */
+  ul, ol {
+    margin: 8px 0 14px 24px;
+  }
+
+  li { margin-bottom: 4px; }
+
+  /* Callout box */
+  .callout {
+    border-radius: var(--radius-sm);
+    padding: 16px 20px;
+    margin: 16px 0;
+    font-size: 14px;
+  }
+
+  .callout-critical { background: var(--red-bg); border-left: 4px solid var(--red); }
+  .callout-warn { background: var(--amber-bg); border-left: 4px solid var(--amber); }
+  .callout-info { background: var(--blue-pale); border-left: 4px solid var(--blue); }
+  .callout-ok { background: var(--green-bg); border-left: 4px solid var(--green); }
+</style>
+</head>
+<body>
+<div class="container">
+
+<!-- Header -->
+<h1>Skill + Prompt Layer Deep Analysis</h1>
+<p class="subtitle">Insight68 NL-API Platform -- "分" Analysis #2: 6-Layer Context Architecture, 12 Skill YAML, matchScore Algorithm, Prompt Engineering Quality</p>
+<div class="meta-line">
+  Series: Architecture Deep Dive | Document: 2 of 4 | Date: 2026-03-28 | Branch: feat/p0-platform
+</div>
+
+<!-- Navigation -->
+<div class="nav-bar">
+  <a href="../system-architecture-overview.html">1. Overview (Total)</a>
+  <a class="current">2. Skill + Prompt (Current)</a>
+  <a href="3-mcp-execution.html">3. MCP Execution</a>
+  <a href="4-brain-react.html">4. Brain + ReAct</a>
+</div>
+
+<!-- TOC -->
+<div class="toc">
+  <div class="toc-title">Table of Contents</div>
+  <ol>
+    <li><a href="#s1">6-Layer Context Architecture</a></li>
+    <li><a href="#s2">12 Skill YAML Deep Analysis</a></li>
+    <li><a href="#s3">matchScore Algorithm Analysis</a></li>
+    <li><a href="#s4">Prompt Engineering Quality</a></li>
+    <li><a href="#s5">Issues &amp; Recommendations</a></li>
+  </ol>
+</div>
+
+<!-- ================================================================== -->
+<!-- SECTION 1: 6-Layer Context Architecture -->
+<!-- ================================================================== -->
+<hr class="section-sep">
+<h2 id="s1"><span class="section-num">1</span> 6-Layer Context Architecture</h2>
+
+<p>The prompt is assembled by <code>lib/brain/prompt-assembler.ts</code> in a strict 6-layer order. The design principle: <strong>static content first (cacheable), dynamic content last</strong>. This section dissects each layer.</p>
+
+<!-- Layer Stack Diagram -->
+<div class="layer-stack">
+  <div class="layer-item">
+    <div class="layer-label" style="background: #1F3864;">
+      Layer 1<br><small>System Prompt</small>
+    </div>
+    <div class="layer-content">
+      <strong>File:</strong> <code>prompts/system-prompt.md</code>
+      <span class="cache-tag cache-static">STATIC</span><br>
+      <strong>Content:</strong> "你是 Insight68 NL-API 平台的 AI 助手，帮助制造业用户用自然语言查询和分析企业系统数据。"<br>
+      <strong>Purpose:</strong> Identity anchor. Constrains AI persona to the platform context. Single sentence -- intentionally minimal.<br>
+      <strong>Issues:</strong> None. Correctly minimal and system-agnostic. Could mention EAM but deliberately doesn't (allows multi-system extension).
+    </div>
+  </div>
+  <div class="layer-item">
+    <div class="layer-label" style="background: #2B5096;">
+      Layer 2<br><small>Rules</small>
+    </div>
+    <div class="layer-content">
+      <strong>File:</strong> <code>prompts/rules.md</code>
+      <span class="cache-tag cache-static">STATIC</span><br>
+      <strong>Content:</strong> 5 hard rules: no data fabrication, honest uncertainty, only listed tools, JSON-only output, business ID support.<br>
+      <strong>Purpose:</strong> Guardrails. Placed early for maximum attention weight in transformer architecture.<br>
+      <strong>Issues:</strong>
+      <span class="badge badge-medium">MEDIUM</span> Rule 4 "只返回 JSON" conflicts with the ReAct instructions which allow <code>finish: true</code> and thought reasoning. The intent is that the LLM should return structured JSON rather than prose, but the phrasing is ambiguous -- a strict reading would forbid the thought field's natural language content.
+      <span class="badge badge-low">LOW</span> Rule 5 "参数支持业务编号" is a design principle, not a behavioral rule for the AI. Could be moved to task instructions.
+    </div>
+  </div>
+  <div class="layer-item">
+    <div class="layer-label" style="background: #4472C4;">
+      Layer 3<br><small>Task Instructions</small>
+    </div>
+    <div class="layer-content">
+      <strong>Files:</strong> <code>prompts/base-instructions.md</code> + <code>prompts/react-instructions.md</code> + <code>prompts/tool-selection-guide.md</code>
+      <span class="cache-tag cache-static">STATIC</span><br>
+      <strong>Content:</strong> 3 files concatenated: base rules (5 points), ReAct 5-step thinking template, tool selection method (6 sections with tables).<br>
+      <strong>Purpose:</strong> The "how to do the job" layer. Most complex layer. Defines the reasoning framework, output format, and tool selection heuristics.<br>
+      <strong>Issues:</strong>
+      <span class="badge badge-critical">CRITICAL</span> Operation type mismatch between <code>tool-selection-guide.md</code> and actual YAML files. The guide references <code>detail / search / statistics / dashboard / trend</code>, but <code>types.ts</code> defines <code>ToolOperation = 'list' | 'detail' | 'statistics' | 'trend' | 'alert' | 'mutation'</code>. The YAMLs use <code>search</code> (6 files) and <code>dashboard</code> (1 file) which are NOT in the TypeScript union type. See Section 3 for full analysis.<br>
+      <span class="badge badge-medium">MEDIUM</span> Redundancy: base-instructions and react-instructions both say "传名称不传 ID" and "一个工具能搞定就不要拆成多个". The duplication wastes ~200 tokens but does reinforce the message.
+    </div>
+  </div>
+  <div class="layer-item">
+    <div class="layer-label" style="background: #5B9BD5;">
+      Layer 4<br><small>Examples</small>
+    </div>
+    <div class="layer-content">
+      <strong>File:</strong> <code>prompts/few-shot-examples.json</code>
+      <span class="cache-tag cache-static">STATIC</span><br>
+      <strong>Content:</strong> 6 few-shot examples covering: dashboard, profile, repair.profile, cross-domain (fault+maintenance), scope.overview, trend+spare.<br>
+      <strong>Purpose:</strong> Demonstrate correct tool selection and the 5-step thought template in action.<br>
+      <strong>Issues:</strong>
+      <span class="badge badge-medium">MEDIUM</span> Coverage gaps: No example shows patrol.search, anomaly.search, or equipment.search. These 3 tools have zero few-shot representation.<br>
+      <span class="badge badge-low">LOW</span> Example 3 uses "WO-201" as a repair order identifier, but the repair.profile description says the format should be "RO..." for repair orders. Minor inconsistency that won't break resolution but sets a bad example.
+    </div>
+  </div>
+  <div class="layer-item">
+    <div class="layer-label" style="background: #D97706;">
+      Layer 5<br><small>Dynamic Context</small>
+    </div>
+    <div class="layer-content">
+      <strong>Assembled at runtime by:</strong> <code>prompt-assembler.ts</code> lines 92-129
+      <span class="cache-tag cache-dynamic">DYNAMIC</span><br>
+      <strong>Content:</strong> Current environment (systems, domains, tool count, date), full tool descriptions (name + description + parameter list), optional verdict injection, optional user memory context.<br>
+      <strong>Purpose:</strong> Everything that changes per request or per tool config update. Placed after the cache boundary separator.<br>
+      <strong>Issues:</strong>
+      <span class="badge badge-medium">MEDIUM</span> Tool descriptions are generated from <code>inputSchema.properties</code> only -- the <code>when_to_use</code> / <code>when_not_to_use</code> fields from YAML are loaded by yaml-loader but <strong>never injected into the prompt</strong>. These rich routing hints exist in the YAML but are invisible to the LLM.<br>
+      <span class="badge badge-medium">MEDIUM</span> The <code>examples</code> field from each YAML skill is also never injected into the prompt. The per-tool examples in YAML are dead data from the LLM's perspective.<br>
+      <span class="badge badge-low">LOW</span> The generated tool description format is plain text. Anthropic's best practices recommend structured tool descriptions with explicit parameter schemas for tool_use, not inlined text blocks.
+    </div>
+  </div>
+  <div class="layer-item">
+    <div class="layer-label" style="background: #22A06B;">
+      Layer 6<br><small>User Input</small>
+    </div>
+    <div class="layer-content">
+      <strong>Source:</strong> The user's query, passed as <code>userMessage</code> (separate from systemPrompt)
+      <span class="cache-tag cache-dynamic">DYNAMIC</span><br>
+      <strong>Content:</strong> Raw natural language query from the user.<br>
+      <strong>Purpose:</strong> Kept separate as the user message in the API call, not concatenated into system prompt. This is correct per Anthropic best practices.<br>
+      <strong>Issues:</strong> None. Clean separation.
+    </div>
+  </div>
+</div>
+
+<h3>Cache Boundary Analysis</h3>
+
+<div class="card blue-accent">
+  <p>The assembler inserts a <code>---</code> separator between Layer 4 (examples) and Layer 5 (dynamic context). Layers 1-4 are loaded once and cached in module-level variables via lazy initialization. Layer 5-6 are assembled fresh per request.</p>
+  <p><strong>Token budget estimate:</strong></p>
+  <table>
+    <tr><th>Layer</th><th>Est. Tokens</th><th>Cache Status</th><th>Notes</th></tr>
+    <tr><td>1. System Prompt</td><td>~30</td><td><span class="cache-tag cache-static">STATIC</span></td><td>Single sentence</td></tr>
+    <tr><td>2. Rules</td><td>~100</td><td><span class="cache-tag cache-static">STATIC</span></td><td>5 short rules</td></tr>
+    <tr><td>3. Task Instructions</td><td>~1,200</td><td><span class="cache-tag cache-static">STATIC</span></td><td>3 files, heaviest static layer</td></tr>
+    <tr><td>4. Examples</td><td>~1,500</td><td><span class="cache-tag cache-static">STATIC</span></td><td>6 JSON examples with thoughts</td></tr>
+    <tr><td>5. Dynamic Context</td><td>~2,000</td><td><span class="cache-tag cache-dynamic">DYNAMIC</span></td><td>12 tool descriptions + env + verdict</td></tr>
+    <tr><td>6. User Input</td><td>~20-100</td><td><span class="cache-tag cache-dynamic">DYNAMIC</span></td><td>Varies per query</td></tr>
+    <tr><th>Total</th><th>~4,850-4,930</th><th></th><th>~60% static, ~40% dynamic</th></tr>
+  </table>
+  <p><strong>Anthropic Prompt Caching Opportunity:</strong> Layers 1-4 (~2,830 tokens) could use Anthropic's prompt caching feature to reduce costs by ~90% on cache hits. The cache boundary is already architecturally clean. However, the current implementation does NOT use Anthropic's API-level prompt caching -- it only caches the text in memory (avoiding file I/O), not at the API billing level.</p>
+</div>
+
+
+<!-- ================================================================== -->
+<!-- SECTION 2: 12 Skill YAML Deep Analysis -->
+<!-- ================================================================== -->
+<hr class="section-sep">
+<h2 id="s2"><span class="section-num">2</span> 12 Skill YAML Deep Analysis</h2>
+
+<p>The 12 Skills are organized in a 3-tier architecture: Tier 1 (Profile/Overview -- entity deep-dive), Tier 2 (Search -- filtered lists), Tier 3 (Analytics -- dashboard/trend). Each is reviewed below.</p>
+
+<!-- Tier 1: Profile / Overview -->
+<h3>Tier 1: Entity Profiles &amp; Overview (3 Skills)</h3>
+
+<div class="skill-grid">
+  <!-- equipment-profile -->
+  <div class="skill-card tier-1">
+    <div class="skill-header">
+      <span>eam.equipment.profile</span>
+      <span class="badge badge-ok">operation: detail</span>
+    </div>
+    <div class="skill-body">
+      <dl>
+        <dt>Domains</dt>
+        <dd><div class="tag-row"><span class="tag">equipment</span><span class="tag">fault-repair</span><span class="tag">maintenance</span><span class="tag">patrol</span><span class="tag">spare</span><span class="tag">lifecycle</span></div></dd>
+        <dt>Parameters</dt>
+        <dd><code>identifier</code> (required) -- device name/code/ID; <code>format</code> -- detailed/concise</dd>
+        <dt>when_to_use Precision</dt>
+        <dd>5 clear scenarios. Well-differentiated from search. Correctly routes single-device questions.</dd>
+        <dt>when_not_to_use Precision</dt>
+        <dd>3 clear redirects to search, scope.overview, and dashboard. Complete.</dd>
+        <dt>Cross-Skill Conflicts</dt>
+        <dd>
+          <span class="badge badge-warn">OVERLAP</span> with <code>spare.search(equipment=X)</code> for "设备的备件" queries.
+          equipment.profile returns BOM+stock in its "detailed" mode, while spare.search in BOM mode returns the same data.
+          The routing guide correctly says profile first, but the AI could go either way.<br>
+          <span class="badge badge-warn">OVERLAP</span> with <code>scope.overview</code> when user asks about a single device using location-like language ("A区那台设备").
+        </dd>
+        <dt>Parameter Completeness</dt>
+        <dd><span class="badge badge-ok">OK</span> Minimal and correct. identifier + format covers all use cases.</dd>
+        <dt>Examples Quality</dt>
+        <dd>3 examples covering name, code, ID inputs. Good coverage of the Poka-yoke design. Missing: multi-device comparison example (mentioned in when_to_use but not exemplified).</dd>
+      </dl>
+    </div>
+  </div>
+
+  <!-- repair-profile -->
+  <div class="skill-card tier-1">
+    <div class="skill-header">
+      <span>eam.repair.profile</span>
+      <span class="badge badge-ok">operation: detail</span>
+    </div>
+    <div class="skill-body">
+      <dl>
+        <dt>Domains</dt>
+        <dd><div class="tag-row"><span class="tag">fault-repair</span><span class="tag">spare</span><span class="tag">knowledge</span></div></dd>
+        <dt>Parameters</dt>
+        <dd><code>identifier</code> (required) -- RO/FR number or ID; <code>format</code> -- detailed/concise</dd>
+        <dt>when_to_use Precision</dt>
+        <dd>5 clear scenarios. Strong: includes "从故障报修追踪维修进展" which bridges FR-to-RO linkage.</dd>
+        <dt>when_not_to_use Precision</dt>
+        <dd>3 redirects. Clear and complete.</dd>
+        <dt>Cross-Skill Conflicts</dt>
+        <dd>
+          <span class="badge badge-warn">OVERLAP</span> with <code>repair.search</code> for single-order queries. If user says "RO202603110001 怎么样了", both tools technically qualify. repair.profile is correct, but repair.search could also match if AI interprets it as "searching for that order". The operation type (detail vs search) should disambiguate, but see matchScore analysis in Section 3.
+        </dd>
+        <dt>Parameter Completeness</dt>
+        <dd><span class="badge badge-ok">OK</span></dd>
+        <dt>Examples Quality</dt>
+        <dd>3 good examples. Covers RO/FR/ID variants. Aligns with description.</dd>
+      </dl>
+    </div>
+  </div>
+
+  <!-- scope-overview -->
+  <div class="skill-card tier-1">
+    <div class="skill-header">
+      <span>eam.scope.overview</span>
+      <span class="badge badge-ok">operation: statistics</span>
+    </div>
+    <div class="skill-body">
+      <dl>
+        <dt>Domains</dt>
+        <dd><div class="tag-row"><span class="tag">equipment</span><span class="tag">fault-repair</span><span class="tag">maintenance</span><span class="tag">patrol</span></div></dd>
+        <dt>Parameters</dt>
+        <dd><code>identifier</code> (required) -- workshop/line/department name; <code>format</code> -- detailed/concise</dd>
+        <dt>when_to_use Precision</dt>
+        <dd>5 scenarios. Well-defined scope: per-scope multi-domain summary. Clear boundary with dashboard (global) and profile (single device).</dd>
+        <dt>when_not_to_use Precision</dt>
+        <dd>3 redirects. Complete.</dd>
+        <dt>Cross-Skill Conflicts</dt>
+        <dd>
+          <span class="badge badge-warn">OVERLAP</span> with <code>equipment.search(department=X)</code>. Both can answer "一车间有哪些设备".
+          scope.overview returns equipment list + multi-domain summary; equipment.search returns just the equipment list with more filter options.
+          The guide says scope.overview is preferred ("一个工具搞定"), but if user only cares about equipment list and wants to filter by status, equipment.search is better.<br>
+          <span class="badge badge-warn">OVERLAP</span> with <code>dashboard</code> when scope is very broad ("生产部" which might encompass most of the factory).
+        </dd>
+        <dt>Parameter Completeness</dt>
+        <dd><span class="badge badge-ok">OK</span></dd>
+        <dt>Examples Quality</dt>
+        <dd>3 examples. Good: includes comparison scenario (A线 vs B线 with concise mode). Missing: hierarchical scope example (parent department containing sub-workshops).</dd>
+      </dl>
+    </div>
+  </div>
+</div>
+
+<!-- Tier 2: Search -->
+<h3>Tier 2: Search Tools (7 Skills)</h3>
+
+<div class="skill-grid">
+  <!-- equipment-search -->
+  <div class="skill-card tier-2">
+    <div class="skill-header">
+      <span>eam.equipment.search</span>
+      <span class="badge badge-ok">operation: search</span>
+    </div>
+    <div class="skill-body">
+      <dl>
+        <dt>Domains</dt>
+        <dd><div class="tag-row"><span class="tag">equipment</span></div></dd>
+        <dt>Key Parameters</dt>
+        <dd><code>status</code>, <code>category</code>, <code>productionLine</code>, <code>department</code>, <code>location</code>, <code>isKey</code>, <code>dateRange</code>, <code>groupBy</code>, <code>format</code>, <code>sortBy</code>, <code>sortOrder</code>, <code>limit</code></dd>
+        <dt>when_to_use Precision</dt>
+        <dd>6 clear scenarios. Well-covers list/filter/aggregate use cases.</dd>
+        <dt>Cross-Skill Conflicts</dt>
+        <dd>
+          <span class="badge badge-warn">OVERLAP</span> with <code>scope.overview</code> for "一车间有哪些设备" (as noted above).<br>
+          <span class="badge badge-warn">OVERLAP</span> with <code>dashboard(format=concise)</code> for "设备各状态数量" -- dashboard returns this globally, equipment.search(groupBy=status) also returns it.
+        </dd>
+        <dt>Parameter Completeness</dt>
+        <dd><span class="badge badge-ok">OK</span> Rich filter set. Good groupBy options.</dd>
+        <dt>Examples Quality</dt>
+        <dd>3 examples: status filter, groupBy, department+isKey. Solid.</dd>
+      </dl>
+    </div>
+  </div>
+
+  <!-- fault-search -->
+  <div class="skill-card tier-2">
+    <div class="skill-header">
+      <span>eam.fault.search</span>
+      <span class="badge badge-ok">operation: search</span>
+    </div>
+    <div class="skill-body">
+      <dl>
+        <dt>Domains</dt>
+        <dd><div class="tag-row"><span class="tag">fault</span></div></dd>
+        <dt>Key Parameters</dt>
+        <dd><code>equipment</code>, <code>productionLine</code>, <code>department</code>, <code>status</code>, <code>urgency</code>, <code>faultType</code>, <code>dateRange</code>, <code>groupBy</code>, <code>format</code>, <code>sortBy</code>, <code>sortOrder</code>, <code>limit</code></dd>
+        <dt>when_to_use Precision</dt>
+        <dd>5 scenarios. Clear and focused.</dd>
+        <dt>Cross-Skill Conflicts</dt>
+        <dd>
+          <span class="badge badge-warn">OVERLAP</span> with <code>equipment.profile</code> for "CNC-001最近有没有故障". Profile includes recentFaults (last 5), but fault.search gives the full list with filters. The routing guide says profile is preferred for single-device questions, which is correct for "最近有没有" but not for "去年所有故障记录".<br>
+          <span class="badge badge-info">NOTE</span> status description mentions "用户说'未处理的故障'通常指0+1（需两次调用或不传status拉全量后分析）". This is a known limitation -- multi-value enum filter not supported. The description honestly documents the workaround.
+        </dd>
+        <dt>Parameter Completeness</dt>
+        <dd><span class="badge badge-ok">OK</span></dd>
+        <dt>Examples Quality</dt>
+        <dd>3 examples. <span class="badge badge-warn">ISSUE</span> Example 2 combines urgency=1 + status=0, but the note says "紧急和特急故障" should be urgency 1 AND 2. The example only queries urgency=1, missing urgency=2.</dd>
+      </dl>
+    </div>
+  </div>
+
+  <!-- repair-search -->
+  <div class="skill-card tier-2">
+    <div class="skill-header">
+      <span>eam.repair.search</span>
+      <span class="badge badge-ok">operation: search</span>
+    </div>
+    <div class="skill-body">
+      <dl>
+        <dt>Domains</dt>
+        <dd><div class="tag-row"><span class="tag">repair</span></div></dd>
+        <dt>Key Parameters</dt>
+        <dd><code>equipment</code>, <code>productionLine</code>, <code>department</code>, <code>status</code>, <code>orderType</code>, <code>dateRange</code>, <code>groupBy</code>, <code>format</code>, <code>sortBy</code>, <code>sortOrder</code>, <code>limit</code></dd>
+        <dt>when_to_use Precision</dt>
+        <dd>5 scenarios. Clear differentiation from repair.profile (list vs single detail).</dd>
+        <dt>Cross-Skill Conflicts</dt>
+        <dd>
+          <span class="badge badge-warn">OVERLAP</span> with <code>repair.profile</code> for queries about a single identified order. The boundary "search for list, profile for single" is well-documented.<br>
+          <span class="badge badge-warn">OVERLAP</span> with <code>equipment.search(status=2)</code> for "哪些设备在维修中". repair.search returns work orders, equipment.search returns device list. The when_not_to_use correctly addresses this.
+        </dd>
+        <dt>Parameter Completeness</dt>
+        <dd><span class="badge badge-ok">OK</span> <code>orderType</code> (INTERNAL/EXTERNAL/CORRECTIVE) is a valuable differentiator.</dd>
+        <dt>Examples Quality</dt>
+        <dd>3 examples. Clean and correct.</dd>
+      </dl>
+    </div>
+  </div>
+
+  <!-- maintenance-search -->
+  <div class="skill-card tier-2">
+    <div class="skill-header">
+      <span>eam.maintenance.search</span>
+      <span class="badge badge-ok">operation: search</span>
+    </div>
+    <div class="skill-body">
+      <dl>
+        <dt>Domains</dt>
+        <dd><div class="tag-row"><span class="tag">maintenance</span></div></dd>
+        <dt>Key Parameters</dt>
+        <dd><code>equipment</code>, <code>productionLine</code>, <code>department</code>, <code>status</code>, <code>overdue</code>, <code>dateRange</code>, <code>groupBy</code>, <code>format</code>, <code>sortBy</code>, <code>sortOrder</code>, <code>limit</code></dd>
+        <dt>when_to_use Precision</dt>
+        <dd>5 scenarios. Strong: includes completion rate analysis and overdue filtering.</dd>
+        <dt>Cross-Skill Conflicts</dt>
+        <dd>
+          <span class="badge badge-warn">OVERLAP</span> with <code>equipment.profile</code> for "CNC-001的保养情况". Profile includes recentMaintenance (last 5), search gives full list.<br>
+          <span class="badge badge-info">NOTE</span> <code>overdue</code> boolean is equivalent to <code>status=3</code>. Description correctly warns "两者不要同时传". Good defensive design.
+        </dd>
+        <dt>Parameter Completeness</dt>
+        <dd><span class="badge badge-ok">OK</span> The <code>overdue</code> shortcut parameter is a nice semantic helper for AI routing.</dd>
+        <dt>Examples Quality</dt>
+        <dd>3 examples. Covers overdue, groupBy, dateRange+department. Good.</dd>
+      </dl>
+    </div>
+  </div>
+
+  <!-- patrol-search -->
+  <div class="skill-card tier-2">
+    <div class="skill-header">
+      <span>eam.patrol.search</span>
+      <span class="badge badge-ok">operation: search</span>
+    </div>
+    <div class="skill-body">
+      <dl>
+        <dt>Domains</dt>
+        <dd><div class="tag-row"><span class="tag">patrol</span></div></dd>
+        <dt>Key Parameters</dt>
+        <dd><code>equipment</code>, <code>productionLine</code>, <code>department</code>, <code>status</code>, <code>dateRange</code>, <code>groupBy</code>, <code>format</code>, <code>sortBy</code>, <code>sortOrder</code>, <code>limit</code></dd>
+        <dt>when_to_use Precision</dt>
+        <dd>4 scenarios. Clear focus on patrol completion and anomaly counts.</dd>
+        <dt>Cross-Skill Conflicts</dt>
+        <dd>
+          <span class="badge badge-warn">OVERLAP</span> with <code>anomaly.search</code> for "巡检发现了多少异常". Both tools can return anomaly-related data, but patrol.search returns per-task anomaly counts while anomaly.search returns individual anomaly records. The boundary is documented but subtle.<br>
+          <span class="badge badge-info">NOTE</span> The description correctly warns about the equipment parameter's special behavior (uses equipment-records endpoint). Good transparency.
+        </dd>
+        <dt>Parameter Completeness</dt>
+        <dd><span class="badge badge-warn">PARTIAL</span> The <code>status</code> description says "具体值参考系统定义" without listing enum values, unlike all other search tools which spell out each status code. The AI has to guess.</dd>
+        <dt>Examples Quality</dt>
+        <dd>3 examples. Adequate but missing groupBy=equipment example.</dd>
+      </dl>
+    </div>
+  </div>
+
+  <!-- anomaly-search -->
+  <div class="skill-card tier-2">
+    <div class="skill-header">
+      <span>eam.anomaly.search</span>
+      <span class="badge badge-ok">operation: search</span>
+    </div>
+    <div class="skill-body">
+      <dl>
+        <dt>Domains</dt>
+        <dd><div class="tag-row"><span class="tag">anomaly</span></div></dd>
+        <dt>Key Parameters</dt>
+        <dd><code>equipment</code>, <code>productionLine</code>, <code>department</code>, <code>severity</code>, <code>source</code>, <code>dateRange</code>, <code>groupBy</code>, <code>format</code>, <code>sortBy</code>, <code>sortOrder</code>, <code>limit</code></dd>
+        <dt>when_to_use Precision</dt>
+        <dd>5 scenarios. Strong: includes escalation tracking (异常转故障单) and source analysis.</dd>
+        <dt>Cross-Skill Conflicts</dt>
+        <dd>
+          <span class="badge badge-warn">OVERLAP</span> with <code>patrol.search</code> as noted above.<br>
+          <span class="badge badge-warn">OVERLAP</span> with <code>fault.search</code> for escalated anomalies. Once an anomaly becomes a fault report, both tools can surface it. The boundary is clear (anomaly = pre-fault, fault = post-escalation) but real user queries might be ambiguous.
+        </dd>
+        <dt>Parameter Completeness</dt>
+        <dd><span class="badge badge-ok">OK</span> Good <code>severity</code> and <code>source</code> enums. <span class="badge badge-info">NOTE</span> Same single-value limitation as fault.search: "只能传单个值" for severity.</dd>
+        <dt>Examples Quality</dt>
+        <dd>3 examples. Good: includes source+severity filter and groupBy=severity.</dd>
+      </dl>
+    </div>
+  </div>
+
+  <!-- spare-search -->
+  <div class="skill-card tier-2">
+    <div class="skill-header">
+      <span>eam.spare.search</span>
+      <span class="badge badge-ok">operation: search</span>
+    </div>
+    <div class="skill-body">
+      <dl>
+        <dt>Domains</dt>
+        <dd><div class="tag-row"><span class="tag">spare</span></div></dd>
+        <dt>Key Parameters</dt>
+        <dd><code>identifier</code>, <code>equipment</code>, <code>category</code>, <code>lowStock</code>, <code>format</code>, <code>sortBy</code>, <code>sortOrder</code>, <code>limit</code></dd>
+        <dt>when_to_use Precision</dt>
+        <dd>4 scenarios. Two modes (BOM via equipment, general search) well-explained.</dd>
+        <dt>Cross-Skill Conflicts</dt>
+        <dd>
+          <span class="badge badge-warn">OVERLAP</span> with <code>equipment.profile</code> for device BOM queries. Both return BOM+stock for a device. equipment.profile's BOM is a subset of its full response; spare.search(equipment=X) returns BOM as its primary response.<br>
+          <span class="badge badge-warn">OVERLAP</span> with <code>dashboard</code> for "备件预警数字". Dashboard returns global spare alert count; spare.search(lowStock=true) returns the actual list.
+        </dd>
+        <dt>Parameter Completeness</dt>
+        <dd><span class="badge badge-warn">PARTIAL</span> No <code>groupBy</code> parameter. Cannot aggregate spare parts by category or other dimensions. Unlike other search tools that support groupBy for statistics.</dd>
+        <dt>Examples Quality</dt>
+        <dd>3 examples. Good coverage of BOM mode, lowStock, and name search.</dd>
+      </dl>
+    </div>
+  </div>
+</div>
+
+<!-- Tier 3: Analytics -->
+<h3>Tier 3: Analytics (2 Skills)</h3>
+
+<div class="skill-grid">
+  <!-- dashboard -->
+  <div class="skill-card tier-3">
+    <div class="skill-header">
+      <span>eam.dashboard</span>
+      <span class="badge badge-ok">operation: dashboard</span>
+    </div>
+    <div class="skill-body">
+      <dl>
+        <dt>Domains</dt>
+        <dd><div class="tag-row"><span class="tag">equipment</span><span class="tag">fault</span><span class="tag">repair</span><span class="tag">maintenance</span><span class="tag">patrol</span><span class="tag">spare</span></div></dd>
+        <dt>Parameters</dt>
+        <dd><code>format</code> only. No filters. This is by design -- dashboard is global snapshot.</dd>
+        <dt>when_to_use Precision</dt>
+        <dd>5 scenarios. Clear "全局视角" positioning. Correctly differentiates from scope.overview (scoped) and trend (time-series).</dd>
+        <dt>Cross-Skill Conflicts</dt>
+        <dd>
+          <span class="badge badge-warn">OVERLAP</span> with <code>equipment.search(groupBy=status)</code> for "设备各状态数量".<br>
+          <span class="badge badge-warn">OVERLAP</span> with <code>scope.overview</code> when user's "scope" IS the entire factory.
+        </dd>
+        <dt>Parameter Completeness</dt>
+        <dd><span class="badge badge-ok">OK</span> Intentionally minimal -- no filters is the right design for a dashboard.</dd>
+        <dt>Examples Quality</dt>
+        <dd>3 examples. Clean. Good use of concise format for simple number queries.</dd>
+        <dt>Domain Naming Issue</dt>
+        <dd><span class="badge badge-medium">MEDIUM</span> Uses <code>fault</code> and <code>repair</code> as separate domains, while equipment.profile and scope.overview use <code>fault-repair</code> as a combined domain. This inconsistency means matchScore domain matching may not work correctly when intent.domains contains "fault-repair" -- dashboard won't match because it declares "fault" and "repair" separately.</dd>
+      </dl>
+    </div>
+  </div>
+
+  <!-- trend -->
+  <div class="skill-card tier-3">
+    <div class="skill-header">
+      <span>eam.trend</span>
+      <span class="badge badge-ok">operation: trend</span>
+    </div>
+    <div class="skill-body">
+      <dl>
+        <dt>Domains</dt>
+        <dd><div class="tag-row"><span class="tag">fault</span><span class="tag">repair</span><span class="tag">maintenance</span><span class="tag">patrol</span><span class="tag">anomaly</span><span class="tag">spare</span></div></dd>
+        <dt>Key Parameters</dt>
+        <dd><code>domain</code> (required), <code>dateRange</code> (required), <code>groupBy</code>, <code>splitBy</code>, <code>equipment</code>, <code>productionLine</code>, <code>department</code>, <code>format</code></dd>
+        <dt>when_to_use Precision</dt>
+        <dd>5 scenarios. Excellent differentiation: "时间维度的变化" is the clear trigger.</dd>
+        <dt>Cross-Skill Conflicts</dt>
+        <dd>
+          <span class="badge badge-warn">OVERLAP</span> with search tools when user asks "上月故障有多少". This could be a trend query (monthly aggregation) or a search query (list with count). The guide says: current snapshot = search, time change = trend. But "上月" is ambiguous.
+        </dd>
+        <dt>Parameter Completeness</dt>
+        <dd><span class="badge badge-ok">OK</span> Rich and well-documented. <code>splitBy</code> for dimension comparison is powerful.</dd>
+        <dt>Examples Quality</dt>
+        <dd>3 examples with detailed notes about choosing groupBy granularity. Best-in-class documentation among all 12 skills.</dd>
+        <dt>Domain Naming Issue</dt>
+        <dd><span class="badge badge-medium">MEDIUM</span> Same issue as dashboard -- uses <code>fault</code>, <code>repair</code>, <code>anomaly</code> separately instead of compound domain names.</dd>
+      </dl>
+    </div>
+  </div>
+</div>
+
+<!-- Conflict Matrix -->
+<h3>Cross-Skill Conflict Matrix (12 x 12)</h3>
+
+<p>This matrix shows where two skills have overlapping <code>when_to_use</code> scenarios. <span class="badge badge-critical">HIGH</span> = likely confusion for AI; <span class="badge badge-medium">MED</span> = documented but still ambiguous; <span class="badge badge-low">LOW</span> = theoretical overlap, well-differentiated.</p>
+
+<div class="matrix-wrapper">
+<table>
+  <tr>
+    <th></th>
+    <th>eq.profile</th>
+    <th>rp.profile</th>
+    <th>scope</th>
+    <th>eq.search</th>
+    <th>fault.s</th>
+    <th>repair.s</th>
+    <th>maint.s</th>
+    <th>patrol.s</th>
+    <th>anom.s</th>
+    <th>spare.s</th>
+    <th>dash</th>
+    <th>trend</th>
+  </tr>
+  <tr>
+    <th>eq.profile</th>
+    <td class="self">--</td>
+    <td class="none">-</td>
+    <td class="overlap-low">LOW</td>
+    <td class="overlap-medium">MED</td>
+    <td class="overlap-medium">MED</td>
+    <td class="none">-</td>
+    <td class="overlap-medium">MED</td>
+    <td class="overlap-low">LOW</td>
+    <td class="none">-</td>
+    <td class="overlap-medium">MED</td>
+    <td class="none">-</td>
+    <td class="none">-</td>
+  </tr>
+  <tr>
+    <th>rp.profile</th>
+    <td class="none">-</td>
+    <td class="self">--</td>
+    <td class="none">-</td>
+    <td class="none">-</td>
+    <td class="none">-</td>
+    <td class="overlap-medium">MED</td>
+    <td class="none">-</td>
+    <td class="none">-</td>
+    <td class="none">-</td>
+    <td class="none">-</td>
+    <td class="none">-</td>
+    <td class="none">-</td>
+  </tr>
+  <tr>
+    <th>scope</th>
+    <td class="overlap-low">LOW</td>
+    <td class="none">-</td>
+    <td class="self">--</td>
+    <td class="overlap-high">HIGH</td>
+    <td class="overlap-low">LOW</td>
+    <td class="overlap-low">LOW</td>
+    <td class="overlap-low">LOW</td>
+    <td class="overlap-low">LOW</td>
+    <td class="none">-</td>
+    <td class="none">-</td>
+    <td class="overlap-medium">MED</td>
+    <td class="none">-</td>
+  </tr>
+  <tr>
+    <th>eq.search</th>
+    <td class="overlap-medium">MED</td>
+    <td class="none">-</td>
+    <td class="overlap-high">HIGH</td>
+    <td class="self">--</td>
+    <td class="none">-</td>
+    <td class="overlap-low">LOW</td>
+    <td class="none">-</td>
+    <td class="none">-</td>
+    <td class="none">-</td>
+    <td class="none">-</td>
+    <td class="overlap-medium">MED</td>
+    <td class="none">-</td>
+  </tr>
+  <tr>
+    <th>fault.s</th>
+    <td class="overlap-medium">MED</td>
+    <td class="none">-</td>
+    <td class="overlap-low">LOW</td>
+    <td class="none">-</td>
+    <td class="self">--</td>
+    <td class="overlap-low">LOW</td>
+    <td class="none">-</td>
+    <td class="none">-</td>
+    <td class="overlap-medium">MED</td>
+    <td class="none">-</td>
+    <td class="overlap-low">LOW</td>
+    <td class="overlap-medium">MED</td>
+  </tr>
+  <tr>
+    <th>repair.s</th>
+    <td class="none">-</td>
+    <td class="overlap-medium">MED</td>
+    <td class="overlap-low">LOW</td>
+    <td class="overlap-low">LOW</td>
+    <td class="overlap-low">LOW</td>
+    <td class="self">--</td>
+    <td class="none">-</td>
+    <td class="none">-</td>
+    <td class="none">-</td>
+    <td class="none">-</td>
+    <td class="overlap-low">LOW</td>
+    <td class="overlap-medium">MED</td>
+  </tr>
+  <tr>
+    <th>maint.s</th>
+    <td class="overlap-medium">MED</td>
+    <td class="none">-</td>
+    <td class="overlap-low">LOW</td>
+    <td class="none">-</td>
+    <td class="none">-</td>
+    <td class="none">-</td>
+    <td class="self">--</td>
+    <td class="none">-</td>
+    <td class="none">-</td>
+    <td class="none">-</td>
+    <td class="overlap-low">LOW</td>
+    <td class="overlap-medium">MED</td>
+  </tr>
+  <tr>
+    <th>patrol.s</th>
+    <td class="overlap-low">LOW</td>
+    <td class="none">-</td>
+    <td class="overlap-low">LOW</td>
+    <td class="none">-</td>
+    <td class="none">-</td>
+    <td class="none">-</td>
+    <td class="none">-</td>
+    <td class="self">--</td>
+    <td class="overlap-high">HIGH</td>
+    <td class="none">-</td>
+    <td class="none">-</td>
+    <td class="overlap-low">LOW</td>
+  </tr>
+  <tr>
+    <th>anom.s</th>
+    <td class="none">-</td>
+    <td class="none">-</td>
+    <td class="none">-</td>
+    <td class="none">-</td>
+    <td class="overlap-medium">MED</td>
+    <td class="none">-</td>
+    <td class="none">-</td>
+    <td class="overlap-high">HIGH</td>
+    <td class="self">--</td>
+    <td class="none">-</td>
+    <td class="none">-</td>
+    <td class="overlap-low">LOW</td>
+  </tr>
+  <tr>
+    <th>spare.s</th>
+    <td class="overlap-medium">MED</td>
+    <td class="none">-</td>
+    <td class="none">-</td>
+    <td class="none">-</td>
+    <td class="none">-</td>
+    <td class="none">-</td>
+    <td class="none">-</td>
+    <td class="none">-</td>
+    <td class="none">-</td>
+    <td class="self">--</td>
+    <td class="overlap-low">LOW</td>
+    <td class="none">-</td>
+  </tr>
+  <tr>
+    <th>dash</th>
+    <td class="none">-</td>
+    <td class="none">-</td>
+    <td class="overlap-medium">MED</td>
+    <td class="overlap-medium">MED</td>
+    <td class="overlap-low">LOW</td>
+    <td class="overlap-low">LOW</td>
+    <td class="overlap-low">LOW</td>
+    <td class="none">-</td>
+    <td class="none">-</td>
+    <td class="overlap-low">LOW</td>
+    <td class="self">--</td>
+    <td class="overlap-low">LOW</td>
+  </tr>
+  <tr>
+    <th>trend</th>
+    <td class="none">-</td>
+    <td class="none">-</td>
+    <td class="none">-</td>
+    <td class="none">-</td>
+    <td class="overlap-medium">MED</td>
+    <td class="overlap-medium">MED</td>
+    <td class="overlap-medium">MED</td>
+    <td class="overlap-low">LOW</td>
+    <td class="overlap-low">LOW</td>
+    <td class="none">-</td>
+    <td class="overlap-low">LOW</td>
+    <td class="self">--</td>
+  </tr>
+</table>
+</div>
+
+<div class="callout callout-critical">
+  <strong>Top 3 Conflict Hotspots (require attention):</strong><br>
+  1. <strong>scope.overview vs equipment.search</strong> (HIGH) -- "一车间有哪些设备" is the classic ambiguous query. Both tools answer it differently.<br>
+  2. <strong>patrol.search vs anomaly.search</strong> (HIGH) -- "巡检发现的异常" could route to either. The boundary (task-level vs record-level) is subtle for AI.<br>
+  3. <strong>equipment.profile vs multiple search tools</strong> (MED x4) -- profile's multi-domain aggregation makes it overlap with fault/maintenance/spare searches for single-device queries.
+</div>
+
+
+<!-- ================================================================== -->
+<!-- SECTION 3: matchScore Algorithm Analysis -->
+<!-- ================================================================== -->
+<hr class="section-sep">
+<h2 id="s3"><span class="section-num">3</span> matchScore Algorithm Analysis</h2>
+
+<h3>Algorithm Breakdown</h3>
+
+<div class="card blue-accent">
+<pre>matchScore = domain(40) + operation(30) + filter(20 x coverage%) + chain(10)
+
+domain(40):     intent.domains has ANY overlap with tool.domains  --> +40
+operation(30):  tool.operation === intent.operation                --> +30
+filter(20):     (matched filters / total intent filters) * 20     --> 0..20
+chain(10):      tool.feedsInto.length > 0 || tool.dependsOn.length > 0  --> +10</pre>
+</div>
+
+<h3>Critical Issue: Operation Type Mismatch</h3>
+
+<div class="callout callout-critical">
+  <strong>TypeScript <code>ToolOperation</code> type does NOT match YAML reality.</strong><br><br>
+  <strong>types.ts defines:</strong> <code>'list' | 'detail' | 'statistics' | 'trend' | 'alert' | 'mutation'</code><br>
+  <strong>YAMLs actually use:</strong> <code>'detail' | 'search' | 'statistics' | 'dashboard' | 'trend'</code><br><br>
+  <table>
+    <tr><th>In types.ts</th><th>In YAMLs</th><th>Status</th></tr>
+    <tr><td><code>list</code></td><td>(not used)</td><td><span class="badge badge-warn">DEAD TYPE</span></td></tr>
+    <tr><td><code>detail</code></td><td><code>detail</code> (2 files)</td><td><span class="badge badge-ok">OK</span></td></tr>
+    <tr><td><code>statistics</code></td><td><code>statistics</code> (1 file)</td><td><span class="badge badge-ok">OK</span></td></tr>
+    <tr><td><code>trend</code></td><td><code>trend</code> (1 file)</td><td><span class="badge badge-ok">OK</span></td></tr>
+    <tr><td><code>alert</code></td><td>(not used)</td><td><span class="badge badge-warn">DEAD TYPE</span></td></tr>
+    <tr><td><code>mutation</code></td><td>(not used)</td><td><span class="badge badge-warn">DEAD TYPE</span></td></tr>
+    <tr><td>(missing)</td><td><code>search</code> (7 files)</td><td><span class="badge badge-critical">TYPE ERROR</span></td></tr>
+    <tr><td>(missing)</td><td><code>dashboard</code> (1 file)</td><td><span class="badge badge-critical">TYPE ERROR</span></td></tr>
+  </table>
+  <br>
+  <strong>Impact:</strong> The TypeScript compiler will accept <code>search</code> and <code>dashboard</code> at runtime because YAML parsing bypasses type checking (<code>raw.operation as ToolDefinition['operation']</code> is a cast, not a validation). But it means:
+  <ul>
+    <li>The matchScore operation check <code>tool.operation === intent.operation</code> will work for <code>search</code> and <code>dashboard</code> only if the intent extraction also outputs those values -- which it does, because the LLM reads the tool-selection-guide that uses these terms.</li>
+    <li>But the TypeScript type system provides zero safety here. Refactoring the operation values would not be caught by the compiler.</li>
+    <li>The tool-selection-guide table correctly lists <code>search</code> and <code>dashboard</code> as operation types, matching the YAML reality. So the LLM gets the right guidance. But the code is technically lying about its types.</li>
+  </ul>
+</div>
+
+<h3>Scoring Component Analysis</h3>
+
+<h4>Domain Score (40 points) -- Binary, Not Proportional</h4>
+
+<div class="card amber-accent">
+  <p>The domain check is binary: if ANY domain in the intent overlaps with ANY domain in the tool, full 40 points are awarded. This means:</p>
+  <ul>
+    <li><code>equipment.profile</code> (6 domains) gets 40 points for almost ANY query involving equipment, fault, maintenance, patrol, spare, or lifecycle.</li>
+    <li><code>fault.search</code> (1 domain: fault) gets 40 points only for fault-related queries.</li>
+    <li>A query about "故障趋势" (intent.domains = ["fault"]) gives 40 points to both <code>fault.search</code> and <code>equipment.profile</code> (because equipment.profile includes fault-repair domain).</li>
+  </ul>
+  <p><strong>Problem:</strong> Broad tools (equipment.profile, scope.overview, dashboard) consistently score high on domain, diluting the signal. The operation score (30 points) becomes the real differentiator.</p>
+  <p><strong>Recommendation:</strong> Consider proportional domain scoring: <code>40 * (overlap_count / intent_domain_count)</code>. A fault-only query should score higher on fault.search (1/1 = 100%) than equipment.profile (1/6 = 17%).</p>
+</div>
+
+<h4>Domain Naming Inconsistency Impact</h4>
+
+<div class="card red-accent">
+  <p>Domain names are inconsistent across skills:</p>
+  <table>
+    <tr><th>Domain Concept</th><th>Used in Some Skills</th><th>Used in Other Skills</th></tr>
+    <tr><td>Fault + Repair</td><td><code>fault-repair</code> (equipment.profile, repair.profile, scope.overview)</td><td><code>fault</code> + <code>repair</code> separately (dashboard, trend, fault.search, repair.search)</td></tr>
+    <tr><td>Anomaly</td><td><code>anomaly</code> (trend, anomaly.search)</td><td>Not present in equipment.profile or scope.overview (though they return anomaly data)</td></tr>
+  </table>
+  <p><strong>Impact on matchScore:</strong> If the LLM intent extraction outputs <code>domains: ["fault-repair"]</code>, the <code>.some(d => tool.domains.includes(d))</code> check will match equipment.profile (which declares <code>fault-repair</code>) but will NOT match fault.search (which only declares <code>fault</code>) or repair.search (which only declares <code>repair</code>). Conversely, if intent says <code>["fault"]</code>, it will match fault.search but NOT equipment.profile (unless equipment.profile also lists <code>fault</code> separately -- it doesn't, it lists <code>fault-repair</code>).</p>
+  <p><strong>This is a real routing bug.</strong> Depending on how the LLM names the domain in its intent, different tools get matched.</p>
+</div>
+
+<h4>Operation Score (30 points) -- Effective but Relies on LLM Intent Accuracy</h4>
+
+<p>The 30-point operation bonus is the strongest differentiator in practice. When domain gives 40 to multiple tools, operation breaks the tie. This works well IF the LLM correctly identifies the operation type. The tool-selection-guide table helps.</p>
+
+<h4>Filter Score (20 points, proportional) -- Well Designed</h4>
+
+<p>Filter coverage is the only proportional component. If intent requires 3 filters and a tool supports 2 of them, score = 20 * (2/3) = 13.3. This correctly penalizes tools that lack needed filters. However, if intent.filters is empty (common for simple queries), all tools get 0 here, and it provides no differentiation.</p>
+
+<h4>Chain Score (10 points) -- Problematic</h4>
+
+<div class="card amber-accent">
+  <p>The chain score awards 10 points to any tool with non-empty <code>feedsInto</code> or <code>dependsOn</code>. This means:</p>
+  <table>
+    <tr><th>Tool</th><th>feedsInto</th><th>dependsOn</th><th>Chain Score</th></tr>
+    <tr><td>equipment.profile</td><td>[]</td><td>[]</td><td>0</td></tr>
+    <tr><td>repair.profile</td><td>[]</td><td>[]</td><td>0</td></tr>
+    <tr><td>scope.overview</td><td>[eq.profile, eq.search]</td><td>[]</td><td>10</td></tr>
+    <tr><td>equipment.search</td><td>[eq.profile, fault.s, repair.s]</td><td>[]</td><td>10</td></tr>
+    <tr><td>fault.search</td><td>[repair.s, repair.profile, eq.profile]</td><td>[]</td><td>10</td></tr>
+    <tr><td>repair.search</td><td>[repair.profile, spare.s]</td><td>[]</td><td>10</td></tr>
+    <tr><td>maintenance.search</td><td>[eq.profile]</td><td>[]</td><td>10</td></tr>
+    <tr><td>patrol.search</td><td>[anomaly.s, eq.profile]</td><td>[]</td><td>10</td></tr>
+    <tr><td>anomaly.search</td><td>[fault.s, eq.profile]</td><td>[]</td><td>10</td></tr>
+    <tr><td>spare.search</td><td>[eq.profile, repair.profile]</td><td>[]</td><td>10</td></tr>
+    <tr><td>dashboard</td><td>[]</td><td>[]</td><td>0</td></tr>
+    <tr><td>trend</td><td>[]</td><td>[]</td><td>0</td></tr>
+  </table>
+  <p><strong>Problem:</strong> This is backwards. Profile tools (the most complete, should-be-preferred tools) get 0 chain score, while search tools (intermediate, often stepping-stones) get +10. This biases scoring toward search over profile, opposite to the design intent expressed in base-instructions: "优先使用全景工具".</p>
+  <p><strong>Recommendation:</strong> Either remove the chain score (it's only 10 points so impact is limited) or invert it: give bonus to tools that are TARGET of feedsInto chains (i.e., tools that other tools feed into, like equipment.profile which appears in many tools' feedsInto lists).</p>
+</div>
+
+<h3>matchScore Simulation: 5 Sample Queries</h3>
+
+<!-- Simulation 1 -->
+<div class="sim-block">
+  <div class="sim-query">Query 1: "CNC-001 怎么样了？"</div>
+  <div class="sim-step"><span class="sim-label">Intent:</span> domains=["equipment"], operation="detail", filters=["equipment"]</div>
+  <div class="sim-step"><span class="sim-label">Expected:</span> eam.equipment.profile</div>
+  <table>
+    <tr><th>Tool</th><th>Domain(40)</th><th>Operation(30)</th><th>Filter(20)</th><th>Chain(10)</th><th>Total</th></tr>
+    <tr><td><strong>equipment.profile</strong></td><td>40</td><td>30</td><td>0*</td><td>0</td><td><strong>70</strong></td></tr>
+    <tr><td>scope.overview</td><td>40</td><td>0</td><td>0</td><td>10</td><td>50</td></tr>
+    <tr><td>equipment.search</td><td>40</td><td>0</td><td>0**</td><td>10</td><td>50</td></tr>
+    <tr><td>dashboard</td><td>40</td><td>0</td><td>0</td><td>0</td><td>40</td></tr>
+  </table>
+  <p style="font-size:12px; color:var(--gray-500);">
+    * equipment.profile's supportsFilters=[] (it takes "identifier", not listed as a filter). So filter score = 0.<br>
+    ** equipment.search supports "equipment" as a concept via its parameters but the filter name in intent is "equipment" and supportsFilters doesn't include a direct match in the standard way here. Actually, looking at YAML: equipment.search has no <code>supports_filters</code> for "equipment" -- it has status, category, etc. So score is 0.<br>
+    <strong>Result: CORRECT.</strong> equipment.profile wins at 70 vs 50.
+  </p>
+</div>
+
+<!-- Simulation 2 -->
+<div class="sim-block">
+  <div class="sim-query">Query 2: "一车间有哪些设备？"</div>
+  <div class="sim-step"><span class="sim-label">Intent:</span> domains=["equipment"], operation="search", filters=["department"]</div>
+  <div class="sim-step"><span class="sim-label">Expected:</span> eam.equipment.search (wants device list) or eam.scope.overview (wants overview)</div>
+  <table>
+    <tr><th>Tool</th><th>Domain(40)</th><th>Operation(30)</th><th>Filter(20)</th><th>Chain(10)</th><th>Total</th></tr>
+    <tr><td><strong>equipment.search</strong></td><td>40</td><td>30</td><td>20</td><td>10</td><td><strong>100</strong></td></tr>
+    <tr><td>scope.overview</td><td>40</td><td>0</td><td>0***</td><td>10</td><td>50</td></tr>
+    <tr><td>equipment.profile</td><td>40</td><td>0</td><td>0</td><td>0</td><td>40</td></tr>
+  </table>
+  <p style="font-size:12px; color:var(--gray-500);">
+    *** scope.overview's supportsFilters=[] (empty in YAML -- it takes "identifier", not a filter named "department").<br>
+    <strong>Result: equipment.search wins decisively (100 vs 50).</strong> But the "correct" answer depends on user intent: if they want a simple device list, equipment.search is right. If they want the workshop's overall health picture, scope.overview is right. The matchScore can't distinguish because scope.overview has no operation match for "search" and no filter coverage for "department".
+  </p>
+  <div class="callout callout-warn" style="margin-top:8px;">
+    <strong>Verdict:</strong> The score correctly picks equipment.search, but scope.overview is unfairly penalized. The real issue is that scope.overview's operation is "statistics" not "search", and its identifier parameter is not modeled as a filter. This is a modeling gap, not an algorithm bug.
+  </div>
+</div>
+
+<!-- Simulation 3 -->
+<div class="sim-block">
+  <div class="sim-query">Query 3: "最近三个月的故障趋势"</div>
+  <div class="sim-step"><span class="sim-label">Intent:</span> domains=["fault"], operation="trend", filters=["dateRange"]</div>
+  <div class="sim-step"><span class="sim-label">Expected:</span> eam.trend</div>
+  <table>
+    <tr><th>Tool</th><th>Domain(40)</th><th>Operation(30)</th><th>Filter(20)</th><th>Chain(10)</th><th>Total</th></tr>
+    <tr><td><strong>trend</strong></td><td>40</td><td>30</td><td>0****</td><td>0</td><td><strong>70</strong></td></tr>
+    <tr><td>fault.search</td><td>40</td><td>0</td><td>20</td><td>10</td><td>70</td></tr>
+    <tr><td>equipment.profile</td><td>40*****</td><td>0</td><td>0</td><td>0</td><td>40</td></tr>
+  </table>
+  <p style="font-size:12px; color:var(--gray-500);">
+    **** trend's supportsFilters is empty in YAML (it has no supports_filters field declared).<br>
+    ***** equipment.profile has domain "fault-repair" but intent domain is "fault" -- these DON'T match because "fault" !== "fault-repair" in string comparison.<br>
+    <strong>Result: TIE at 70!</strong> trend and fault.search both score 70. This is problematic -- trend should clearly win for a "趋势" query, but the filter score gives fault.search an unearned boost (it matches dateRange filter), while trend loses filter points (dateRange is a required parameter but not declared in supports_filters).
+  </p>
+  <div class="callout callout-critical" style="margin-top:8px;">
+    <strong>Verdict: INCORRECT.</strong> The trend tool should score higher for trend queries, but the missing supports_filters declaration in trend.yaml causes a tie. The tie-breaking then depends on Array.sort() stability, which is implementation-dependent. <strong>Fix: Add supports_filters to trend.yaml.</strong>
+  </div>
+</div>
+
+<!-- Simulation 4 -->
+<div class="sim-block">
+  <div class="sim-query">Query 4: "哪台设备故障最多？"</div>
+  <div class="sim-step"><span class="sim-label">Intent:</span> domains=["fault"], operation="search", filters=["groupBy"]</div>
+  <div class="sim-step"><span class="sim-label">Expected:</span> eam.fault.search(groupBy=equipment)</div>
+  <table>
+    <tr><th>Tool</th><th>Domain(40)</th><th>Operation(30)</th><th>Filter(20)</th><th>Chain(10)</th><th>Total</th></tr>
+    <tr><td><strong>fault.search</strong></td><td>40</td><td>30</td><td>20</td><td>10</td><td><strong>100</strong></td></tr>
+    <tr><td>anomaly.search</td><td>0</td><td>30</td><td>20</td><td>10</td><td>60</td></tr>
+    <tr><td>trend</td><td>40</td><td>0</td><td>0</td><td>0</td><td>40</td></tr>
+  </table>
+  <p style="font-size:12px; color:var(--gray-500);">
+    <strong>Result: CORRECT.</strong> fault.search wins clearly at 100. Good.
+  </p>
+</div>
+
+<!-- Simulation 5 -->
+<div class="sim-block">
+  <div class="sim-query">Query 5: "巡检发现了哪些异常？"</div>
+  <div class="sim-step"><span class="sim-label">Intent:</span> domains=["patrol", "anomaly"], operation="search", filters=[]</div>
+  <div class="sim-step"><span class="sim-label">Expected:</span> eam.anomaly.search(source=PATROL)</div>
+  <table>
+    <tr><th>Tool</th><th>Domain(40)</th><th>Operation(30)</th><th>Filter(20)</th><th>Chain(10)</th><th>Total</th></tr>
+    <tr><td>patrol.search</td><td>40</td><td>30</td><td>0</td><td>10</td><td>80</td></tr>
+    <tr><td><strong>anomaly.search</strong></td><td>40</td><td>30</td><td>0</td><td>10</td><td><strong>80</strong></td></tr>
+    <tr><td>equipment.profile</td><td>40</td><td>0</td><td>0</td><td>0</td><td>40</td></tr>
+  </table>
+  <p style="font-size:12px; color:var(--gray-500);">
+    <strong>Result: TIE at 80.</strong> Both patrol.search and anomaly.search score identically. The correct answer is anomaly.search (user wants anomaly records, not patrol task records). But matchScore can't differentiate because both match patrol/anomaly domains and both are "search" operations.
+  </p>
+  <div class="callout callout-warn" style="margin-top:8px;">
+    <strong>Verdict:</strong> This is the patrol/anomaly HIGH conflict from the matrix. matchScore alone cannot resolve it. The LLM must rely on the when_to_use descriptions in the prompt -- but as noted in Section 1, <strong>when_to_use is not currently injected into the prompt</strong>. This is a real routing risk.
+  </div>
+</div>
+
+<h3>matchScore Summary</h3>
+
+<table>
+  <tr><th>Simulation</th><th>Expected Winner</th><th>matchScore Winner</th><th>Correct?</th></tr>
+  <tr><td>1. "CNC-001 怎么样了？"</td><td>equipment.profile</td><td>equipment.profile (70)</td><td><span class="badge badge-ok">YES</span></td></tr>
+  <tr><td>2. "一车间有哪些设备？"</td><td>scope.overview or eq.search</td><td>equipment.search (100)</td><td><span class="badge badge-warn">PARTIAL</span></td></tr>
+  <tr><td>3. "最近三个月的故障趋势"</td><td>trend</td><td>TIE: trend = fault.search (70)</td><td><span class="badge badge-critical">NO</span></td></tr>
+  <tr><td>4. "哪台设备故障最多？"</td><td>fault.search</td><td>fault.search (100)</td><td><span class="badge badge-ok">YES</span></td></tr>
+  <tr><td>5. "巡检发现了哪些异常？"</td><td>anomaly.search</td><td>TIE: patrol.search = anomaly.search (80)</td><td><span class="badge badge-critical">NO</span></td></tr>
+</table>
+
+<p><strong>Accuracy: 2/5 clean correct, 1/5 partial, 2/5 incorrect (ties where wrong tool could win).</strong></p>
+
+<div class="callout callout-info">
+  <strong>Key insight:</strong> The matchScore is currently a pre-filter, not the decision maker. The prompt assembler passes ALL tools to the LLM regardless of matchScore (see registry.ts: "P0: 不做阈值过滤，返回全部工具"). So the score's inaccuracies don't directly cause routing failures -- the LLM reads all tool descriptions and makes its own choice. But when matchScore is used for ranking or filtering in the future (P2/P3), these issues become critical.
+</div>
+
+
+<!-- ================================================================== -->
+<!-- SECTION 4: Prompt Engineering Quality -->
+<!-- ================================================================== -->
+<hr class="section-sep">
+<h2 id="s4"><span class="section-num">4</span> Prompt Engineering Quality</h2>
+
+<h3>4.1 system-prompt.md</h3>
+
+<div class="card green-accent">
+  <p><strong>Grade: A-</strong></p>
+  <p>Single sentence, clear identity anchor. Anthropic recommends placing the role/persona at the start of the system prompt -- this follows that correctly. Deliberately system-agnostic (says "企业系统" not "EAM") for future multi-system support.</p>
+  <p><strong>Minor suggestion:</strong> Could add the platform's core capability statement: "我能理解你的自然语言问题，调用相应工具获取数据，并给出分析。" This would help set user expectations about the interaction model (NL -> tools -> analysis).</p>
+</div>
+
+<h3>4.2 rules.md</h3>
+
+<div class="card amber-accent">
+  <p><strong>Grade: B+</strong></p>
+  <p>5 clear rules. Well-positioned as Layer 2 for maximum attention weight.</p>
+  <p><strong>Issues found:</strong></p>
+  <ul>
+    <li><span class="badge badge-medium">CONFLICT</span> Rule 4 "只返回 JSON -- 不要在 JSON 前后加任何解释文字" directly contradicts the ReAct instructions which require a <code>thought</code> field containing natural language reasoning. The intent is clear (structured output, not free prose), but a literally-minded model could interpret this as prohibiting the thought field's content.</li>
+    <li><span class="badge badge-low">MISPLACED</span> Rule 5 "参数支持业务编号" is a tool design principle (for MCP implementers), not a behavioral rule for the AI. It belongs in tool-selection-guide.md or base-instructions.md instead of the top-level rules.</li>
+  </ul>
+  <p><strong>Recommendation:</strong> Rewrite Rule 4 as: "输出格式必须是严格的 JSON 对象（含 thought、calls 等字段），不要在 JSON 前后加任何非 JSON 文字。" This aligns the rule with the actual expected output format.</p>
+</div>
+
+<h3>4.3 base-instructions.md</h3>
+
+<div class="card green-accent">
+  <p><strong>Grade: A</strong></p>
+  <p>5 clear task instructions. Well-structured with numbered points. The critical instruction #4 (时间映射) proactively addresses the most common failure mode: AI refusing to answer due to ambiguous time expressions. The "模糊表达用合理默认值，绝不拒绝" directive is excellent -- it prevents unnecessary clarification rounds.</p>
+  <p><strong>Alignment with Anthropic best practices:</strong></p>
+  <ul>
+    <li>Clear, imperative instructions</li>
+    <li>Concrete examples ("上月=上个自然月")</li>
+    <li>Explicit handling of edge cases (ambiguous time)</li>
+  </ul>
+  <p><strong>Minor redundancy:</strong> Point 1 ("优先使用全景工具") and Point 2 ("跨域分析需要多工具") are repeated in react-instructions.md. Not harmful (reinforcement), but uses ~100 tokens.</p>
+</div>
+
+<h3>4.4 react-instructions.md</h3>
+
+<div class="card green-accent">
+  <p><strong>Grade: A-</strong></p>
+  <p>The 5-step thinking template ([意图][候选][审查][规划][验证]) is a strong structured reasoning framework. It forces the AI to:</p>
+  <ol>
+    <li>Understand before acting (意图 first, before looking at tools)</li>
+    <li>Consider alternatives (候选 lists all options)</li>
+    <li>Double-check (审查 re-reads descriptions)</li>
+    <li>Plan with specifics (规划 determines parameters)</li>
+    <li>Validate coverage (验证 checks domain + data completeness)</li>
+  </ol>
+  <p><strong>Issues found:</strong></p>
+  <ul>
+    <li><span class="badge badge-medium">REDUNDANCY</span> 7 "关键规则" at the bottom repeat content from base-instructions.md and rules.md. Rules 1, 2, 5, 7 are duplicates.</li>
+    <li><span class="badge badge-medium">MISSING</span> The output format section shows <code>"intent"</code> field in the first-round output, but there's no instruction on what values <code>intent.operation</code> should use. The LLM has to infer from tool-selection-guide.md. This works but is fragile -- a single source of truth for operation types would be more robust.</li>
+    <li><span class="badge badge-low">STYLE</span> The instructions reference {{N.path}} parameter syntax ("不要用 {{N.path}} 提取 ID") which seems to be a legacy reference from a previous architecture iteration. It should either be removed or explained.</li>
+  </ul>
+</div>
+
+<h3>4.5 tool-selection-guide.md</h3>
+
+<div class="card green-accent">
+  <p><strong>Grade: A</strong></p>
+  <p>Best-structured file in the prompt suite. 6 clear sections with tables. The priority table (Section 2) is particularly valuable -- it handles the "multiple tools could answer" problem with explicit rules.</p>
+  <p><strong>Strengths:</strong></p>
+  <ul>
+    <li>Section 6 "常见误区" uses contrast format (wrong -> right) which is highly effective for preventing errors</li>
+    <li>Tables are scannable even for LLMs (structured information reduces hallucination)</li>
+  </ul>
+  <p><strong>Issues found:</strong></p>
+  <ul>
+    <li><span class="badge badge-medium">TERMINOLOGY</span> Uses "search" for operation type but types.ts defines "list" instead. The guide is correct for the actual YAML values; types.ts is outdated.</li>
+    <li><span class="badge badge-low">MISSING</span> No guidance on the "分析链" concept. Section 5 says "拿到数据后自己分析" but doesn't explain when to do multi-round (ReAct chase) vs single-round analysis. This is covered in react-instructions.md but could use a cross-reference.</li>
+  </ul>
+</div>
+
+<h3>4.6 few-shot-examples.json</h3>
+
+<div class="card amber-accent">
+  <p><strong>Grade: B</strong></p>
+  <p>6 examples covering 8 of 12 tools. All are single-round (no multi-round chase example). Quality of individual examples is high -- each has correct tool selection, appropriate parameters, and educational notes.</p>
+  <p><strong>Coverage analysis:</strong></p>
+  <table>
+    <tr><th>Tool</th><th>Featured in Example?</th><th>As Primary Tool?</th></tr>
+    <tr><td>eam.dashboard</td><td><span class="badge badge-ok">YES</span> (#1)</td><td>Primary</td></tr>
+    <tr><td>eam.equipment.profile</td><td><span class="badge badge-ok">YES</span> (#2)</td><td>Primary</td></tr>
+    <tr><td>eam.repair.profile</td><td><span class="badge badge-ok">YES</span> (#3)</td><td>Primary</td></tr>
+    <tr><td>eam.scope.overview</td><td><span class="badge badge-ok">YES</span> (#5)</td><td>Primary</td></tr>
+    <tr><td>eam.fault.search</td><td><span class="badge badge-ok">YES</span> (#4, #6)</td><td>In cross-domain</td></tr>
+    <tr><td>eam.maintenance.search</td><td><span class="badge badge-ok">YES</span> (#4)</td><td>In cross-domain</td></tr>
+    <tr><td>eam.trend</td><td><span class="badge badge-ok">YES</span> (#6)</td><td>In cross-domain</td></tr>
+    <tr><td>eam.spare.search</td><td><span class="badge badge-ok">YES</span> (#6)</td><td>In cross-domain</td></tr>
+    <tr><td>eam.equipment.search</td><td><span class="badge badge-critical">NO</span></td><td>--</td></tr>
+    <tr><td>eam.repair.search</td><td><span class="badge badge-critical">NO</span></td><td>--</td></tr>
+    <tr><td>eam.patrol.search</td><td><span class="badge badge-critical">NO</span></td><td>--</td></tr>
+    <tr><td>eam.anomaly.search</td><td><span class="badge badge-critical">NO</span></td><td>--</td></tr>
+  </table>
+  <p><strong>Critical gap:</strong> 4 search tools have zero few-shot coverage. These are the tools most likely to be confused with each other (patrol vs anomaly, equipment.search vs scope.overview). Adding examples for these conflict hotspots would significantly improve routing accuracy.</p>
+  <p><strong>Missing example types:</strong></p>
+  <ul>
+    <li>Multi-round chase (observe result, decide to fetch more)</li>
+    <li>Empty result handling (query returns nothing, AI broadens search)</li>
+    <li>Ambiguous query where AI must choose between profile vs search</li>
+    <li>patrol.search vs anomaly.search disambiguation</li>
+  </ul>
+  <p><strong>Specific issue:</strong> Example 3 uses identifier "WO-201" for repair.profile, but the tool description says repair orders start with "RO". "WO" is not a documented prefix. Should be "RO-201" or "RO202603110001" format.</p>
+</div>
+
+<h3>4.7 Prompt Assembly (prompt-assembler.ts)</h3>
+
+<div class="card amber-accent">
+  <p><strong>Grade: B</strong></p>
+  <p><strong>Strengths:</strong></p>
+  <ul>
+    <li>Clean 6-layer architecture with clear separation</li>
+    <li>Lazy loading with module-level caching (avoids redundant file I/O)</li>
+    <li>Static/dynamic boundary well-defined</li>
+    <li>Verdict injection (Layer 5) for self-learning integration</li>
+  </ul>
+  <p><strong>Issues found:</strong></p>
+  <ul>
+    <li><span class="badge badge-critical">CRITICAL</span> <strong>when_to_use / when_not_to_use not injected:</strong> The YAML files contain rich routing hints (when_to_use, when_not_to_use), and yaml-loader.ts correctly parses them into <code>whenToUse</code> / <code>whenNotToUse</code> fields. But prompt-assembler.ts only includes <code>name</code>, <code>description</code>, and <code>inputSchema.properties</code> in the tool descriptions (lines 97-102). The routing hints are <strong>invisible to the LLM</strong>. This is the single highest-impact issue in this analysis.</li>
+    <li><span class="badge badge-medium">MEDIUM</span> <strong>Per-tool examples not injected:</strong> Each YAML has 2-3 examples that demonstrate parameter usage for that specific tool. These are parsed but not included in the prompt. They would help the LLM understand how to fill parameters for each tool.</li>
+    <li><span class="badge badge-medium">MEDIUM</span> <strong>Tool descriptions are plain text, not structured:</strong> Anthropic recommends using the <code>tools</code> parameter in the API call for tool definitions, with structured JSON schemas. The current approach embeds tool descriptions as text within the system prompt. This works but loses the benefits of Anthropic's native tool use (automatic parameter validation, better tool selection).</li>
+    <li><span class="badge badge-low">LOW</span> <strong>No prompt caching header:</strong> Anthropic's API supports <code>cache_control</code> breakpoints for prompt caching. The static layers (1-4) are perfect candidates. This could reduce costs by ~90% on the static portion.</li>
+  </ul>
+</div>
+
+<h3>4.8 Cross-File Contradiction Check</h3>
+
+<table>
+  <tr><th>Contradiction</th><th>File A</th><th>File B</th><th>Severity</th></tr>
+  <tr>
+    <td>rules.md Rule 4 says "只返回 JSON", react-instructions says thought field contains natural language reasoning</td>
+    <td>rules.md</td>
+    <td>react-instructions.md</td>
+    <td><span class="badge badge-medium">MEDIUM</span></td>
+  </tr>
+  <tr>
+    <td>types.ts defines <code>ToolOperation = 'list'</code>, tool-selection-guide and YAMLs use <code>'search'</code></td>
+    <td>lib/types.ts</td>
+    <td>tool-selection-guide.md + YAMLs</td>
+    <td><span class="badge badge-critical">CRITICAL</span></td>
+  </tr>
+  <tr>
+    <td>equipment.profile domain "fault-repair" vs fault.search domain "fault" -- no consistent naming</td>
+    <td>equipment-profile.yaml</td>
+    <td>fault-search.yaml</td>
+    <td><span class="badge badge-critical">CRITICAL</span></td>
+  </tr>
+  <tr>
+    <td>base-instructions "优先使用全景工具" vs chain score giving +10 to search tools and 0 to profile tools</td>
+    <td>base-instructions.md</td>
+    <td>lib/tools/registry.ts</td>
+    <td><span class="badge badge-medium">MEDIUM</span></td>
+  </tr>
+  <tr>
+    <td>few-shot example 3 uses "WO-201" prefix; repair.profile says format is "RO..."</td>
+    <td>few-shot-examples.json</td>
+    <td>repair-profile.yaml</td>
+    <td><span class="badge badge-low">LOW</span></td>
+  </tr>
+  <tr>
+    <td>react-instructions references {{N.path}} syntax (legacy); no other file explains it</td>
+    <td>react-instructions.md</td>
+    <td>(orphan reference)</td>
+    <td><span class="badge badge-low">LOW</span></td>
+  </tr>
+</table>
+
+
+<!-- ================================================================== -->
+<!-- SECTION 5: Issues & Recommendations -->
+<!-- ================================================================== -->
+<hr class="section-sep">
+<h2 id="s5"><span class="section-num">5</span> Issues &amp; Recommendations</h2>
+
+<h3>Critical Priority</h3>
+
+<div class="card red-accent">
+  <div class="issue-item">
+    <span class="badge badge-critical">C1</span>
+    <div>
+      <strong>when_to_use / when_not_to_use not injected into prompt</strong><br>
+      <em>File: lib/brain/prompt-assembler.ts lines 97-102</em><br>
+      The most valuable routing information in the YAML files is invisible to the LLM. The assembler only includes name, description, and parameter list. The when_to_use/when_not_to_use fields are parsed by yaml-loader but never used.<br>
+      <strong>Fix:</strong> Add <code>whenToUse</code> and <code>whenNotToUse</code> to the tool description template in prompt-assembler.ts. Estimated impact: significant improvement in conflict resolution (patrol vs anomaly, profile vs search, scope vs equipment.search).
+    </div>
+  </div>
+  <div class="issue-item">
+    <span class="badge badge-critical">C2</span>
+    <div>
+      <strong>ToolOperation type mismatch: types.ts vs YAML reality</strong><br>
+      <em>File: lib/types.ts line 70</em><br>
+      TypeScript type defines <code>'list' | 'detail' | 'statistics' | 'trend' | 'alert' | 'mutation'</code> but YAMLs use <code>'search'</code> and <code>'dashboard'</code>. The <code>as</code> cast in yaml-loader.ts hides the error.<br>
+      <strong>Fix:</strong> Update ToolOperation to <code>'detail' | 'search' | 'statistics' | 'dashboard' | 'trend'</code>. Remove dead types (list, alert, mutation) or keep them for future use with a comment.
+    </div>
+  </div>
+  <div class="issue-item">
+    <span class="badge badge-critical">C3</span>
+    <div>
+      <strong>Domain naming inconsistency causes matchScore routing bugs</strong><br>
+      <em>Files: All YAML files</em><br>
+      Some tools use <code>fault-repair</code> as a compound domain, others use <code>fault</code> and <code>repair</code> separately. The matchScore domain check is an exact string match, so <code>"fault" !== "fault-repair"</code>. This means fault.search won't match an intent with domain "fault-repair", and equipment.profile won't match an intent with domain "fault".<br>
+      <strong>Fix:</strong> Standardize domain names. Either: (a) always use separate domains (<code>fault</code>, <code>repair</code>) and update equipment.profile/scope.overview/repair.profile, or (b) implement substring/contains matching in calcMatchScore. Option (a) is cleaner.
+    </div>
+  </div>
+</div>
+
+<h3>Medium Priority</h3>
+
+<div class="card amber-accent">
+  <div class="issue-item">
+    <span class="badge badge-medium">M1</span>
+    <div>
+      <strong>trend.yaml missing supports_filters</strong><br>
+      <em>File: skills/eam/trend.yaml</em><br>
+      trend.yaml has no <code>supports_filters</code> field, causing it to score 0 on filter dimension. This leads to ties with fault.search on trend queries. Add: <code>supports_filters: [domain, dateRange, groupBy, splitBy, equipment, productionLine, department]</code>.
+    </div>
+  </div>
+  <div class="issue-item">
+    <span class="badge badge-medium">M2</span>
+    <div>
+      <strong>dashboard.yaml missing supports_filters</strong><br>
+      <em>File: skills/eam/dashboard.yaml</em><br>
+      Same issue as trend. Add: <code>supports_filters: [format]</code> (even though minimal, it should be explicit).
+    </div>
+  </div>
+  <div class="issue-item">
+    <span class="badge badge-medium">M3</span>
+    <div>
+      <strong>scope.overview missing supports_filters</strong><br>
+      <em>File: skills/eam/scope-overview.yaml</em><br>
+      Same issue. Add: <code>supports_filters: [identifier, format]</code>. This would help scope.overview score non-zero on the filter dimension when the intent includes scope-related filters.
+    </div>
+  </div>
+  <div class="issue-item">
+    <span class="badge badge-medium">M4</span>
+    <div>
+      <strong>Few-shot examples miss 4 search tools</strong><br>
+      <em>File: prompts/few-shot-examples.json</em><br>
+      equipment.search, repair.search, patrol.search, anomaly.search have zero few-shot coverage. Add at least 2 more examples: one for patrol vs anomaly disambiguation, one for equipment.search vs scope.overview disambiguation.
+    </div>
+  </div>
+  <div class="issue-item">
+    <span class="badge badge-medium">M5</span>
+    <div>
+      <strong>Chain score is backwards</strong><br>
+      <em>File: lib/tools/registry.ts lines 76-79</em><br>
+      Profile tools (preferred per design) get 0 chain score; search tools get +10. Consider inverting: give bonus to tools that are TARGETS of feedsInto chains, or simply remove the chain component.
+    </div>
+  </div>
+  <div class="issue-item">
+    <span class="badge badge-medium">M6</span>
+    <div>
+      <strong>rules.md Rule 4 ambiguity</strong><br>
+      <em>File: prompts/rules.md</em><br>
+      "只返回 JSON" could be interpreted as prohibiting natural language in the thought field. Rewrite to: "输出必须是严格的 JSON 对象（含 thought/calls 等字段），不要在 JSON 前后加非 JSON 文字。"
+    </div>
+  </div>
+  <div class="issue-item">
+    <span class="badge badge-medium">M7</span>
+    <div>
+      <strong>Per-tool YAML examples not injected into prompt</strong><br>
+      <em>File: lib/brain/prompt-assembler.ts</em><br>
+      Each YAML has 2-3 tool-specific examples that demonstrate parameter usage. These are parsed but wasted. Consider injecting them as part of the tool description (compact format) or as additional few-shot entries.
+    </div>
+  </div>
+  <div class="issue-item">
+    <span class="badge badge-medium">M8</span>
+    <div>
+      <strong>patrol.search status enum not documented</strong><br>
+      <em>File: skills/eam/patrol-search.yaml</em><br>
+      Unlike all other search tools that list exact status codes, patrol.search says "具体值参考系统定义". The AI cannot fill the status parameter reliably.
+    </div>
+  </div>
+</div>
+
+<h3>Low Priority</h3>
+
+<div class="card green-accent">
+  <div class="issue-item">
+    <span class="badge badge-low">L1</span>
+    <div>
+      <strong>Redundancy between base-instructions.md and react-instructions.md</strong><br>
+      "传名称不传ID" and "一个工具能搞定就不要拆" appear in both files. Could save ~200 tokens by deduplicating. Not harmful -- redundancy reinforces the message.
+    </div>
+  </div>
+  <div class="issue-item">
+    <span class="badge badge-low">L2</span>
+    <div>
+      <strong>few-shot example 3: WO-201 prefix mismatch</strong><br>
+      repair.profile describes RO/FR prefixes but the example uses "WO-201". Minor but sets incorrect expectation.
+    </div>
+  </div>
+  <div class="issue-item">
+    <span class="badge badge-low">L3</span>
+    <div>
+      <strong>react-instructions references {{N.path}} syntax</strong><br>
+      This appears to be a legacy reference from a previous parameter-chaining architecture. Either remove or explain it.
+    </div>
+  </div>
+  <div class="issue-item">
+    <span class="badge badge-low">L4</span>
+    <div>
+      <strong>rules.md Rule 5 is misplaced</strong><br>
+      "参数支持业务编号" is a tool design principle, not an AI behavioral rule. Move to tool-selection-guide.md.
+    </div>
+  </div>
+  <div class="issue-item">
+    <span class="badge badge-low">L5</span>
+    <div>
+      <strong>No Anthropic API prompt caching</strong><br>
+      Layers 1-4 (~2,830 tokens) are static and could use Anthropic's cache_control feature. Implementation is straightforward. Impact: ~90% cost reduction on the static portion.
+    </div>
+  </div>
+  <div class="issue-item">
+    <span class="badge badge-low">L6</span>
+    <div>
+      <strong>spare.search missing groupBy parameter</strong><br>
+      All other search tools support groupBy for aggregation statistics. spare.search lacks it. Not critical -- spare queries are less likely to need aggregation -- but inconsistent.
+    </div>
+  </div>
+</div>
+
+<h3>Recommended Fix Order</h3>
+
+<div class="callout callout-info">
+  <strong>Phase 1 (immediate, high ROI):</strong><br>
+  C1 (inject when_to_use/when_not_to_use) + C3 (standardize domain names) + M1/M2/M3 (add supports_filters to trend/dashboard/scope).<br>
+  These 5 fixes address the root causes of routing confusion with minimal code change.<br><br>
+
+  <strong>Phase 2 (next iteration):</strong><br>
+  C2 (fix ToolOperation type) + M4 (add few-shot examples for uncovered tools) + M5 (fix chain score) + M6 (clarify Rule 4).<br><br>
+
+  <strong>Phase 3 (optimization):</strong><br>
+  M7 (inject per-tool examples) + M8 (patrol status enum) + L1-L6 (cleanup and caching).<br><br>
+
+  <strong>Estimated effort:</strong> Phase 1 = ~2 hours. Phase 2 = ~3 hours. Phase 3 = ~2 hours.
+</div>
+
+<!-- Footer -->
+<div style="margin-top: 80px; padding-top: 24px; border-top: 2px solid var(--blue-100); font-size: 12px; color: var(--gray-400);">
+  Insight68 NL-API Platform -- Architecture Deep Dive Series<br>
+  Generated 2026-03-28 | Branch: feat/p0-platform | Commit: e2adb1c
+</div>
+
+</div><!-- /container -->
+</body>
+</html>
