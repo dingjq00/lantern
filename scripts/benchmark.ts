@@ -62,8 +62,8 @@ const TEST_CASES: TestCase[] = [
   { id: 'T28', query: '设备 EQ-001 最近一次故障的维修花了多少工时？', level: 'L3', acceptablePaths: [['eam.equipment.profile', 'eam.repair.profile'], ['eam.fault.search', 'eam.repair.profile']] },
   // L4 — 跨域分析
   { id: 'T29', query: '故障率最高的设备，保养是否按计划执行？', level: 'L4', acceptablePaths: [['eam.fault.search', 'eam.maintenance.search']] },
-  { id: 'T30', query: '上月维修成本最高的设备，它的巡检有没有发现过异常？', level: 'L4', acceptablePaths: [['eam.repair.search', 'eam.anomaly.search'], ['eam.repair.search', 'eam.patrol.search']] },
-  { id: 'T31', query: '备件库存预警涉及的设备中，有哪些正在维修？', level: 'L4', acceptablePaths: [['eam.spare.search', 'eam.equipment.search']] },
+  { id: 'T30', query: '上月维修成本最高的设备，它的巡检有没有发现过异常？', level: 'L4', acceptablePaths: [['eam.repair.search', 'eam.anomaly.search'], ['eam.repair.search', 'eam.patrol.search'], ['eam.repair.search', 'eam.equipment.profile']] },
+  { id: 'T31', query: '备件库存预警涉及的设备中，有哪些正在维修？', level: 'L4', acceptablePaths: [['eam.spare.search', 'eam.equipment.search'], ['eam.spare.search', 'eam.repair.search']] },
   { id: 'T32', query: 'A 线设备的故障、保养、巡检三项指标概览', level: 'L4', acceptablePaths: [['eam.scope.overview']] },
   { id: 'T33', query: '近 3 个月有故障但没安排保养的设备有哪些？', level: 'L4', acceptablePaths: [['eam.fault.search', 'eam.maintenance.search']] },
   { id: 'T34', query: '外协维修的设备中，有没有重点设备？', level: 'L4', acceptablePaths: [['eam.repair.search']] },

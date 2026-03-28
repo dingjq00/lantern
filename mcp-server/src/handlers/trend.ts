@@ -66,7 +66,7 @@ export function registerTrend(server: McpServer) {
 
       // 拉数据（分页，最多 500 条）
       const page = await eamGet<PageResult<any>>(config.path, {
-        pageNo: 1, pageSize: 500,
+        pageNo: 1, pageSize: 200,  // EAM 后端限制最大 200
         ...(config.extraParams ?? {}),
       })
 

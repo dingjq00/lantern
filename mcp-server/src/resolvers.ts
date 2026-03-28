@@ -125,7 +125,7 @@ export async function getEquipmentIdsByDepartment(deptId: number): Promise<numbe
   const page = await eamGet<PageResult<Equipment>>('/eam/equipment/page', {
     deptId,
     pageNo: 1,
-    pageSize: 1000, // 部门下设备不会超过这个数
+    pageSize: 200, // EAM 后端限制最大 200
   })
   return page.list.map(e => e.id)
 }
