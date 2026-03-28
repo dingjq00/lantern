@@ -3,6 +3,18 @@ import OpenAI from 'openai'
 import { z } from 'zod'
 import type { LLMProvider, RouteResult, EvaluateResult, SummarizeResult, ThinkResult, ToolDefinition, ToolCall, DisplayFormat, ConfidenceLevel } from '@/lib/types'
 
+/** 从 LLM 返回中提取纯 JSON — 兼容所有模型格式（纯JSON / ```json包裹 / 前后有文字） */
+function extractJSON(content: string): string {
+  let s = content.trim()
+  // 去掉 ```json ... ``` 或 ``` ... ``` 包裹
+  const fenceMatch = s.match(/```(?:json)?\s*\n?([\s\S]*?)\n?\s*```/)
+  if (fenceMatch) s = fenceMatch[1].trim()
+  // 提取第一个 { ... } 或 [ ... ]
+  const jsonMatch = s.match(/(\{[\s\S]*\}|\[[\s\S]*\])/)
+  if (jsonMatch) return jsonMatch[1]
+  return s
+}
+
 // ReAct 输出的 zod schema
 const ThinkResultSchema = z.object({
   thought: z.string().optional(),
@@ -65,7 +77,7 @@ ${toolDescriptions}
     })
 
     const content = response.choices[0]?.message?.content || '{}'
-    const parsed = JSON.parse(content) as { calls?: ToolCall[] }
+    const parsed = JSON.parse(extractJSON(content)) as { calls?: ToolCall[] }
 
     return {
       calls: parsed.calls || [],
@@ -89,7 +101,7 @@ ${toolDescriptions}
     })
 
     const content = response.choices[0]?.message?.content || '{}'
-    const parsed = JSON.parse(content)
+    const parsed = JSON.parse(extractJSON(content))
     return {
       relevance: parsed.relevance ?? 3,
       completeness: parsed.completeness ?? 3,
@@ -126,7 +138,7 @@ followUp 规则（类似 Perplexity 的深入引导）：
     })
 
     const content = response.choices[0]?.message?.content || '{}'
-    const parsed = JSON.parse(content)
+    const parsed = JSON.parse(extractJSON(content))
     return {
       answer: parsed.answer || '暂无数据',
       display: parsed.display || 'text',
@@ -148,7 +160,7 @@ followUp 规则（类似 Perplexity 的深入引导）：
 
     const content = response.choices[0]?.message?.content || '{}'
     try {
-      const raw = JSON.parse(content)
+      const raw = JSON.parse(extractJSON(content))
       const parsed = ThinkResultSchema.parse(raw)
       return {
         thought: parsed.thought || content,  // 无 thought 时保留原始 JSON（供 evaluator 等非 ReAct 调用方解析）
