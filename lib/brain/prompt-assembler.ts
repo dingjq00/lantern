@@ -98,8 +98,8 @@ export function assemblePrompt(
     const params = Object.entries(t.inputSchema.properties)
       .map(([k, v]) => `  - ${k} (${v.type}): ${v.description || ''}`)
       .join('\n')
-    const whenUse = t.whenToUse ? `  适用: ${t.whenToUse.trim()}` : ''
-    const whenNot = t.whenNotToUse ? `  不适用: ${t.whenNotToUse.trim()}` : ''
+    const whenUse = t.whenToUse ? `  适用: ${Array.isArray(t.whenToUse) ? t.whenToUse.join('; ') : String(t.whenToUse).trim()}` : ''
+    const whenNot = t.whenNotToUse ? `  不适用: ${Array.isArray(t.whenNotToUse) ? t.whenNotToUse.join('; ') : String(t.whenNotToUse).trim()}` : ''
     return `- **${t.name}** [${t.operation}]: ${t.description}\n${params || '  (无参数)'}${whenUse ? '\n' + whenUse : ''}${whenNot ? '\n' + whenNot : ''}`
   }).join('\n\n')
 
