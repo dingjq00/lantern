@@ -1,30 +1,27 @@
-// EAM MCP Server 入口
+// EAM MCP Server 入口 — 12 工具三层结构
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
-import { registerEquipmentHandlers } from './handlers/equipment.js'
-import { registerFaultRepairHandlers } from './handlers/fault-repair.js'
-import { registerMaintenanceHandlers } from './handlers/maintenance.js'
-import { registerPatrolHandlers } from './handlers/patrol.js'
-import { registerSpareHandlers } from './handlers/spare.js'
-import { registerDashboardHandlers } from './handlers/dashboard.js'
+import { registerEquipmentProfile } from './handlers/equipment-profile.js'
 
 const server = new McpServer({
   name: 'eam-mcp-server',
-  version: '0.1.0',
+  version: '2.0.0',
 })
 
-// 注册 6 个域的 handlers（22 个工具）
-registerEquipmentHandlers(server)
-registerFaultRepairHandlers(server)
-registerMaintenanceHandlers(server)
-registerPatrolHandlers(server)
-registerSpareHandlers(server)
-registerDashboardHandlers(server)
+// Tier 1: 实体全景
+registerEquipmentProfile(server)
+
+// TODO: Tier 1 剩余
+// registerRepairProfile(server)
+// registerScopeOverview(server)
+
+// TODO: Tier 2 条件搜索 (7)
+// TODO: Tier 3 全局分析 (2)
 
 async function main() {
   const transport = new StdioServerTransport()
   await server.connect(transport)
-  console.error('EAM MCP Server running on stdio (22 tools registered)')
+  console.error(`EAM MCP Server v2 running on stdio (tools registered)`)
 }
 
 main().catch(console.error)

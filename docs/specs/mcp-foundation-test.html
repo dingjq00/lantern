@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MCP 地基验证报告</title>
+<style>
+  :root {
+    --blue-900: #1e3a5f; --blue-700: #2563eb; --blue-100: #dbeafe; --blue-50: #eff6ff;
+    --green-700: #15803d; --green-100: #dcfce7; --green-50: #f0fdf4;
+    --amber-700: #b45309; --amber-100: #fef3c7;
+    --red-700: #b91c1c; --red-100: #fee2e2;
+    --gray-900: #111827; --gray-700: #374151; --gray-500: #6b7280;
+    --gray-300: #d1d5db; --gray-100: #f3f4f6; --gray-50: #f9fafb;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; color: var(--gray-900); background: var(--gray-50); line-height: 1.6; }
+  .container { max-width: 1100px; margin: 0 auto; padding: 40px 24px; }
+  .header { background: linear-gradient(135deg, var(--blue-900), #2d4a7a); color: white; padding: 40px; border-radius: 16px; margin-bottom: 32px; }
+  .header h1 { font-size: 26px; font-weight: 700; margin-bottom: 6px; }
+  .header .subtitle { font-size: 14px; opacity: 0.85; }
+  .header .meta { margin-top: 12px; display: flex; gap: 24px; font-size: 13px; opacity: 0.7; }
+  .section { background: white; border-radius: 12px; border: 1px solid var(--gray-300); padding: 28px; margin-bottom: 20px; }
+  .section h2 { font-size: 18px; color: var(--blue-900); margin-bottom: 14px; padding-bottom: 6px; border-bottom: 2px solid var(--blue-100); }
+  .section h3 { font-size: 15px; color: var(--blue-700); margin: 18px 0 10px; }
+  .section p { color: var(--gray-700); margin-bottom: 10px; font-size: 14px; }
+  code { background: var(--gray-100); padding: 1px 5px; border-radius: 3px; font-size: 12px; font-family: 'SF Mono', monospace; }
+  table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 13px; }
+  th { padding: 8px 12px; background: var(--blue-900); color: white; text-align: left; font-weight: 600; }
+  td { padding: 8px 12px; border-bottom: 1px solid var(--gray-100); color: var(--gray-700); vertical-align: top; }
+  tr:nth-child(even) { background: var(--gray-50); }
+  .mono { font-family: 'SF Mono', monospace; font-size: 12px; }
+  .code-block { background: var(--gray-900); color: #e5e7eb; border-radius: 8px; padding: 16px; font-family: 'SF Mono', monospace; font-size: 12px; line-height: 1.7; overflow-x: auto; white-space: pre; margin: 12px 0; }
+  .hl { color: #60a5fa; } .gn { color: #34d399; } .am { color: #fbbf24; } .dm { color: #6b7280; }
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; }
+  .badge-pass { background: var(--green-100); color: var(--green-700); }
+  .badge-fail { background: var(--red-100); color: var(--red-700); }
+  .summary-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin: 16px 0; }
+  .summary-card { padding: 16px; border-radius: 10px; border: 1px solid var(--gray-300); text-align: center; }
+  .summary-card .num { font-size: 28px; font-weight: 700; }
+  .summary-card .label { font-size: 12px; color: var(--gray-500); margin-top: 4px; }
+  .detail-json { background: var(--gray-50); border: 1px solid var(--gray-300); border-radius: 6px; padding: 8px 12px; font-family: 'SF Mono', monospace; font-size: 11px; max-height: 120px; overflow-y: auto; white-space: pre-wrap; word-break: break-all; color: var(--gray-700); }
+  @media (max-width: 768px) { .summary-grid { grid-template-columns: repeat(2, 1fr); } }
+</style>
+</head>
+<body>
+<div class="container">
+
+<div class="header">
+  <h1>MCP 地基验证报告</h1>
+  <div class="subtitle">EAM API 客户端 + Identifier 解析器 + Equipment Profile — 真实数据验证</div>
+  <div class="meta">
+    <span>EAM 后端: http://localhost:48080</span>
+    <span>2026-03-28</span>
+    <span>22 个测试用例</span>
+  </div>
+</div>
+
+<!-- 总览 -->
+<div class="section">
+  <h2>测试总览</h2>
+  <div class="summary-grid">
+    <div class="summary-card" style="border-color: var(--green-100);">
+      <div class="num" style="color: var(--green-700);">21</div>
+      <div class="label">通过</div>
+    </div>
+    <div class="summary-card" style="border-color: var(--red-100);">
+      <div class="num" style="color: var(--red-700);">1</div>
+      <div class="label">失败</div>
+    </div>
+    <div class="summary-card">
+      <div class="num" style="color: var(--blue-700);">165</div>
+      <div class="label">设备总数</div>
+    </div>
+    <div class="summary-card">
+      <div class="num" style="color: var(--amber-700);">72ms</div>
+      <div class="label">Profile 并行耗时</div>
+    </div>
+  </div>
+</div>
+
+<!-- 架构 -->
+<div class="section">
+  <h2>1. 地基架构</h2>
+  <div class="code-block"><span class="am">MCP 工具层地基 — 三层结构</span>
+
+<span class="hl">eam-api.ts</span>        <span class="dm">EAM REST API 客户端</span>
+  ├ <span class="gn">getToken()</span>       自动登录 + token 缓存 + 续期
+  ├ <span class="gn">eamGet(path, params)</span>  通用 GET（自动带 Authorization + tenant-id）
+  ├ <span class="gn">eamPost(path, body)</span>   通用 POST
+  └ <span class="gn">eamParallel(...calls)</span> 并行调用多个 API（Promise.allSettled）
+
+<span class="hl">resolvers.ts</span>       <span class="dm">公共 identifier 解析器（所有工具共用）</span>
+  ├ <span class="gn">resolveEquipment(identifier)</span>      设备: name/code/ID → Equipment
+  ├ <span class="gn">resolveProductionLine(identifier)</span>  产线: name/code/ID → ProductionLine
+  ├ <span class="gn">resolveDepartment(identifier)</span>     部门: name/ID → Department
+  ├ <span class="gn">getEquipmentIdsByProductionLine(lineId)</span>  产线 → 设备ID列表
+  └ <span class="gn">getEquipmentIdsByDepartment(deptId)</span>     部门 → 设备ID列表
+
+<span class="hl">handlers/equipment-profile.ts</span>  <span class="dm">第一个工具</span>
+  └ <span class="gn">eam.equipment.profile</span>  设备全景（基础+KPI+故障+维修+保养+巡检+BOM+生命周期）
+
+<span class="am">认证方式:</span>
+  POST /admin-api/system/auth/login + tenant-id header → accessToken
+  所有请求: Authorization: Bearer {token} + tenant-id header</div>
+
+  <h3>匹配策略</h3>
+  <div class="code-block"><span class="am">identifier 解析优先级:</span>
+  1. 纯数字 → 直接按 ID 查 <span class="gn">/equipment/get?id=</span>
+  2. 字符串 → keyword 搜索 <span class="gn">/equipment/page?keyword=</span>
+  3. 匹配策略: <span class="hl">exact match</span> > <span class="hl">startsWith</span> > <span class="hl">contains</span>
+  4. 唯一匹配 → 返回实体
+  5. 多个匹配 → 返回候选列表（最多 5 个），AI 追问用户
+  6. 无匹配 → 返回 none</div>
+</div>
+
+<!-- 层1: API 客户端 -->
+<div class="section">
+  <h2>2. 层1: EAM API 客户端测试</h2>
+  <table>
+    <tr><th>测试</th><th>耗时</th><th>状态</th><th>结果</th></tr>
+    <tr>
+      <td>API 登录 + Token 缓存</td>
+      <td class="mono">253ms</td>
+      <td><span class="badge badge-pass">PASS</span></td>
+      <td>首次登录含网络延迟，后续请求复用 token</td>
+    </tr>
+    <tr>
+      <td>分页查询 — 设备列表</td>
+      <td class="mono">82ms</td>
+      <td><span class="badge badge-pass">PASS</span></td>
+      <td>total=165, 返回 3 条样本（code + name + status）</td>
+    </tr>
+    <tr>
+      <td>单条查询 — 设备详情</td>
+      <td class="mono">45ms</td>
+      <td><span class="badge badge-pass">PASS</span></td>
+      <td>GET /equipment/get?id=1665 → 完整字段</td>
+    </tr>
+    <tr>
+      <td>设备 KPI</td>
+      <td class="mono">63ms</td>
+      <td><span class="badge badge-pass">PASS</span></td>
+      <td class="detail-json">{"healthScore":89,"faultCount":0,"repairCount":0,"mtbfHours":null,"mttrHours":null,"oeePercent":null,"repairCost":0,"formulaVersion":"v2.0-run-record-standard"}</td>
+    </tr>
+    <tr>
+      <td>Dashboard Summary</td>
+      <td class="mono">17ms</td>
+      <td><span class="badge badge-pass">PASS</span></td>
+      <td class="detail-json">{"totalEquipment":165,"pendingReports":55,"scrapCount":1,"runningCount":21,"totalReports":108,"completedOrders":0,"pendingOrders":28,"pendingMaintenanceTasks":3,"faultCount":1}</td>
+    </tr>
+    <tr>
+      <td>故障报修列表</td>
+      <td class="mono">49ms</td>
+      <td><span class="badge badge-pass">PASS</span></td>
+      <td>total=108, 状态分布: 待审核(55) / 待接单(26) / 已拒绝(14) / 已撤回(13)</td>
+    </tr>
+    <tr>
+      <td>维修工单列表</td>
+      <td class="mono">64ms</td>
+      <td><span class="badge badge-pass">PASS</span></td>
+      <td>total=28, 类型: CORRECTIVE / INTERNAL</td>
+    </tr>
+    <tr>
+      <td>保养任务列表</td>
+      <td class="mono">55ms</td>
+      <td><span class="badge badge-pass">PASS</span></td>
+      <td>total=3</td>
+    </tr>
+    <tr>
+      <td>巡检任务统计</td>
+      <td class="mono">18ms</td>
+      <td><span class="badge badge-pass">PASS</span></td>
+      <td>totalCount=0（暂无巡检任务数据）</td>
+    </tr>
+    <tr>
+      <td>异常记录列表</td>
+      <td class="mono">59ms</td>
+      <td><span class="badge badge-pass">PASS</span></td>
+      <td>total=121</td>
+    </tr>
+    <tr>
+      <td>备件列表</td>
+      <td class="mono">21ms</td>
+      <td><span class="badge badge-fail">FAIL</span></td>
+      <td style="color: var(--red-700);">404 — 路径 /eam/spare-part/page 不存在。需要确认正确的 API 路径（可能是 /eam/spare/part/page）</td>
+    </tr>
+    <tr>
+      <td>故障报修状态统计</td>
+      <td class="mono">19ms</td>
+      <td><span class="badge badge-pass">PASS</span></td>
+      <td class="detail-json">[{"status":0,"count":55},{"status":1,"count":26},{"status":7,"count":14},{"status":8,"count":13}]</td>
+    </tr>
+    <tr>
+      <td>维修工单状态统计</td>
+      <td class="mono">8ms</td>
+      <td><span class="badge badge-pass">PASS</span></td>
+      <td class="detail-json">[{"status":0,"count":28}]</td>
+    </tr>
+    <tr>
+      <td>并行调用 (eamParallel)</td>
+      <td class="mono">22ms</td>
+      <td><span class="badge badge-pass">PASS</span></td>
+      <td>3 个 API 并行调用仅 22ms（dashboard + faultStats + repairStats）</td>
+    </tr>
+  </table>
+</div>
+
+<!-- 层2: Resolver -->
+<div class="section">
+  <h2>3. 层2: Identifier 解析器测试</h2>
+  <table>
+    <tr><th>测试</th><th>输入</th><th>耗时</th><th>状态</th><th>结果</th></tr>
+    <tr>
+      <td>设备 by 精确编号</td>
+      <td class="mono">E2E-1774508453124-q8m2i</td>
+      <td class="mono">40ms</td>
+      <td><span class="badge badge-pass">PASS</span></td>
+      <td><strong>match: exact</strong> → E2E-CHG-1774508453101-设备</td>
+    </tr>
+    <tr>
+      <td>设备 by 数字 ID</td>
+      <td class="mono">1665</td>
+      <td class="mono">30ms</td>
+      <td><span class="badge badge-pass">PASS</span></td>
+      <td><strong>match: exact</strong> → 直接 GET by ID</td>
+    </tr>
+    <tr>
+      <td>设备 by 模糊关键字</td>
+      <td class="mono">EQ</td>
+      <td class="mono">22ms</td>
+      <td><span class="badge badge-pass">PASS</span></td>
+      <td><strong>match: candidates</strong> → 返回 5 个候选（EQ202603260144 等）</td>
+    </tr>
+    <tr>
+      <td>设备 not found</td>
+      <td class="mono">ZZZZZ_NOT_EXIST</td>
+      <td class="mono">31ms</td>
+      <td><span class="badge badge-pass">PASS</span></td>
+      <td><strong>match: none</strong> → 正确返回未找到</td>
+    </tr>
+    <tr>
+      <td>部门 by 名称</td>
+      <td class="mono">研发</td>
+      <td class="mono">35ms</td>
+      <td><span class="badge badge-pass">PASS</span></td>
+      <td><strong>match: exact</strong> → 研发部门 (id=103, parentId=101)</td>
+    </tr>
+    <tr>
+      <td>产线 by 关键字</td>
+      <td class="mono">线</td>
+      <td class="mono">46ms</td>
+      <td><span class="badge badge-pass">PASS</span></td>
+      <td><strong>match: none</strong> → 当前无产线数据（keyword 搜索无结果）</td>
+    </tr>
+  </table>
+  <p style="font-size: 13px; color: var(--gray-500); margin-top: 8px;">注: 产线返回 none 是因为当前数据库中没有产线数据（E2E 测试环境），不是代码问题。</p>
+</div>
+
+<!-- 层3: Equipment Profile -->
+<div class="section">
+  <h2>4. 层3: Equipment Profile 端到端验证</h2>
+
+  <h3>concise 模式</h3>
+  <table>
+    <tr><th>测试</th><th>耗时</th><th>状态</th><th>结果</th></tr>
+    <tr>
+      <td>resolve + 基础信息 + KPI</td>
+      <td class="mono">57ms</td>
+      <td><span class="badge badge-pass">PASS</span></td>
+      <td>
+        <div class="detail-json">{
+  "mode": "concise",
+  "equipment": {"code":"E2E-1774508453124-q8m2i","name":"E2E-CHG-1774508453101-设备","status":0},
+  "kpi": {"healthScore":89,"faultCount":0,"repairCount":0,"mtbfHours":null,"oeePercent":null,"repairCost":0}
+}</div>
+      </td>
+    </tr>
+  </table>
+
+  <h3>detailed 模式（并行 6 个 API）</h3>
+  <table>
+    <tr><th>测试</th><th>耗时</th><th>状态</th><th>结果</th></tr>
+    <tr>
+      <td>resolve + 并行调用 + 聚合</td>
+      <td class="mono">95ms (并行 72ms)</td>
+      <td><span class="badge badge-pass">PASS</span></td>
+      <td>
+        <div class="detail-json">{
+  "mode": "detailed",
+  "parallelMs": 72,
+  "equipment": {"code":"E2E-1773660550557-qmiyp","name":"E2E-DEL-1773660550413-运行中"},
+  "hasKpi": true,
+  "lifecycleEvents": 2,
+  "faultCount": 0,
+  "repairCount": 0,
+  "maintenanceCount": 0,
+  "hasPatrol": true
+}</div>
+      </td>
+    </tr>
+  </table>
+  <p><strong>性能数据:</strong> 6 个 API 并行调用仅 72ms。单个 profile 端到端 95ms（含 resolve 23ms）。</p>
+</div>
+
+<!-- 真实数据概览 -->
+<div class="section">
+  <h2>5. EAM 真实数据概览</h2>
+  <table>
+    <tr><th>域</th><th>数据量</th><th>API 状态</th><th>备注</th></tr>
+    <tr><td>设备 Equipment</td><td><strong>165 台</strong></td><td><span class="badge badge-pass">✅</span></td><td>含 E2E 测试数据，21 台运行中</td></tr>
+    <tr><td>故障报修 FaultReport</td><td><strong>108 条</strong></td><td><span class="badge badge-pass">✅</span></td><td>55 待审核 / 26 待接单</td></tr>
+    <tr><td>维修工单 RepairOrder</td><td><strong>28 条</strong></td><td><span class="badge badge-pass">✅</span></td><td>全部待分配(status=0)</td></tr>
+    <tr><td>保养任务 Maintenance</td><td><strong>3 条</strong></td><td><span class="badge badge-pass">✅</span></td><td></td></tr>
+    <tr><td>巡检任务 Patrol</td><td><strong>0 条</strong></td><td><span class="badge badge-pass">✅</span></td><td>API 正常，暂无数据</td></tr>
+    <tr><td>异常记录 Anomaly</td><td><strong>121 条</strong></td><td><span class="badge badge-pass">✅</span></td><td></td></tr>
+    <tr><td>备件 SparePart</td><td>—</td><td><span class="badge badge-fail">❌</span></td><td>API 路径需确认（/spare-part/page → /spare/part/page?）</td></tr>
+    <tr><td>Dashboard</td><td>—</td><td><span class="badge badge-pass">✅</span></td><td>全局统计正常</td></tr>
+    <tr><td>KPI</td><td>—</td><td><span class="badge badge-pass">✅</span></td><td>健康分、故障数、修复时间等</td></tr>
+    <tr><td>生命周期</td><td>—</td><td><span class="badge badge-pass">✅</span></td><td>有 2 个事件（测试设备）</td></tr>
+  </table>
+</div>
+
+<!-- 待修复 -->
+<div class="section">
+  <h2>6. 待修复</h2>
+  <table>
+    <tr><th>问题</th><th>影响</th><th>解法</th></tr>
+    <tr>
+      <td style="color: var(--red-700);"><strong>/eam/spare-part/page 404</strong></td>
+      <td>eam.spare.search 无法工作</td>
+      <td>确认正确路径。可能是 <code>/eam/spare/part/page</code>（带 spare/ 前缀）。需要查 EAM 后端 Controller 路径。</td>
+    </tr>
+    <tr>
+      <td style="color: var(--amber-700);">产线数据为空</td>
+      <td>resolveProductionLine 测试无法验证真实匹配</td>
+      <td>在 EAM 后端创建产线测试数据，或等真实环境。不影响代码正确性。</td>
+    </tr>
+  </table>
+</div>
+
+<!-- 下一步 -->
+<div class="section">
+  <h2>7. 下一步</h2>
+  <table>
+    <tr><th>阶段</th><th>内容</th><th>状态</th></tr>
+    <tr><td><strong>Phase 1</strong></td><td>EAM API 客户端 + Resolver + Equipment Profile</td><td><span class="badge badge-pass">✅ 完成</span></td></tr>
+    <tr><td><strong>Phase 1</strong></td><td>eam.dashboard 实现</td><td>待做</td></tr>
+    <tr><td><strong>Phase 2</strong></td><td>eam.repair.profile + 4 个 search 工具</td><td>待做</td></tr>
+    <tr><td><strong>Phase 3</strong></td><td>剩余 search 工具</td><td>待做</td></tr>
+    <tr><td><strong>Phase 4</strong></td><td>scope.overview + patrol.search + trend</td><td>待做</td></tr>
+  </table>
+</div>
+
+</div>
+</body>
+</html>
