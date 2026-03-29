@@ -113,6 +113,7 @@ ${toolDescriptions}
     const response = await this.client.chat.completions.create({
       model: this.model,
       temperature: 0.3,
+      max_completion_tokens: 4096,
       messages: [
         { role: 'system', content: `你是工厂管理系统的数据解读助手。用管理者听得懂的业务语言回答问题。
 
@@ -157,6 +158,7 @@ followUp（3-5 个后续探索方向）：
     const response = await this.client.chat.completions.create({
       model: modelOverride || this.model,
       temperature: 0,
+      max_completion_tokens: 4096,
       messages: messages.map(m => ({
         role: m.role as 'system' | 'user' | 'assistant',
         content: m.content,
