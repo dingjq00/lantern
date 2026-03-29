@@ -217,12 +217,13 @@ const BENCHMARK_MODELS: ModelConfig[] = [
     apiKey: process.env.LLM_API_KEY || 'sk-mes-ai-explorer-2026',
     model: 'deepseek-chat',
   },
-  {
-    name: 'GPT-4.1',
-    baseURL: 'https://models.github.ai/inference',
-    apiKey: process.env.GITHUB_MODELS_TOKEN || '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',
-    model: 'openai/gpt-4.1',
-  },
+  // GPT-4.1 暂时关闭 — GitHub Models API rate limit 太严，每次跑 30 分钟还跑不完
+  // {
+  //   name: 'GPT-4.1',
+  //   baseURL: 'https://models.github.ai/inference',
+  //   apiKey: process.env.GITHUB_MODELS_TOKEN || 'github_pat_...',
+  //   model: 'openai/gpt-4.1',
+  // },
 ]
 
 async function runBenchmarkForModel(
