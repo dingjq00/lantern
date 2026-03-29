@@ -20,6 +20,8 @@ import { loadTools } from '../lib/tools/yaml-loader'
 import { MCPClient } from '../lib/tools/mcp-client'
 import path from 'path'
 
+import { EDHR_TEST_CASES } from '../data/edhr-test-cases.js'
+
 const CONCURRENCY = 5  // 降低并发，真实 API 别打太猛
 
 // 所有题目通用的禁用词 — Summarize 层不允许出现的技术废话
@@ -91,6 +93,8 @@ const TEST_CASES: TestCase[] = [
   { id: 'T38', query: '近半年维修频次最高的 3 台设备，各自的平均维修周期是多少？', level: 'L5', acceptablePaths: [['eam.repair.search']] },
   { id: 'T39', query: '备件月消耗量环比分析，哪些备件用量在持续上升？', level: 'L5', acceptablePaths: [['eam.trend'], ['eam.repair.search']] },
   { id: 'T40', query: '近 6 个月巡检异常率变化趋势，有没有季节性规律？', level: 'L5', acceptablePaths: [['eam.trend']] },
+  // EDHR 35 题（自动合并）
+  ...EDHR_TEST_CASES,
 ]
 
 interface BenchmarkResult {
@@ -384,8 +388,10 @@ async function runBenchmarkForModel(
 
 async function main() {
   const notes = process.argv[2] || 'multi-model benchmark'
-  console.log(`=== Insight68 Benchmark v3 — 多模型对比 ===`)
-  console.log(`测试集: ${TEST_CASES.length} 题, 模型: ${BENCHMARK_MODELS.map(m => m.name).join(' + ')}\n`)
+  const eamCount = 40
+  const edhrCount = EDHR_TEST_CASES.length
+  console.log(`=== Insight68 Benchmark v3 — 多模型 × 多系统 ===`)
+  console.log(`测试集: ${TEST_CASES.length} 题 (EAM ${eamCount} + EDHR ${edhrCount}), 模型: ${BENCHMARK_MODELS.map(m => m.name).join(' + ')}\n`)
 
   // 共享资源初始化
   const skillsDir = path.join(__dirname, '../skills')
