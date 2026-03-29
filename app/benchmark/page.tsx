@@ -14,6 +14,8 @@ interface RunDetail {
     total: number; success: number; recall: number; precision: number; perfectCount: number
     byLevel: Record<string, { recall: number; perfect: number; count: number; avgLatency: number; avgRounds: number }>
     sourcesCoverage: number; latencyP50: number; latencyP95: number
+    // v3 三层评估
+    factScore?: number; factAsserted?: number; forbiddenViolations?: number; followUpScore?: number
   }
   results: Array<{
     id: string; query: string; level: string; success: boolean
@@ -192,14 +194,14 @@ export default function BenchmarkDashboard() {
         {/* 运行详情 */}
         {tab === 'benchmark' && selectedRun && (
           <>
-            {/* 概览卡片 */}
+            {/* 概览卡片 — 三层评估 */}
             <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3 mb-6">
               {[
-                { label: 'Recall', value: `${(selectedRun.summary.recall * 100).toFixed(1)}%`, color: selectedRun.summary.recall >= 0.9 ? '#22C55E' : '#F59E0B' },
-                { label: 'Precision', value: `${(selectedRun.summary.precision * 100).toFixed(1)}%`, color: '#4472C4' },
+                { label: '① 工具 Recall', value: `${(selectedRun.summary.recall * 100).toFixed(1)}%`, color: selectedRun.summary.recall >= 0.9 ? '#22C55E' : '#F59E0B' },
+                { label: '② 事实得分', value: selectedRun.summary.factScore != null ? `${(selectedRun.summary.factScore * 100).toFixed(0)}%` : '-', color: (selectedRun.summary.factScore ?? 0) >= 0.8 ? '#22C55E' : (selectedRun.summary.factScore ?? 0) >= 0.5 ? '#F59E0B' : '#EF4444' },
+                { label: '③ FollowUp', value: selectedRun.summary.followUpScore != null ? `${(selectedRun.summary.followUpScore * 100).toFixed(0)}%` : '-', color: (selectedRun.summary.followUpScore ?? 0) >= 0.8 ? '#22C55E' : '#F59E0B' },
+                { label: '禁用词违规', value: selectedRun.summary.forbiddenViolations != null ? `${selectedRun.summary.forbiddenViolations}题` : '-', color: (selectedRun.summary.forbiddenViolations ?? 0) > 0 ? '#EF4444' : '#22C55E' },
                 { label: '完美召回', value: `${selectedRun.summary.perfectCount}/${selectedRun.summary.total}`, color: '#4472C4' },
-                { label: 'Sources', value: `${(selectedRun.summary.sourcesCoverage * 100).toFixed(0)}%`, color: '#22C55E' },
-                { label: 'P50 延迟', value: `${(selectedRun.summary.latencyP50 / 1000).toFixed(1)}s`, color: '#666' },
                 { label: '模型', value: selectedRun.config.model, color: '#666' },
               ].map(card => (
                 <div key={card.label} className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
@@ -415,6 +417,30 @@ function RunDetailPanel({ result: r }: { result: any }) {
         <div className={`px-3 py-1.5 rounded-lg text-xs ${r.lessonEval.quality === 'good' ? 'bg-green-50 text-green-700 border border-green-200' : r.lessonEval.quality === 'bad' ? 'bg-red-50 text-red-700 border border-red-200' : 'bg-amber-50 text-amber-700 border border-amber-200'}`}>
           Subagent: {r.lessonEval.quality === 'good' ? '✅' : r.lessonEval.quality === 'bad' ? '❌' : '⚠️'} {r.lessonEval.reason}
           {r.lessonEval.lesson && <div className="mt-0.5 opacity-80">教训: {r.lessonEval.lesson}</div>}
+        </div>
+      )}
+
+      {/* ⑥b 事实层 + followUp 检查 (v3) */}
+      {(r.factCheck || r.followUpCheck) && (
+        <div className="flex flex-wrap gap-2 text-xs">
+          {r.factCheck && r.factCheck.mustTotal > 0 && (
+            <span className={`px-2 py-1 rounded border ${r.factCheck.score >= 0.8 ? 'bg-green-50 text-green-700 border-green-200' : r.factCheck.score >= 0.5 ? 'bg-amber-50 text-amber-700 border-amber-200' : 'bg-red-50 text-red-700 border-red-200'}`}>
+              事实 {r.factCheck.mustHit}/{r.factCheck.mustTotal}
+              {r.factCheck.shouldTotal > 0 && ` (+${r.factCheck.shouldHit}/${r.factCheck.shouldTotal})`}
+            </span>
+          )}
+          {r.factCheck?.forbiddenHit?.length > 0 && (
+            <span className="px-2 py-1 rounded border bg-red-50 text-red-700 border-red-200">
+              ⛔ {r.factCheck.forbiddenHit.join(', ')}
+            </span>
+          )}
+          {r.followUpCheck && (
+            <span className={`px-2 py-1 rounded border ${r.followUpCheck.score >= 0.8 ? 'bg-green-50 text-green-700 border-green-200' : 'bg-amber-50 text-amber-700 border-amber-200'}`}>
+              followUp {r.followUpCheck.count}条
+              {r.followUpCheck.hasQuestionMark && ' ⚠️问句'}
+              {r.followUpCheck.relatedTotal > 0 && ` 域${r.followUpCheck.relatedHit}/${r.followUpCheck.relatedTotal}`}
+            </span>
+          )}
         </div>
       )}
 

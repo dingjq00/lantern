@@ -22,19 +22,36 @@ import path from 'path'
 
 const CONCURRENCY = 5  // 降低并发，真实 API 别打太猛
 
-// 40 题测试集 — Ground Truth v2: 可接受路径列表（多条合理路径取最高匹配）
+// 所有题目通用的禁用词 — Summarize 层不允许出现的技术废话
+const GLOBAL_FORBIDDEN = ['数据不足', '无法回答', '数据不完整', '暂无数据']
+
+// 40 题测试集 — Ground Truth v3: 工具层 + 事实层 + followUp 层
 // acceptablePaths[0] 是首选路径，其余是同样合理的替代路径
 interface TestCase {
   id: string; query: string; level: string
   acceptablePaths: string[][]  // 多条合理路径
+  // ---- v3 事实层断言（等参考答案产出后填入） ----
+  mustContain?: string[]       // 答案必须包含的关键词/数字
+  shouldContain?: string[]     // 最好包含（不扣分）
+  forbidden?: string[]         // 除 GLOBAL_FORBIDDEN 外的额外禁用词
+  // ---- v3 followUp 断言 ----
+  followUp?: {
+    minCount?: number          // 最少数量，默认 3
+    shouldRelate?: string[]    // 后续建议应包含的域关键词
+  }
 }
 const TEST_CASES: TestCase[] = [
-  // L1 — 简单查询
-  { id: 'T01', query: '现在系统里一共有多少台设备？', level: 'L1', acceptablePaths: [['eam.dashboard']] },
-  { id: 'T02', query: '当前有几个待审核的故障报修？', level: 'L1', acceptablePaths: [['eam.dashboard'], ['eam.fault.search']] },
-  { id: 'T03', query: '设备 EQ-001 的详细信息是什么？', level: 'L1', acceptablePaths: [['eam.equipment.profile']] },
-  { id: 'T04', query: '各状态的设备数量分布是怎样的？', level: 'L1', acceptablePaths: [['eam.dashboard'], ['eam.equipment.search']] },
-  { id: 'T05', query: '最近 30 天的故障趋势怎么样？', level: 'L1', acceptablePaths: [['eam.trend']] },
+  // L1 — 简单查询（事实断言示例 — 等真实数据到位后更新数字）
+  { id: 'T01', query: '现在系统里一共有多少台设备？', level: 'L1', acceptablePaths: [['eam.dashboard']],
+    mustContain: ['165'], shouldContain: ['运行中'], followUp: { minCount: 3, shouldRelate: ['设备', '故障'] } },
+  { id: 'T02', query: '当前有几个待审核的故障报修？', level: 'L1', acceptablePaths: [['eam.dashboard'], ['eam.fault.search']],
+    mustContain: ['55'], followUp: { minCount: 3, shouldRelate: ['故障', '报修'] } },
+  { id: 'T03', query: '设备 EQ-001 的详细信息是什么？', level: 'L1', acceptablePaths: [['eam.equipment.profile']],
+    forbidden: ['查询失败'] },
+  { id: 'T04', query: '各状态的设备数量分布是怎样的？', level: 'L1', acceptablePaths: [['eam.dashboard'], ['eam.equipment.search']],
+    mustContain: ['139', '21'], shouldContain: ['待验收', '运行中'], followUp: { minCount: 3, shouldRelate: ['设备', '状态'] } },
+  { id: 'T05', query: '最近 30 天的故障趋势怎么样？', level: 'L1', acceptablePaths: [['eam.trend']],
+    mustContain: ['108'], followUp: { minCount: 3, shouldRelate: ['故障', '趋势'] } },
   { id: 'T06', query: '巡检异常的整体统计指标是什么？', level: 'L1', acceptablePaths: [['eam.dashboard'], ['eam.anomaly.search'], ['eam.patrol.search']] },
   { id: 'T07', query: '当前有哪些库存预警？', level: 'L1', acceptablePaths: [['eam.spare.search'], ['eam.dashboard']] },
   { id: 'T08', query: '我有哪些待办事项？', level: 'L1', acceptablePaths: [['eam.dashboard']] },
@@ -85,6 +102,20 @@ interface BenchmarkResult {
   followUp?: string[]; sources?: Array<{ tool: string; description: string }>
   lessonEval?: { quality: string; reason: string; lesson: string }
   error?: string
+  // v3 三层评估
+  factCheck?: {
+    mustHit: number; mustTotal: number       // mustContain 命中
+    shouldHit: number; shouldTotal: number   // shouldContain 命中
+    forbiddenHit: string[]                   // 违规词列表
+    score: number                            // 0-1 事实得分
+  }
+  followUpCheck?: {
+    count: number                            // followUp 实际数量
+    minRequired: number                      // 最低要求
+    hasQuestionMark: boolean                 // 包含问号（不好）
+    relatedHit: number; relatedTotal: number // 域关键词命中
+    score: number                            // 0-1 followUp 得分
+  }
 }
 
 /**
@@ -122,6 +153,48 @@ function calcBestMatch(actual: string[], acceptablePaths: string[][]): { recall:
   return { recall: bestRecall, precision: bestPrecision, bestPath }
 }
 
+/** 事实层断言检查 — answer 中是否包含关键数字/关键词 */
+function checkFacts(answer: string, tc: TestCase): BenchmarkResult['factCheck'] {
+  const must = tc.mustContain ?? []
+  const should = tc.shouldContain ?? []
+  const extra = tc.forbidden ?? []
+  const allForbidden = [...GLOBAL_FORBIDDEN, ...extra]
+
+  const mustHit = must.filter(k => answer.includes(k)).length
+  const shouldHit = should.filter(k => answer.includes(k)).length
+  const forbiddenHit = allForbidden.filter(k => answer.includes(k))
+
+  // 得分: mustContain 命中率 * 禁用词惩罚
+  const mustScore = must.length > 0 ? mustHit / must.length : 1
+  const penalty = Math.min(forbiddenHit.length * 0.3, 1)  // 每个违规 -30%，上限扣完
+  const score = Math.max(0, mustScore * (1 - penalty))
+
+  return { mustHit, mustTotal: must.length, shouldHit, shouldTotal: should.length, forbiddenHit, score }
+}
+
+/** followUp 断言检查 — 数量、格式、域相关性 */
+function checkFollowUp(followUp: string[] | undefined, tc: TestCase): BenchmarkResult['followUpCheck'] {
+  const items = followUp ?? []
+  const minRequired = tc.followUp?.minCount ?? 3
+  const shouldRelate = tc.followUp?.shouldRelate ?? []
+
+  const count = items.length
+  const hasQuestionMark = items.some(f => f.includes('?') || f.includes('？'))
+
+  // 域关键词：followUp 中至少一条包含该关键词即算命中
+  const relatedHit = shouldRelate.filter(keyword =>
+    items.some(f => f.includes(keyword))
+  ).length
+
+  // 得分: 数量达标(40%) + 无问号(20%) + 域相关(40%)
+  const countScore = count >= minRequired ? 1 : count / minRequired
+  const formatScore = hasQuestionMark ? 0 : 1
+  const relatedScore = shouldRelate.length > 0 ? relatedHit / shouldRelate.length : 1
+  const score = countScore * 0.4 + formatScore * 0.2 + relatedScore * 0.4
+
+  return { count, minRequired, hasQuestionMark, relatedHit, relatedTotal: shouldRelate.length, score }
+}
+
 async function main() {
   const currentModel = process.env.LLM_MODEL || 'gpt-5.4-mini'
   console.log(`=== Insight68 Benchmark v2 | 模型: ${currentModel} ===`)
@@ -157,6 +230,10 @@ async function main() {
         result.trace?.rounds.flatMap((r: any) => r.calls.map((c: any) => c.tool)) ?? []
       )]
       const { recall, precision, bestPath } = calcBestMatch(actualTools, tc.acceptablePaths)
+      // v3: 事实层 + followUp 断言检查
+      const factCheck = checkFacts(result.answer || '', tc)
+      const followUpCheck = checkFollowUp(result.followUp, tc)
+
       done++
       const r: BenchmarkResult = {
         id: tc.id, query: tc.query, level: tc.level, success: true,
@@ -167,10 +244,13 @@ async function main() {
         data: result.data, display: result.display, columns: result.columns,
         followUp: result.followUp, sources: result.sources,
         lessonEval: result.lessonEval,
+        factCheck, followUpCheck,
       }
       results.push(r)
       const recallStr = recall === 1 ? '✅' : `⚠️${(recall * 100).toFixed(0)}%`
-      console.log(`[${done}/${TEST_CASES.length}] ${tc.id} ${tc.level} ${recallStr} ${latencyMs}ms ${tc.query.slice(0, 25)}...`)
+      const factStr = factCheck.mustTotal > 0 ? ` F:${factCheck.mustHit}/${factCheck.mustTotal}` : ''
+      const forbidStr = factCheck.forbiddenHit.length > 0 ? ` ⛔${factCheck.forbiddenHit.length}` : ''
+      console.log(`[${done}/${TEST_CASES.length}] ${tc.id} ${tc.level} ${recallStr}${factStr}${forbidStr} ${latencyMs}ms ${tc.query.slice(0, 25)}...`)
     } catch (err) {
       done++
       results.push({
@@ -221,12 +301,40 @@ async function main() {
     console.log(`${level}: recall=${(lvlRecall * 100).toFixed(1)}% perfect=${lvlPerfect}/${items.length} avg=${avgLatency}ms`)
   }
 
+  // v3: 事实层 + followUp 统计
+  const withFacts = successful.filter(r => r.factCheck && r.factCheck.mustTotal > 0)
+  const avgFactScore = withFacts.length ? withFacts.reduce((s, r) => s + r.factCheck!.score, 0) / withFacts.length : 0
+  const forbiddenViolations = successful.filter(r => r.factCheck && r.factCheck.forbiddenHit.length > 0)
+  const withFollowUp = successful.filter(r => r.followUpCheck)
+  const avgFollowUpScore = withFollowUp.length ? withFollowUp.reduce((s, r) => s + r.followUpCheck!.score, 0) / withFollowUp.length : 0
+
+  console.log('\n--- 三层评估 (v3) ---')
+  console.log(`① 工具层 Recall: ${(avgRecall * 100).toFixed(1)}% (${perfectRecall}/${successful.length} 完美)`)
+  console.log(`② 事实层 FactScore: ${(avgFactScore * 100).toFixed(1)}% (${withFacts.length} 题有断言)`)
+  console.log(`  禁用词违规: ${forbiddenViolations.length} 题`)
+  if (forbiddenViolations.length > 0) {
+    for (const r of forbiddenViolations) {
+      console.log(`    ${r.id}: [${r.factCheck!.forbiddenHit.join(', ')}]`)
+    }
+  }
+  console.log(`③ FollowUp: ${(avgFollowUpScore * 100).toFixed(1)}% (数量+格式+域相关性)`)
+
   // 未完美召回
   const imperfect = successful.filter(r => r.recall < 1)
   if (imperfect.length > 0) {
     console.log('\n--- 未完美召回的题目 ---')
     for (const r of imperfect) {
       console.log(`${r.id} ${r.level}: recall=${(r.recall * 100).toFixed(0)}% actual=[${r.actualTools.join(', ')}] expected=[${r.expectedTools.join(', ')}]`)
+    }
+  }
+
+  // 事实层未通过的题目
+  const factFails = withFacts.filter(r => r.factCheck!.score < 1)
+  if (factFails.length > 0) {
+    console.log('\n--- 事实断言未通过 ---')
+    for (const r of factFails) {
+      const fc = r.factCheck!
+      console.log(`${r.id}: score=${(fc.score * 100).toFixed(0)}% must=${fc.mustHit}/${fc.mustTotal} forbidden=[${fc.forbiddenHit.join(',')}]`)
     }
   }
 
@@ -246,6 +354,11 @@ async function main() {
       summary: {
         total: results.length, success: successful.length,
         recall: avgRecall, precision: avgPrecision, perfectCount: perfectRecall,
+        // v3 三层指标
+        factScore: avgFactScore,
+        factAsserted: withFacts.length,
+        forbiddenViolations: forbiddenViolations.length,
+        followUpScore: avgFollowUpScore,
         byLevel: Object.fromEntries([...byLevel.entries()].map(([level, items]) => {
           const succ = items.filter(r => r.success)
           return [level, {
