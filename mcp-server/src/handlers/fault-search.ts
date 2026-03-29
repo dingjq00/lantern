@@ -33,8 +33,11 @@ export function registerFaultSearch(server: McpServer) {
       if (args.status !== undefined) params.status = args.status
       if (args.urgency !== undefined) params.urgency = args.urgency
       if (args.dateRange) {
-        params.startTime = args.dateRange.from
-        params.endTime = args.dateRange.to
+        // API 要求完整 datetime 格式，纯日期会 400
+        const ensureTime = (s: string, end = false) =>
+          s.includes('T') || s.includes(' ') ? s : s + (end ? ' 23:59:59' : ' 00:00:00')
+        params.startTime = ensureTime(args.dateRange.from)
+        params.endTime = ensureTime(args.dateRange.to, true)
       }
 
       // 产线/部门过滤 — 通用 resolveScope

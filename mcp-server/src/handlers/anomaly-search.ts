@@ -38,8 +38,11 @@ export function registerAnomalySearch(server: McpServer) {
       if (args.severity !== undefined) params.severity = args.severity
       if (args.source) params.source = args.source
       if (args.dateRange) {
-        params.createTimeStart = args.dateRange.from
-        params.createTimeEnd = args.dateRange.to
+        // API 要求完整 datetime 格式，纯日期会 400
+        const ensureTime = (s: string, end = false) =>
+          s.includes('T') || s.includes(' ') ? s : s + (end ? ' 23:59:59' : ' 00:00:00')
+        params.createTimeStart = ensureTime(args.dateRange.from)
+        params.createTimeEnd = ensureTime(args.dateRange.to, true)
       }
 
       // 产线/部门过滤 — 通用 resolveScope

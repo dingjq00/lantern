@@ -1,7 +1,7 @@
 // eam.repair.search — 维修工单搜索（中等丰富度）
 import { z } from 'zod'
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
-import { eamSearch, eamGet, eamParallel, type RepairOrder } from '../eam-api.js'
+import { eamSearch, eamGet, eamGetAll, eamParallel, type RepairOrder } from '../eam-api.js'
 import { resolveEquipment, resolveScope, enrichGroupNames } from '../resolvers.js'
 import { textResult } from '../shared.js'
 
@@ -35,31 +35,55 @@ export function registerRepairSearch(server: McpServer) {
       if (scope.type === 'error') return textResult(scope.response)
       const scopeEquipmentIds = scope.type === 'ids' ? scope.ids : null
 
-      const result = await eamSearch<RepairOrder>('/eam/repair-order/page', params, {
-        groupBy: args.groupBy,
-        groupKeyFn: (r, gb) => gb === 'equipment' ? String(r.equipmentId)
-          : gb === 'orderType' ? (r.orderType ?? '未知')
-          : REPAIR_STATUS[r.status] ?? String(r.status),
-        limit: args.limit,
-      })
+      // 需要内存过滤（产线/部门/orderType/dateRange）时拉全量再过滤
+      // API 不支持这些参数，page 1 只有最�� 20 条，会漏掉历史数据
+      const needFullScan = !!(scopeEquipmentIds || args.orderType || args.dateRange) && !args.groupBy
 
-      let { list, total } = result
-      // 内存过滤: 产线/部门、orderType、dateRange（API 不原生支持）
-      if (scopeEquipmentIds) list = list.filter(r => scopeEquipmentIds!.includes(r.equipmentId))
-      if (args.orderType) list = list.filter(r => r.orderType === args.orderType)
-      if (args.dateRange) {
-        const from = new Date(args.dateRange.from).getTime()
-        const to = new Date(args.dateRange.to).getTime()
-        list = list.filter(r => {
-          const t = (r as any).createTime
-          return t >= from && t <= to
+      let list: RepairOrder[]
+      let total: number
+
+      if (needFullScan) {
+        // 全量拉取 + 内存过滤
+        const all = await eamGetAll<RepairOrder>('/eam/repair-order/page', args.status !== undefined ? { status: args.status } : {})
+        list = all
+        if (scopeEquipmentIds) list = list.filter(r => scopeEquipmentIds!.includes(r.equipmentId))
+        if (args.orderType) list = list.filter(r => r.orderType === args.orderType)
+        if (args.dateRange) {
+          const from = new Date(args.dateRange.from).getTime()
+          const to = new Date(args.dateRange.to).getTime()
+          list = list.filter(r => {
+            const t = (r as any).createTime
+            return t >= from && t <= to
+          })
+        }
+        total = list.length
+        list = list.slice(0, args.limit) // 截断到 limit
+      } else {
+        // groupBy 模式或无内存过滤 — 使用 eamSearch（groupBy 时自动全量拉取）
+        const result = await eamSearch<RepairOrder>('/eam/repair-order/page', params, {
+          groupBy: args.groupBy,
+          groupKeyFn: (r, gb) => gb === 'equipment' ? String(r.equipmentId)
+            : gb === 'orderType' ? (r.orderType ?? '未知')
+            : REPAIR_STATUS[r.status] ?? String(r.status),
+          limit: args.limit,
         })
-      }
-      if (scopeEquipmentIds || args.orderType || args.dateRange) total = list.length
 
-      if (result.groups) {
-        const enrichedGroups = await enrichGroupNames(result.groups, args.groupBy!)
-        return textResult({ total, groupBy: args.groupBy, groups: enrichedGroups })
+        list = result.list
+        total = result.total
+        // groupBy + 内存过滤
+        if (scopeEquipmentIds) { list = list.filter(r => scopeEquipmentIds!.includes(r.equipmentId)); total = list.length }
+        if (args.orderType) { list = list.filter(r => r.orderType === args.orderType); total = list.length }
+        if (args.dateRange) {
+          const from = new Date(args.dateRange.from).getTime()
+          const to = new Date(args.dateRange.to).getTime()
+          list = list.filter(r => { const t = (r as any).createTime; return t >= from && t <= to })
+          total = list.length
+        }
+
+        if (result.groups) {
+          const enrichedGroups = await enrichGroupNames(result.groups, args.groupBy!)
+          return textResult({ total, groupBy: args.groupBy, groups: enrichedGroups })
+        }
       }
 
       // concise: 不做丰富化
