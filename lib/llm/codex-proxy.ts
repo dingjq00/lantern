@@ -39,6 +39,8 @@ const DEFAULT_MODEL = process.env.LLM_MODEL || 'gpt-5.4-mini'
 export class CodexProxyProvider implements LLMProvider {
   private client: OpenAI
   private model: string
+  /** 推理模型（GPT-5-mini/o1/o3）不支持 temperature 和 response_format */
+  private isReasoningModel: boolean
 
   constructor(baseURL?: string, apiKey?: string, model?: string) {
     this.client = new OpenAI({
@@ -46,6 +48,7 @@ export class CodexProxyProvider implements LLMProvider {
       apiKey: apiKey || DEFAULT_API_KEY,
     })
     this.model = model || DEFAULT_MODEL
+    this.isReasoningModel = /gpt-5-mini|gpt-5\.0-mini|\/o[13]/i.test(this.model)
   }
 
   async route(prompt: string, tools: ToolDefinition[]): Promise<RouteResult> {
@@ -112,7 +115,7 @@ ${toolDescriptions}
   async summarize(data: unknown, question: string, formatHint: DisplayFormat): Promise<SummarizeResult> {
     const response = await this.client.chat.completions.create({
       model: this.model,
-      temperature: 0.3,
+      ...(!this.isReasoningModel && { temperature: 0.3 }),
       max_completion_tokens: 4096,
       messages: [
         { role: 'system', content: `你是工厂管理系统的数据解读助手。用管理者听得懂的业务语言回答问题。
@@ -141,7 +144,7 @@ followUp（3-5 个后续探索方向）：
 数据展示类型参考: ${formatHint}` },
         { role: 'user', content: `问题: ${question}\n数据: ${JSON.stringify(data)}` },
       ],
-      response_format: { type: 'json_object' },
+      ...(!this.isReasoningModel && { response_format: { type: 'json_object' as const } }),
     })
 
     const content = response.choices[0]?.message?.content || '{}'
@@ -155,15 +158,17 @@ followUp（3-5 个后续探索方向）：
   }
 
   async think(messages: Array<{ role: string; content: string }>, modelOverride?: string): Promise<ThinkResult> {
+    const useModel = modelOverride || this.model
+    const isReasoning = modelOverride ? /gpt-5-mini|gpt-5\.0-mini|\/o[13]/i.test(modelOverride) : this.isReasoningModel
     const response = await this.client.chat.completions.create({
-      model: modelOverride || this.model,
-      temperature: 0,
+      model: useModel,
+      ...(!isReasoning && { temperature: 0 }),
       max_completion_tokens: 4096,
       messages: messages.map(m => ({
         role: m.role as 'system' | 'user' | 'assistant',
         content: m.content,
       })),
-      response_format: { type: 'json_object' },
+      ...(!isReasoning && { response_format: { type: 'json_object' as const } }),
     })
 
     const content = response.choices[0]?.message?.content || '{}'
