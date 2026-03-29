@@ -93,14 +93,33 @@ export function assemblePrompt(
   const systems = [...new Set(tools.map(t => t.system))]
   const domains = [...new Set(tools.flatMap(t => t.domains))]
 
-  // 工具描述（项目工具变化时才变）— 包含 when_to_use/when_not_to_use
-  const toolDescriptions = tools.map(t => {
+  // 工具描述（按系统分组）— 帮助 AI 区分同名工具属于哪个系统
+  const SYSTEM_LABELS: Record<string, string> = {
+    eam: 'EAM（设备资产管理）',
+    edhr: 'EDHR（医疗器械检测流程管理）',
+  }
+
+  function formatTool(t: ToolDefinition): string {
     const params = Object.entries(t.inputSchema.properties)
       .map(([k, v]) => `  - ${k} (${v.type}): ${v.description || ''}`)
       .join('\n')
     const whenUse = t.whenToUse ? `  适用: ${Array.isArray(t.whenToUse) ? t.whenToUse.join('; ') : String(t.whenToUse).trim()}` : ''
     const whenNot = t.whenNotToUse ? `  不适用: ${Array.isArray(t.whenNotToUse) ? t.whenNotToUse.join('; ') : String(t.whenNotToUse).trim()}` : ''
     return `- **${t.name}** [${t.operation}]: ${t.description}\n${params || '  (无参数)'}${whenUse ? '\n' + whenUse : ''}${whenNot ? '\n' + whenNot : ''}`
+  }
+
+  // 按 system 分组
+  const toolsBySystem = new Map<string, ToolDefinition[]>()
+  for (const t of tools) {
+    const sys = t.system || 'default'
+    if (!toolsBySystem.has(sys)) toolsBySystem.set(sys, [])
+    toolsBySystem.get(sys)!.push(t)
+  }
+
+  const toolDescriptions = [...toolsBySystem.entries()].map(([sys, sysTools]) => {
+    const label = SYSTEM_LABELS[sys] || sys.toUpperCase()
+    const toolsText = sysTools.map(formatTool).join('\n\n')
+    return `### ${label}\n\n${toolsText}`
   }).join('\n\n')
 
   // ============ 组装：六层顺序 ============
