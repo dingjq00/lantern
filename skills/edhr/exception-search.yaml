@@ -29,9 +29,9 @@ input_schema:
     decisionType:
       type: string
       description: >
-        决策类型。ACCEPT=接受(让步放行), REWORK=返工, SCRAP=报废。
-        用户说"返工的异常"传REWORK，"报废了多少"传SCRAP。
-      enum: [ACCEPT, REWORK, SCRAP]
+        决策类型。REOPERATE=重新操作, REPAIRE=返修, RETEST=重新测试。
+        用户说"重新操作的异常"传REOPERATE，"返修的"传REPAIRE，"重新测试的"传RETEST。
+      enum: [REOPERATE, REPAIRE, RETEST]
     orderCode:
       type: string
       description: >

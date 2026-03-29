@@ -1,7 +1,7 @@
 // edhr.item.search — 检测项搜索
 import { z } from 'zod'
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
-import { jmixSearch, jmixGetAll, textResult, type JmixCondition } from '../../jmix-api.js'
+import { jmixSearch, jmixCount, textResult, jmixDate, type JmixCondition } from '../../jmix-api.js'
 
 export function registerEdhrItemSearch(server: McpServer) {
   server.tool(
@@ -19,22 +19,25 @@ export function registerEdhrItemSearch(server: McpServer) {
       if (args.status) conditions.push({ property: 'status', operator: '=', value: args.status })
       if (args.orderCode) conditions.push({ property: 'order.code', operator: '=', value: args.orderCode })
       if (args.dateRange) {
-        conditions.push({ property: 'operateTime', operator: '>=', value: args.dateRange.from })
-        conditions.push({ property: 'operateTime', operator: '<=', value: args.dateRange.to + 'T23:59:59' })
+        conditions.push({ property: 'operateTime', operator: '>=', value: jmixDate(args.dateRange.from) })
+        conditions.push({ property: 'operateTime', operator: '<=', value: jmixDate(args.dateRange.to, true) })
       }
 
       const filter = conditions.length > 0 ? { conditions } : { conditions: [] }
 
-      // groupBy
-      if (args.groupBy) {
-        const all = await jmixGetAll('OrderItem', { filter, fetchPlan: '_local' })
-        const groups = new Map<string, number>()
-        for (const item of all) {
-          const key = String(item[args.groupBy] ?? '未知')
-          groups.set(key, (groups.get(key) ?? 0) + 1)
-        }
-        const sorted = [...groups.entries()].sort((a, b) => b[1] - a[1]).map(([group, count]) => ({ group, count }))
-        return textResult({ total: all.length, groupBy: args.groupBy, groups: sorted })
+      // groupBy=status — 用 jmixCount 逐状态查，不拉 11 万条全量
+      if (args.groupBy === 'status') {
+        const statuses = ['PASSED', 'FAILED', 'INIT', 'PENDING', 'REPAIRING', 'PASSEDAFTERREPAIED', 'WRONGRECORDED', 'ABANDONED']
+        const baseConditions = conditions.filter(c => c.property !== 'status')
+        const counts = await Promise.all(statuses.map(async (status) => {
+          const cnt = await jmixCount('OrderItem', {
+            conditions: [...baseConditions, { property: 'status', operator: '=', value: status }]
+          })
+          return { group: status, count: cnt }
+        }))
+        const groups = counts.filter(g => g.count > 0).sort((a, b) => b.count - a.count)
+        const total = groups.reduce((s, g) => s + g.count, 0)
+        return textResult({ total, groupBy: 'status', groups })
       }
 
       const result = await jmixSearch('OrderItem', filter, {

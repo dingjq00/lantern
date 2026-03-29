@@ -1,7 +1,7 @@
 // edhr.order.search — 工单搜索
 import { z } from 'zod'
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
-import { jmixSearch, jmixGetAll, textResult, type JmixCondition } from '../../jmix-api.js'
+import { jmixSearch, jmixGetAll, textResult, jmixDate, type JmixCondition } from '../../jmix-api.js'
 
 export function registerEdhrOrderSearch(server: McpServer) {
   server.tool(
@@ -21,8 +21,8 @@ export function registerEdhrOrderSearch(server: McpServer) {
       if (args.productCode) conditions.push({ property: 'code', operator: 'contains', value: args.productCode })
       if (args.lotCode) conditions.push({ property: 'lotCode', operator: 'contains', value: args.lotCode })
       if (args.dateRange) {
-        conditions.push({ property: 'createdDate', operator: '>=', value: args.dateRange.from })
-        conditions.push({ property: 'createdDate', operator: '<=', value: args.dateRange.to + 'T23:59:59' })
+        conditions.push({ property: 'createdDate', operator: '>=', value: jmixDate(args.dateRange.from) })
+        conditions.push({ property: 'createdDate', operator: '<=', value: jmixDate(args.dateRange.to, true) })
       }
 
       const filter = conditions.length > 0 ? { conditions } : { conditions: [] }

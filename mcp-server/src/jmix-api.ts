@@ -177,7 +177,11 @@ export async function jmixCount(
 
 // ============ 全量拉取（聚合用） ============
 
-/** 自动分页拉取全量 — groupBy 聚合时使用 */
+/**
+ * 全量拉取 — groupBy 聚合时使用
+ * 注意: Jmix search 端点的 offset 不生效（已验证），所以 search 用大 limit 一次拉取
+ * list 端点的 offset 正常，可以分页
+ */
 export async function jmixGetAll<T extends JmixEntity = JmixEntity>(
   entityName: string,
   options?: {
@@ -186,20 +190,27 @@ export async function jmixGetAll<T extends JmixEntity = JmixEntity>(
     fetchPlan?: string
   },
 ): Promise<T[]> {
-  const PAGE_SIZE = 500  // Jmix 默认限制 10000，500 一批比较安全
+  if (options?.filter) {
+    // search 端点: offset 不生效，一次性拉取（limit=10000 是 Jmix 默认上限）
+    const { items } = await jmixSearch<T>(entityName, options.filter, {
+      limit: 10000, sort: options.sort, fetchPlan: options.fetchPlan,
+    })
+    return items
+  }
+
+  // list 端点: offset 正常，分页拉取
+  const PAGE_SIZE = 500
   let all: T[] = []
   let offset = 0
-
   while (true) {
-    const { items } = options?.filter
-      ? await jmixSearch<T>(entityName, options.filter, { limit: PAGE_SIZE, offset, sort: options.sort, fetchPlan: options.fetchPlan })
-      : await jmixList<T>(entityName, { limit: PAGE_SIZE, offset, sort: options?.sort, fetchPlan: options?.fetchPlan })
+    const { items } = await jmixList<T>(entityName, {
+      limit: PAGE_SIZE, offset, sort: options?.sort, fetchPlan: options?.fetchPlan,
+    })
     all.push(...items)
     if (items.length < PAGE_SIZE) break
     offset += PAGE_SIZE
-    if (offset > 50_000) break  // 安全阀
+    if (offset > 50_000) break
   }
-
   return all
 }
 
@@ -228,6 +239,17 @@ export async function jmixMetadata(entityName?: string): Promise<JmixEntityMeta 
 }
 
 // ============ 工具函数 ============
+
+/**
+ * Jmix 日期格式化 — OffsetDateTime 字段不接受纯日期，必须含时间部分
+ * "2024-07-01" → "2024-07-01T00:00:00"
+ * "2024-07-01T00:00:00" → 不变
+ */
+export function jmixDate(dateStr: string, endOfDay = false): string {
+  if (!dateStr) return dateStr
+  if (dateStr.includes('T')) return dateStr  // 已含时间部分
+  return endOfDay ? `${dateStr}T23:59:59` : `${dateStr}T00:00:00`
+}
 
 /** 构建 MCP 文本响应 */
 export function textResult(data: unknown) {

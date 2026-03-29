@@ -6,10 +6,10 @@ import { jmixSearch, textResult, type JmixCondition } from '../../jmix-api.js'
 export function registerEdhrExceptionSearch(server: McpServer) {
   server.tool(
     'edhr.exception.search',
-    '按条件搜索质量异常记录。支持按状态(OPEN/ACKNOWLEDGED/DECIDED/CLOSED)、决策类型(接受/返工/报废)过滤。适用于"有几个异常没关闭""返工的异常有哪些""最近的质量问题"等问题。',
+    '按条件搜索质量异常记录。支持按状态(OPEN/ACKNOWLEDGED/DECIDED/CLOSED)、决策类型(REOPERATE重新操作/REPAIRE返修/RETEST重新测试)过滤。适用于"有几个异常没关闭""返修的异常有哪些""最近的质量问题"等问题。',
     {
       exceptionStatus: z.string().optional().describe('异常状态: OPEN/ACKNOWLEDGED/DECIDED/CLOSED'),
-      decisionType: z.string().optional().describe('决策类型: ACCEPT/REWORK/SCRAP'),
+      decisionType: z.string().optional().describe('决策类型: REOPERATE=重新操作, REPAIRE=返修, RETEST=重新测试'),
       orderCode: z.string().optional().describe('关联工单编号'),
       limit: z.number().int().optional().default(20),
     },

@@ -1,7 +1,7 @@
 // edhr.trend — 趋势分析（工单完成/检测合格率/异常率 时间序列）
 import { z } from 'zod'
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
-import { jmixGetAll, textResult, type JmixEntity } from '../../jmix-api.js'
+import { jmixGetAll, textResult, jmixDate, type JmixEntity } from '../../jmix-api.js'
 
 export function registerEdhrTrend(server: McpServer) {
   server.tool(
@@ -36,8 +36,8 @@ export function registerEdhrTrend(server: McpServer) {
       const all = await jmixGetAll(entityName, {
         filter: {
           conditions: [
-            { property: dateField, operator: '>=', value: args.dateRange.from },
-            { property: dateField, operator: '<=', value: args.dateRange.to + 'T23:59:59' },
+            { property: dateField, operator: '>=', value: jmixDate(args.dateRange.from) },
+            { property: dateField, operator: '<=', value: jmixDate(args.dateRange.to, true) },
           ]
         },
         fetchPlan: '_local',
