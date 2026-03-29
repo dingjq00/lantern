@@ -207,7 +207,14 @@ export async function processQuery(
       const domainCoverageHint = uncoveredDomains.length > 0
         ? `\n⚠️ 域覆盖检查: 用户问题涉及 [${intentDomains.join(', ')}]，已覆盖 [${coveredDomains.join(', ')}]，未覆盖 [${uncoveredDomains.join(', ')}]。如有必要，补充未覆盖域的工具。`
         : ''
-      const obsMessage = `观察结果: ${JSON.stringify(obsData)}\n\n事实对比:\n- 用户问: "${query}"\n- 已获得字段: ${[...new Set(dataFields)].join(', ')}${domainCoverageHint}\n\n检查：数据是否已回答用户问题？有无未覆盖的域？够了就 finish，不够就补充。`
+      // 提取工具返回的 context 提示（空结果时 handler 会解释原因）
+      const contextHints = obsData
+        .map(d => (d.result as any)?.context)
+        .filter(Boolean)
+        .map(c => `⚠️ ${c}`)
+        .join('\n')
+      const contextSection = contextHints ? `\n\n${contextHints}\n如果结果为空且有时间限定，尝试去掉时间条件重新查询。` : ''
+      const obsMessage = `观察结果: ${JSON.stringify(obsData)}\n\n事实对比:\n- 用户问: "${query}"\n- 已获得字段: ${[...new Set(dataFields)].join(', ')}${domainCoverageHint}${contextSection}\n\n检查：数据是否已回答用户问题？有无未覆盖的域？够了就 finish，不够就补充。`
       messages.push({ role: 'user', content: obsMessage })
 
       // 快速完成: 单域 + 全成功 + 无覆盖缺口 + clarity=clear + 有实际数据 → 跳过审查轮
