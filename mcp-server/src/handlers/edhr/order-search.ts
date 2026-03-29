@@ -1,7 +1,7 @@
 // edhr.order.search — 工单搜索
 import { z } from 'zod'
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
-import { jmixSearch, jmixGetAll, jmixDate, type JmixCondition } from '../../jmix-api.js'
+import { jmixSearch, jmixGetAll, jmixList, jmixDate, type JmixCondition } from '../../jmix-api.js'
 import { textResult } from '../../shared.js'
 
 export function registerEdhrOrderSearch(server: McpServer) {
