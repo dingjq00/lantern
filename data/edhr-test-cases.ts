@@ -131,7 +131,7 @@ export const EDHR_TEST_CASES: EdhrTestCase[] = [
     followUp: { minCount: 3, shouldRelate: ['配方', '检测项'] } },
 
   // QA — 异常趋势
-  { id: 'E23', query: '最近三个月的异常数量趋势是怎样的？', level: 'L3', role: 'qa',
+  { id: 'E23', query: '最近三个月的质量异常数量趋势是怎样的？', level: 'L3', role: 'qa',
     acceptablePaths: [['edhr.trend']],
     followUp: { minCount: 3, shouldRelate: ['异常', '趋势'] } },
 
