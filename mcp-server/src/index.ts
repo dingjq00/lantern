@@ -1,6 +1,8 @@
-// EAM MCP Server 入口 — 12 工具三层结构
+// MCP Server 入口 — EAM 12 工具 + EDHR 7 工具
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
+
+// === EAM 工具 (12) ===
 // Tier 1: 实体全景
 import { registerEquipmentProfile } from './handlers/equipment-profile.js'
 import { registerRepairProfile } from './handlers/repair-profile.js'
@@ -17,17 +19,26 @@ import { registerSpareSearch } from './handlers/spare-search.js'
 import { registerDashboard } from './handlers/dashboard.js'
 import { registerTrend } from './handlers/trend.js'
 
+// === EDHR 工具 (7) ===
+import { registerEdhrDashboard } from './handlers/edhr/dashboard.js'
+import { registerEdhrOrderProfile } from './handlers/edhr/order-profile.js'
+import { registerEdhrOrderSearch } from './handlers/edhr/order-search.js'
+import { registerEdhrItemSearch } from './handlers/edhr/item-search.js'
+import { registerEdhrExceptionSearch } from './handlers/edhr/exception-search.js'
+import { registerEdhrProductSearch } from './handlers/edhr/product-search.js'
+import { registerEdhrTrend } from './handlers/edhr/trend.js'
+
 const server = new McpServer({
-  name: 'eam-mcp-server',
-  version: '2.0.0',
+  name: 'insight68-mcp-server',
+  version: '3.0.0',
 })
 
-// Tier 1: 实体全景 (3)
+// EAM: Tier 1 实体全景 (3)
 registerEquipmentProfile(server)
 registerRepairProfile(server)
 registerScopeOverview(server)
 
-// Tier 2: 条件搜索 (7)
+// EAM: Tier 2 条件搜索 (7)
 registerEquipmentSearch(server)
 registerFaultSearch(server)
 registerRepairSearch(server)
@@ -36,14 +47,23 @@ registerPatrolSearch(server)
 registerAnomalySearch(server)
 registerSpareSearch(server)
 
-// Tier 3: 全局分析 (2)
+// EAM: Tier 3 全局分析 (2)
 registerDashboard(server)
 registerTrend(server)
+
+// EDHR: 全部 (7)
+registerEdhrDashboard(server)
+registerEdhrOrderProfile(server)
+registerEdhrOrderSearch(server)
+registerEdhrItemSearch(server)
+registerEdhrExceptionSearch(server)
+registerEdhrProductSearch(server)
+registerEdhrTrend(server)
 
 async function main() {
   const transport = new StdioServerTransport()
   await server.connect(transport)
-  console.error('EAM MCP Server v2 running on stdio (12 tools registered)')
+  console.error(`Insight68 MCP Server v3 running on stdio (${12 + 7} tools: EAM 12 + EDHR 7)`)
 }
 
 main().catch(console.error)
