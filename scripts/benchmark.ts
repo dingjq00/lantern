@@ -195,29 +195,38 @@ function checkFollowUp(followUp: string[] | undefined, tc: TestCase): BenchmarkR
   return { count, minRequired, hasQuestionMark, relatedHit, relatedTotal: shouldRelate.length, score }
 }
 
-async function main() {
-  const currentModel = process.env.LLM_MODEL || 'gpt-5.4-mini'
-  console.log(`=== Insight68 Benchmark v2 | 模型: ${currentModel} ===`)
-  console.log(`测试集: ${TEST_CASES.length} 题, 并发: ${CONCURRENCY}\n`)
+// 多模型配置 — 每次 benchmark 自动跑所有模型
+interface ModelConfig {
+  name: string; baseURL: string; apiKey: string; model: string
+}
 
-  // 加载 Skill YAML（从 skills/ 目录）
-  const skillsDir = path.join(__dirname, '../skills')
-  const registry = new ToolRegistry(loadTools(skillsDir))
-  console.log(`加载了 ${registry.getAllTools().length} 个 Skill\n`)
+const BENCHMARK_MODELS: ModelConfig[] = [
+  {
+    name: 'DeepSeek',
+    baseURL: process.env.LLM_BASE_URL || 'https://gptapi.tutu02.us.ci/v1',
+    apiKey: process.env.LLM_API_KEY || 'sk-mes-ai-explorer-2026',
+    model: 'deepseek-chat',
+  },
+  {
+    name: 'GPT-5-mini',
+    baseURL: 'https://models.github.ai/inference',
+    apiKey: process.env.GITHUB_MODELS_TOKEN || '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',
+    model: 'openai/gpt-5-mini',
+  },
+]
 
-  const llm = new CodexProxyProvider()
-  const storage = new SQLiteStorage('./data/insight68.db')
-  storage.initialize()
+async function runBenchmarkForModel(
+  modelConfig: ModelConfig,
+  registry: ToolRegistry,
+  storage: SQLiteStorage,
+  callTool: (name: string, args: Record<string, unknown>) => Promise<any>,
+  notes: string,
+) {
+  console.log(`\n${'='.repeat(70)}`)
+  console.log(`=== 模型: ${modelConfig.name} (${modelConfig.model}) ===`)
+  console.log(`${'='.repeat(70)}\n`)
 
-  // 连接真实 MCP Server
-  const mcpClient = new MCPClient('npx', ['tsx', path.join(__dirname, '../mcp-server/src/index.ts')])
-  await mcpClient.connect()
-  console.log('MCP Server 已连接\n')
-
-  const callTool = async (name: string, args: Record<string, unknown>) => {
-    return mcpClient.callTool(name, args)
-  }
-
+  const llm = new CodexProxyProvider(modelConfig.baseURL, modelConfig.apiKey, modelConfig.model)
   const results: BenchmarkResult[] = []
   let done = 0
 
@@ -269,12 +278,9 @@ async function main() {
     await Promise.all(batch.map(tc => runOne(tc)))
   }
 
-  // 关闭 MCP
-  await mcpClient.close()
-
   // ======== 统计 ========
   console.log('\n' + '='.repeat(70))
-  console.log('=== 准确率统计（MCP v2 Ground Truth 对比）===\n')
+  console.log(`=== ${modelConfig.name} 准确率统计 ===\n`)
 
   const successful = results.filter(r => r.success)
   const avgRecall = successful.length ? successful.reduce((s, r) => s + r.recall, 0) / successful.length : 0
@@ -339,17 +345,17 @@ async function main() {
   }
 
   // 保存到 DB
-  const runId = `run-v2-${new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19)}`
+  const runId = `run-v3-${modelConfig.name.toLowerCase().replace(/\s+/g, '-')}-${new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19)}`
   try {
     storage.saveBenchmarkRun({
       runId,
       timestamp: new Date().toISOString(),
       config: {
-        model: process.env.LLM_MODEL || 'gpt-5.4-mini',
+        model: modelConfig.model,
         maxChaseRounds: 2,
-        escalationModel: process.env.LLM_ESCALATION_MODEL || 'gpt-5.4',
-        promptVersion: 'v3-skill-based',
-        notes: process.argv[2] || 'MCP v2 首跑 — 12 Skill + 真实 EAM API',
+        escalationModel: process.env.LLM_ESCALATION_MODEL || modelConfig.model,
+        promptVersion: 'v3-multi-model',
+        notes: notes || `${modelConfig.name} benchmark`,
       },
       summary: {
         total: results.length, success: successful.length,
@@ -373,8 +379,38 @@ async function main() {
     console.log(`\n运行记录已保存: ${runId}`)
   } catch (e) { console.log(`保存失败: ${(e as Error).message}`) }
 
+  console.log(`=== ${modelConfig.name} 完成 ===\n`)
+}
+
+async function main() {
+  const notes = process.argv[2] || 'multi-model benchmark'
+  console.log(`=== Insight68 Benchmark v3 — 多模型对比 ===`)
+  console.log(`测试集: ${TEST_CASES.length} 题, 模型: ${BENCHMARK_MODELS.map(m => m.name).join(' + ')}\n`)
+
+  // 共享资源初始化
+  const skillsDir = path.join(__dirname, '../skills')
+  const registry = new ToolRegistry(loadTools(skillsDir))
+  console.log(`加载了 ${registry.getAllTools().length} 个 Skill`)
+
+  const storage = new SQLiteStorage('./data/insight68.db')
+  storage.initialize()
+
+  const mcpClient = new MCPClient('npx', ['tsx', path.join(__dirname, '../mcp-server/src/index.ts')])
+  await mcpClient.connect()
+  console.log('MCP Server 已连接')
+
+  const callTool = async (name: string, args: Record<string, unknown>) => {
+    return mcpClient.callTool(name, args)
+  }
+
+  // 逐模型跑（共享 MCP 和 storage，只换 LLM）
+  for (const modelConfig of BENCHMARK_MODELS) {
+    await runBenchmarkForModel(modelConfig, registry, storage, callTool, notes)
+  }
+
+  await mcpClient.close()
   storage.close()
-  console.log('=== Benchmark v2 完成 ===')
+  console.log('\n=== 全部模型完成 ===')
 }
 
 main().catch(console.error)
