@@ -1,0 +1,1435 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>L3 跨域质量审计报告 | Insight68 NL-API Benchmark</title>
+<style>
+  :root {
+    --bg: #0d1117;
+    --surface: #161b22;
+    --surface2: #1c2129;
+    --border: #30363d;
+    --text: #c9d1d9;
+    --text-muted: #8b949e;
+    --accent: #58a6ff;
+    --green: #3fb950;
+    --red: #f85149;
+    --orange: #d29922;
+    --yellow: #e3b341;
+    --purple: #bc8cff;
+    --pink: #f778ba;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+    padding: 2rem;
+  }
+  .container { max-width: 1200px; margin: 0 auto; }
+
+  /* Header */
+  .header {
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 2rem;
+    margin-bottom: 2rem;
+  }
+  .header h1 {
+    font-size: 1.8rem;
+    font-weight: 600;
+    color: #f0f6fc;
+    margin-bottom: 0.5rem;
+  }
+  .header .subtitle {
+    color: var(--text-muted);
+    font-size: 0.95rem;
+  }
+
+  /* Summary Cards */
+  .summary-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 1rem;
+    margin-bottom: 2rem;
+  }
+  .summary-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1.2rem;
+    text-align: center;
+  }
+  .summary-card .value {
+    font-size: 2rem;
+    font-weight: 700;
+    margin-bottom: 0.3rem;
+  }
+  .summary-card .label {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  /* Verdict Banner */
+  .verdict-banner {
+    background: linear-gradient(135deg, #1a0a0a 0%, #2d1515 100%);
+    border: 1px solid #5a2020;
+    border-radius: 8px;
+    padding: 1.5rem 2rem;
+    margin-bottom: 2rem;
+  }
+  .verdict-banner h2 {
+    color: var(--red);
+    font-size: 1.2rem;
+    margin-bottom: 0.8rem;
+  }
+  .verdict-banner p {
+    color: var(--text);
+    margin-bottom: 0.5rem;
+  }
+
+  /* Question Card */
+  .question-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    margin-bottom: 1.5rem;
+    overflow: hidden;
+  }
+  .question-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1rem 1.5rem;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface2);
+  }
+  .question-header .qid {
+    font-weight: 700;
+    color: var(--accent);
+    font-size: 0.85rem;
+    background: rgba(88,166,255,0.1);
+    padding: 0.2rem 0.6rem;
+    border-radius: 4px;
+    margin-right: 1rem;
+  }
+  .question-header .query {
+    font-size: 1.05rem;
+    font-weight: 600;
+    color: #f0f6fc;
+    flex: 1;
+  }
+  .question-header .score-badge {
+    font-size: 1.3rem;
+    font-weight: 700;
+    padding: 0.3rem 0.8rem;
+    border-radius: 6px;
+    min-width: 60px;
+    text-align: center;
+  }
+  .score-1 { background: rgba(248,81,73,0.2); color: var(--red); }
+  .score-2 { background: rgba(210,153,34,0.2); color: var(--orange); }
+  .score-3 { background: rgba(227,179,65,0.2); color: var(--yellow); }
+  .score-4 { background: rgba(63,185,80,0.15); color: var(--green); }
+  .score-5 { background: rgba(63,185,80,0.25); color: var(--green); }
+
+  .question-body { padding: 1.5rem; }
+
+  /* Metrics Row */
+  .metrics-row {
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+    margin-bottom: 1.2rem;
+  }
+  .metric {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 0.5rem 0.8rem;
+    font-size: 0.85rem;
+  }
+  .metric .k { color: var(--text-muted); }
+  .metric .v { color: var(--text); font-weight: 600; margin-left: 0.4rem; }
+  .metric .v.good { color: var(--green); }
+  .metric .v.warn { color: var(--orange); }
+  .metric .v.bad { color: var(--red); }
+
+  /* Evaluation Sections */
+  .eval-section {
+    margin-bottom: 1.2rem;
+  }
+  .eval-section h4 {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--accent);
+    margin-bottom: 0.5rem;
+    padding-bottom: 0.3rem;
+    border-bottom: 1px solid rgba(88,166,255,0.15);
+  }
+  .eval-section p, .eval-section ul {
+    font-size: 0.9rem;
+    color: var(--text);
+  }
+  .eval-section ul {
+    padding-left: 1.5rem;
+    margin-top: 0.3rem;
+  }
+  .eval-section li {
+    margin-bottom: 0.3rem;
+  }
+
+  /* Trace Timeline */
+  .trace-timeline {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 1rem;
+    margin: 1rem 0;
+    font-size: 0.82rem;
+    font-family: 'SF Mono', 'Fira Code', monospace;
+    overflow-x: auto;
+  }
+  .trace-round {
+    margin-bottom: 0.8rem;
+    padding-left: 1rem;
+    border-left: 2px solid var(--border);
+  }
+  .trace-round:last-child { margin-bottom: 0; }
+  .trace-round .round-label {
+    color: var(--purple);
+    font-weight: 600;
+    margin-bottom: 0.3rem;
+  }
+  .trace-round .tool-call {
+    color: var(--green);
+  }
+  .trace-round .tool-args {
+    color: var(--text-muted);
+    margin-left: 1rem;
+  }
+  .trace-round .tool-result {
+    color: var(--orange);
+    margin-left: 1rem;
+  }
+  .trace-round .tool-error {
+    color: var(--red);
+    margin-left: 1rem;
+  }
+
+  /* Highlight boxes */
+  .highlight-bad {
+    background: rgba(248,81,73,0.08);
+    border-left: 3px solid var(--red);
+    padding: 0.8rem 1rem;
+    border-radius: 0 4px 4px 0;
+    margin: 0.5rem 0;
+    font-size: 0.88rem;
+  }
+  .highlight-good {
+    background: rgba(63,185,80,0.08);
+    border-left: 3px solid var(--green);
+    padding: 0.8rem 1rem;
+    border-radius: 0 4px 4px 0;
+    margin: 0.5rem 0;
+    font-size: 0.88rem;
+  }
+  .highlight-warn {
+    background: rgba(210,153,34,0.08);
+    border-left: 3px solid var(--orange);
+    padding: 0.8rem 1rem;
+    border-radius: 0 4px 4px 0;
+    margin: 0.5rem 0;
+    font-size: 0.88rem;
+  }
+
+  /* Answer quote */
+  .answer-quote {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 1rem;
+    margin: 0.5rem 0;
+    font-size: 0.88rem;
+    color: var(--text-muted);
+    font-style: italic;
+  }
+
+  /* Systemic issues */
+  .systemic-section {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1.5rem 2rem;
+    margin-top: 2rem;
+  }
+  .systemic-section h2 {
+    color: var(--pink);
+    font-size: 1.2rem;
+    margin-bottom: 1rem;
+  }
+  .systemic-section h3 {
+    color: var(--orange);
+    font-size: 1rem;
+    margin: 1.2rem 0 0.5rem;
+  }
+  .systemic-section ol, .systemic-section ul {
+    padding-left: 1.5rem;
+    margin-bottom: 0.8rem;
+  }
+  .systemic-section li { margin-bottom: 0.4rem; }
+
+  /* Footer */
+  .footer {
+    margin-top: 2rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--border);
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    text-align: center;
+  }
+
+  /* Tag pills */
+  .tag {
+    display: inline-block;
+    font-size: 0.75rem;
+    padding: 0.15rem 0.5rem;
+    border-radius: 10px;
+    margin-right: 0.3rem;
+  }
+  .tag-red { background: rgba(248,81,73,0.15); color: var(--red); }
+  .tag-orange { background: rgba(210,153,34,0.15); color: var(--orange); }
+  .tag-green { background: rgba(63,185,80,0.15); color: var(--green); }
+  .tag-blue { background: rgba(88,166,255,0.15); color: var(--accent); }
+</style>
+</head>
+<body>
+<div class="container">
+
+<!-- Header -->
+<div class="header">
+  <h1>L3 跨域 Benchmark 质量审计</h1>
+  <div class="subtitle">
+    Insight68 NL-API | 8 题 L3 跨域查询 | 审计日期 2026-03-29 | 审计模型 Claude Opus 4.6
+  </div>
+</div>
+
+<!-- Summary -->
+<div class="summary-grid">
+  <div class="summary-card">
+    <div class="value" style="color:var(--red)">1.75</div>
+    <div class="label">平均评分 / 5</div>
+  </div>
+  <div class="summary-card">
+    <div class="value" style="color:var(--red)">0 / 8</div>
+    <div class="label">实际给出有效回答</div>
+  </div>
+  <div class="summary-card">
+    <div class="value" style="color:var(--orange)">87.5%</div>
+    <div class="label">Recall (工具选择)</div>
+  </div>
+  <div class="summary-card">
+    <div class="value" style="color:var(--orange)">72%</div>
+    <div class="label">Precision (工具选择)</div>
+  </div>
+  <div class="summary-card">
+    <div class="value" style="color:var(--text-muted)">2.75</div>
+    <div class="label">平均轮次</div>
+  </div>
+  <div class="summary-card">
+    <div class="value" style="color:var(--orange)">37.2s</div>
+    <div class="label">平均延迟</div>
+  </div>
+</div>
+
+<!-- Verdict -->
+<div class="verdict-banner">
+  <h2>总体结论：L3 全军覆没 — 8 题全部未能给出有效答案</h2>
+  <p>
+    虽然 benchmark 标记 8 题全部 success=true、recall 看起来不错（平均 87.5%），
+    但<strong>实际审计后，没有一题真正回答了用户的问题</strong>。
+    所有题目最终都输出了"当前数据不包含...无法回答"的套话。
+    这是一个<strong>系统性崩溃</strong>，而非个别题目的偶发问题。
+  </p>
+  <p>
+    根本原因有三：(1) 测试数据与工具接口不匹配 — MCP handler 返回的数据缺乏跨域关联字段；
+    (2) AI 的 summarize 层过度保守，在有数据的情况下也声称"无法回答"；
+    (3) Resolver 模式在测试环境中失效（标识符不匹配导致查无结果）。
+    success=true 的判定标准需要重新审视 — 工具选对了但交不出答案，不应算成功。
+  </p>
+</div>
+
+<!-- ===================== T22 ===================== -->
+<div class="question-card">
+  <div class="question-header">
+    <span class="qid">T22</span>
+    <span class="query">设备 EQ-003 的 BOM 里哪些备件库存不足？</span>
+    <span class="score-badge score-2">2/5</span>
+  </div>
+  <div class="question-body">
+    <div class="metrics-row">
+      <div class="metric"><span class="k">工具:</span><span class="v good">eam.spare.search</span></div>
+      <div class="metric"><span class="k">Recall:</span><span class="v good">1.0</span></div>
+      <div class="metric"><span class="k">Precision:</span><span class="v good">1.0</span></div>
+      <div class="metric"><span class="k">轮次:</span><span class="v good">2</span></div>
+      <div class="metric"><span class="k">延迟:</span><span class="v good">26.5s</span></div>
+      <div class="metric"><span class="k">置信度:</span><span class="v warn">medium</span></div>
+    </div>
+
+    <div class="trace-timeline">
+      <div class="trace-round">
+        <div class="round-label">Round 0</div>
+        <div class="tool-call">eam.spare.search</div>
+        <div class="tool-args">{"equipment": "EQ-003", "format": "detailed"}</div>
+        <div class="tool-result">total=21, items=20, 全部 lowStock=false</div>
+      </div>
+      <div class="trace-round">
+        <div class="round-label">Round 1 (finish)</div>
+        <div class="tool-args">无工具调用，分析数据后结束</div>
+      </div>
+    </div>
+
+    <div class="eval-section">
+      <h4>1. 路由决策</h4>
+      <p>
+        <span class="tag tag-green">正确</span>
+        选择 eam.spare.search 的 equipment 模式是最优路径。Thought 过程展示了对 equipment.profile 和 spare.search 两个候选工具的权衡，
+        选择了 spare.search 因为它直接返回 lowStock 标记，比 profile 更精准。2 轮完成，决策高效。
+      </p>
+    </div>
+
+    <div class="eval-section">
+      <h4>2. 参数质量</h4>
+      <p>
+        <span class="tag tag-green">合格</span>
+        equipment="EQ-003" 正确传入，format="detailed" 合理。
+        但这里隐藏了一个问题：handler 返回了 21 个备件，全部 lowStock=false。
+        数据本身看起来是合理的 — 确实没有库存不足的备件。
+      </p>
+    </div>
+
+    <div class="eval-section">
+      <h4>3. 执行效率</h4>
+      <p><span class="tag tag-green">高效</span> 2 轮完成，没有不必要的追查。路径清晰。</p>
+    </div>
+
+    <div class="eval-section">
+      <h4>4. 数据完整性</h4>
+      <div class="highlight-warn">
+        Handler 返回了 21 个备件（BOM 清单），包含 currentStock、stockLower、stockUpper、lowStock 字段。
+        数据结构完整。但 <strong>所有备件的 equipmentCount=0</strong> — 这个值是不合理的。
+        这些备件既然出现在 EQ-003 的 BOM 中，至少 equipmentCount 应该 >= 1。
+        这暗示 handler 的 equipment 模式可能没有真正返回 EQ-003 关联的 BOM，
+        而是返回了全量备件列表（total=21 与全量备件数一致）。
+      </div>
+    </div>
+
+    <div class="eval-section">
+      <h4>5. 回答质量</h4>
+      <div class="highlight-bad">
+        <strong>严重问题：AI 拒绝回答，但数据足够。</strong><br>
+        AI 的 Thought 在 Round 1 正确判断"所有 lowStock=false，没有库存不足的备件"，
+        但最终 Answer 却说"当前数据不包含设备 EQ-003 的 BOM 信息，无法回答"。
+        这是 Thought 和 Answer 的严重矛盾。正确答案应该是：
+        "EQ-003 的 BOM 共 21 个备件，目前没有库存不足的。库存水位均在安全线以上。"
+      </div>
+      <div class="answer-quote">
+        "当前数据不包含设备 EQ-003 的 BOM 信息，无法回答该问题。数据中提供了备件库存列表，
+        但未显示这些备件与特定设备 EQ-003 的关联关系。"
+      </div>
+    </div>
+
+    <div class="eval-section">
+      <h4>6. 展示效果</h4>
+      <p><span class="tag tag-red">失败</span> display=text，无表格。
+        即使 AI 认为无法回答，至少应该展示 BOM 清单让用户自己判断。20 个备件的库存状况表格对用户价值很高。</p>
+    </div>
+
+    <div class="eval-section">
+      <h4>7. 综合评分：2/5</h4>
+      <p>
+        工具选择和参数完美，执行效率好，但最终功亏一篑。核心问题：summarize 层的"数据不包含"判定逻辑有 bug —
+        明明 handler 用 equipment 模式返回了数据，AI 却声称"未显示关联关系"。
+        可能是因为返回数据中没有显式的 equipmentCode="EQ-003" 字段导致 AI 不敢确认关联关系。
+      </p>
+      <ul>
+        <li><strong>改进 1</strong>：spare.search 的 equipment 模式应在返回数据中包含 "queriedEquipment": "EQ-003" 字段，明确告知 AI 这就是该设备的 BOM</li>
+        <li><strong>改进 2</strong>：修复 equipmentCount=0 的不合理值</li>
+        <li><strong>改进 3</strong>：summarize prompt 需要明确 — 当查询含 equipment 参数时，返回的就是该设备的数据，不要质疑关联性</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== T23 ===================== -->
+<div class="question-card">
+  <div class="question-header">
+    <span class="qid">T23</span>
+    <span class="query">上月维修时参考了哪些知识文档？</span>
+    <span class="score-badge score-2">2/5</span>
+  </div>
+  <div class="question-body">
+    <div class="metrics-row">
+      <div class="metric"><span class="k">工具:</span><span class="v good">eam.repair.search</span></div>
+      <div class="metric"><span class="k">Recall:</span><span class="v good">1.0</span></div>
+      <div class="metric"><span class="k">Precision:</span><span class="v good">1.0</span></div>
+      <div class="metric"><span class="k">轮次:</span><span class="v warn">3</span></div>
+      <div class="metric"><span class="k">延迟:</span><span class="v warn">31.3s</span></div>
+      <div class="metric"><span class="k">置信度:</span><span class="v warn">medium</span></div>
+    </div>
+
+    <div class="trace-timeline">
+      <div class="trace-round">
+        <div class="round-label">Round 0</div>
+        <div class="tool-call">eam.repair.search</div>
+        <div class="tool-args">{"dateRange": {"from": "2026-02-01", "to": "2026-02-28"}, "format": "detailed"}</div>
+        <div class="tool-result">total=0, items=0（上月确实无维修工单）</div>
+      </div>
+      <div class="trace-round">
+        <div class="round-label">Round 1 (放宽时间)</div>
+        <div class="tool-call">eam.repair.search</div>
+        <div class="tool-args">{"dateRange": {"from": "2025-12-29", "to": "2026-03-29"}, "format": "detailed"}</div>
+        <div class="tool-result">total=20, items=10, 全部 knowledgeRefs=[]</div>
+      </div>
+      <div class="trace-round">
+        <div class="round-label">Round 2 (finish)</div>
+        <div class="tool-args">无工具调用，分析后结束</div>
+      </div>
+    </div>
+
+    <div class="eval-section">
+      <h4>1. 路由决策</h4>
+      <p>
+        <span class="tag tag-green">正确</span>
+        repair.search 是查"维修+知识引用"的正确入口。Thought 正确识别了意图涉及"维修工单"和"知识引用"两个域。
+        也正确排除了 repair.profile（需要具体工单号）和 trend（不适用）。
+      </p>
+    </div>
+
+    <div class="eval-section">
+      <h4>2. 参数质量</h4>
+      <div class="highlight-warn">
+        时间处理有小问题：Round 0 的 dateRange 用了 "2026-02-01" 到 "2026-02-28" 而非 "2026-02-28T23:59:59"，
+        但这次没触发 API 错误（不同于 T24 的 anomaly API）。返回空可能是真的上月没有工单。
+        Round 1 放宽到近 3 个月是合理的洋葱式泛化策略。
+      </div>
+    </div>
+
+    <div class="eval-section">
+      <h4>3. 执行效率</h4>
+      <p><span class="tag tag-green">合理</span> 3 轮是合理的：首次查询 → 放宽时间 → 分析结束。
+        符合"洋葱式泛化"原则，先严后宽。</p>
+    </div>
+
+    <div class="eval-section">
+      <h4>4. 数据完整性</h4>
+      <div class="highlight-warn">
+        repair.search 返回了 10 条工单，每条都有 knowledgeRefs 字段，但<strong>全部为空数组</strong>。
+        这可能反映了两种情况：(1) 测试数据中确实没有关联知识文档的工单；(2) repair.search 的 detailed 模式
+        只返回知识标题而非完整引用，但即使是标题也为空。
+        <br><br>
+        <strong>跨域覆盖分析</strong>：维修域覆盖了（repair.search），知识域通过 knowledgeRefs 字段间接覆盖了。
+        如果确实没有知识引用，这是合理结果。但如果数据存在知识关联但 search 模式未返回，
+        应该用 repair.profile 查看个别工单的完整知识引用来验证。AI 没有做这个验证步骤。
+      </div>
+    </div>
+
+    <div class="eval-section">
+      <h4>5. 回答质量</h4>
+      <div class="highlight-bad">
+        <strong>Thought 正确，但 Answer 表述不当。</strong><br>
+        AI 在 Thought 中正确判断："所有工单的 knowledgeRefs 为空，表示近 3 个月维修未参考知识文档。"
+        但 Answer 说"当前数据不包含上月维修时参考的知识文档信息，无法回答"。
+        正确表述应该是："上月没有维修工单。放宽到近 3 个月后查到 20 张工单，但均未关联知识文档。
+        当前维修流程没有引用知识库的记录。"
+      </div>
+      <div class="answer-quote">
+        "当前数据不包含上月维修时参考的知识文档信息，无法回答该问题。"
+      </div>
+    </div>
+
+    <div class="eval-section">
+      <h4>6. 展示效果</h4>
+      <p><span class="tag tag-red">失败</span> display=text，没有表格。
+        即使知识引用为空，至少应该展示工单列表并标注"无知识引用"，让用户了解现状。</p>
+    </div>
+
+    <div class="eval-section">
+      <h4>7. 综合评分：2/5</h4>
+      <p>
+        工具选择正确，洋葱泛化策略合理，但 AI 把"数据显示没有知识引用"误述为"无法回答"。
+        这是 summarize 层的通病 — 把"查到的答案是空集"和"无法获取数据"混为一谈。
+        "没有"本身就是一个有价值的答案。
+      </p>
+      <ul>
+        <li><strong>改进</strong>：summarize prompt 需要区分"查到了但结果为空"vs"查询失败无数据"，前者应该正面回答"0 个"</li>
+        <li><strong>改进</strong>：knowledgeRefs 全空时可以主动提醒用户"当前维修流程未建立知识关联，建议完善"</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== T24 ===================== -->
+<div class="question-card">
+  <div class="question-header">
+    <span class="qid">T24</span>
+    <span class="query">B 线上个月巡检发现了几次异常？</span>
+    <span class="score-badge score-1">1/5</span>
+  </div>
+  <div class="question-body">
+    <div class="metrics-row">
+      <div class="metric"><span class="k">工具:</span><span class="v good">eam.anomaly.search</span></div>
+      <div class="metric"><span class="k">Recall:</span><span class="v good">1.0</span></div>
+      <div class="metric"><span class="k">Precision:</span><span class="v good">1.0</span></div>
+      <div class="metric"><span class="k">轮次:</span><span class="v warn">3</span></div>
+      <div class="metric"><span class="k">延迟:</span><span class="v bad">43.0s</span></div>
+      <div class="metric"><span class="k">置信度:</span><span class="v warn">medium</span></div>
+    </div>
+
+    <div class="trace-timeline">
+      <div class="trace-round">
+        <div class="round-label">Round 0</div>
+        <div class="tool-call">eam.anomaly.search</div>
+        <div class="tool-args">{"productionLine": "B线", "source": "PATROL", "dateRange": {"from": "2026-02-01", "to": "2026-02-28"}, "format": "concise"}</div>
+        <div class="tool-error">API 400 错误: dateRange.to 格式不对，需要 LocalDateTime 而非 date</div>
+      </div>
+      <div class="trace-round">
+        <div class="round-label">Round 1 (修正格式)</div>
+        <div class="tool-call">eam.anomaly.search</div>
+        <div class="tool-args">{"productionLine": "B线", "source": "PATROL", "dateRange": {"from": "2026-02-01T00:00:00", "to": "2026-02-28T23:59:59"}, "format": "concise"}</div>
+        <div class="tool-result">total=0, items=0</div>
+      </div>
+      <div class="trace-round">
+        <div class="round-label">Round 2 (去掉 source 限定)</div>
+        <div class="tool-call">eam.anomaly.search</div>
+        <div class="tool-args">{"productionLine": "B线", "dateRange": {...}, "format": "concise"}</div>
+        <div class="tool-result">total=0, items=0</div>
+      </div>
+    </div>
+
+    <div class="eval-section">
+      <h4>1. 路由决策</h4>
+      <p>
+        <span class="tag tag-green">正确</span>
+        选 eam.anomaly.search 是正确的。Thought 正确识别"巡检发现异常"应查异常域而非巡检域，
+        并设定 source="PATROL" 过滤来源。逻辑清晰。
+      </p>
+    </div>
+
+    <div class="eval-section">
+      <h4>2. 参数质量</h4>
+      <div class="highlight-bad">
+        <strong>Round 0 日期格式错误导致 API 400</strong>。用了 "2026-02-28" 而非 "2026-02-28T23:59:59"。
+        这个错误在 T23 的 repair.search 中没出现（那个 API 容忍了短格式），说明不同 MCP handler
+        对日期格式的容忍度不一致。Round 1 修正后参数正确。
+        <br><br>
+        source="PATROL" 参数值正确，洋葱泛化策略（Round 2 去掉 source）也正确。
+        productionLine="B线" 的命名是否与系统中实际产线名匹配，是返回空结果的关键疑点。
+      </div>
+    </div>
+
+    <div class="eval-section">
+      <h4>3. 执行效率</h4>
+      <div class="highlight-bad">
+        <strong>Round 0 浪费了一轮</strong>，纯粹是日期格式错误。这不应该发生 —
+        MCP handler 应该统一兼容 date 和 datetime 两种格式（T23 的 repair.search 做到了，anomaly.search 没有）。
+        43 秒延迟偏高，其中约 1/3 浪费在错误请求上。
+      </div>
+    </div>
+
+    <div class="eval-section">
+      <h4>4. 数据完整性</h4>
+      <div class="highlight-bad">
+        修正格式后两次查询均返回 total=0。可能原因：
+        (1) B 线上月确实没有异常；(2) "B线"这个名称在系统中不存在（Resolver 匹配失败）；
+        (3) 上月（2 月）时间范围内没有数据。
+        AI 执行了洋葱泛化（去掉 source），但<strong>没有进一步去掉 productionLine 来验证是否有任何异常数据</strong>。
+        如果全局也返回空，说明测试环境确实没有异常数据；如果有数据，说明"B线"匹配失败。
+        这个诊断步骤缺失。
+      </div>
+    </div>
+
+    <div class="eval-section">
+      <h4>5. 回答质量</h4>
+      <div class="highlight-bad">
+        Answer 说"API 错误导致无法获取有效数据" — 但 Round 1 和 Round 2 明明成功返回了（只是结果为空）。
+        AI 把 Round 0 的错误印象带到了最终回答，忽略了后续成功的查询。
+        正确回答应该是："B 线上月没有发现巡检异常（放宽到所有来源也无异常记录）。"
+      </div>
+      <div class="answer-quote">
+        "当前数据不包含B线上个月巡检异常次数的信息，无法回答该问题。数据查询时出现API错误，
+        提示请求参数格式不正确，导致无法获取有效数据。"
+      </div>
+    </div>
+
+    <div class="eval-section">
+      <h4>6. 展示效果</h4>
+      <p><span class="tag tag-red">失败</span> 无有效展示。</p>
+    </div>
+
+    <div class="eval-section">
+      <h4>7. 综合评分：1/5</h4>
+      <p>
+        工具选择正确，但日期格式错误暴露了 MCP handler 的不一致性。最致命的是 AI 被 Round 0 的错误干扰，
+        忽略了 Round 1/2 的成功结果，给出了错误的最终回答。
+      </p>
+      <ul>
+        <li><strong>改进 1</strong>：所有 MCP handler 统一兼容 date 和 datetime 格式，MCP 层做格式标准化</li>
+        <li><strong>改进 2</strong>：summarize 层应以最后一次成功结果为准，不应被早期错误覆盖</li>
+        <li><strong>改进 3</strong>：洋葱泛化应该加一层 — 去掉 productionLine 验证是否全局也无数据</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== T25 ===================== -->
+<div class="question-card">
+  <div class="question-header">
+    <span class="qid">T25</span>
+    <span class="query">最近维修用量最大的备件，关联了哪些设备？</span>
+    <span class="score-badge score-2">2/5</span>
+  </div>
+  <div class="question-body">
+    <div class="metrics-row">
+      <div class="metric"><span class="k">工具:</span><span class="v warn">repair.search + spare.search + trend</span></div>
+      <div class="metric"><span class="k">Recall:</span><span class="v good">1.0</span></div>
+      <div class="metric"><span class="k">Precision:</span><span class="v warn">0.67</span></div>
+      <div class="metric"><span class="k">轮次:</span><span class="v warn">3</span></div>
+      <div class="metric"><span class="k">延迟:</span><span class="v bad">48.5s</span></div>
+      <div class="metric"><span class="k">置信度:</span><span class="v warn">medium</span></div>
+    </div>
+
+    <div class="trace-timeline">
+      <div class="trace-round">
+        <div class="round-label">Round 0</div>
+        <div class="tool-call">eam.repair.search</div>
+        <div class="tool-args">{"dateRange": {...}, "format": "detailed", "limit": 20}</div>
+        <div class="tool-result">total=20, items=10, 所有 spareSummary.count=0</div>
+      </div>
+      <div class="trace-round">
+        <div class="round-label">Round 1</div>
+        <div class="tool-call">eam.spare.search</div>
+        <div class="tool-args">{"format": "detailed", "limit": 20}</div>
+        <div class="tool-result">total=21, items=20, 所有 equipmentCount=0</div>
+      </div>
+      <div class="trace-round">
+        <div class="round-label">Round 2</div>
+        <div class="tool-call">eam.trend</div>
+        <div class="tool-args">{"domain": "spare", "dateRange": {...}, "groupBy": "day"}</div>
+        <div class="tool-result">无有效数据</div>
+      </div>
+    </div>
+
+    <div class="eval-section">
+      <h4>1. 路由决策</h4>
+      <p>
+        <span class="tag tag-orange">部分正确</span>
+        这是一个真正的跨域问题：维修 → 备件用量 → 备件关联设备。AI 的思路是对的：
+        先查维修工单的备件用量，再查备件关联的设备。但 repair.search 返回的是 spareSummary 汇总（count/totalCost），
+        不是按备件的明细。真正需要的是 repair.profile 查个别工单的备件使用明细，然后聚合分析。
+        trend(domain=spare) 是补充尝试，但 spare 趋势反映的是出库数而非维修用量。
+      </p>
+      <div class="highlight-warn">
+        <strong>更优路径</strong>：repair.search 获取工单列表 → 取前 N 个工单用 repair.profile
+        查备件明细 → 聚合找出用量最大的备件 → spare.search(identifier=备件名) 查关联设备。
+        但这需要多轮 repair.profile 调用，当前 3 轮限制可能不够。
+        这暴露了 L3 跨域查询对"多步编排"的高要求。
+      </div>
+    </div>
+
+    <div class="eval-section">
+      <h4>2. 参数质量</h4>
+      <p>
+        <span class="tag tag-orange">参数本身没问题，但对工具能力的理解有误</span>。
+        repair.search 的 spareSummary 是按工单汇总的总计，不是按备件分类的明细。
+        AI 期望从 spareSummary 中找出"用量最大的备件"，这在工具设计上就做不到。
+      </p>
+    </div>
+
+    <div class="eval-section">
+      <h4>3. 执行效率</h4>
+      <div class="highlight-bad">
+        3 轮用尽，每轮都没获取到有效数据。48.5 秒全部浪费。
+        核心问题是 AI 没有意识到 repair.search 的 spareSummary 是工单级汇总而非备件级明细，
+        导致第一步就走偏了。如果第一步用 repair.profile 查一个工单的备件明细，至少能前进一步。
+      </div>
+    </div>
+
+    <div class="eval-section">
+      <h4>4. 数据完整性</h4>
+      <div class="highlight-bad">
+        三个域都查了，但三个域都没拿到有用数据：
+        (1) repair.search: spareSummary.count 全为 0 — 测试数据中工单没有关联备件用量？
+        (2) spare.search: equipmentCount 全为 0 — 备件没有关联设备？
+        (3) trend(spare): 无数据。
+        <br><br>
+        这指向一个<strong>系统性的测试数据问题</strong>：跨域关联字段（spareSummary、equipmentCount）
+        在测试环境中都是空的。这让跨域查询变得不可能。
+      </div>
+    </div>
+
+    <div class="eval-section">
+      <h4>5. 回答质量</h4>
+      <p>
+        <span class="tag tag-orange">诚实但无用</span>
+        AI 如实报告"数据不包含备件用量信息"，没有编造数据（好的），但对用户毫无帮助。
+        Thought 过程展示了合理的推理链，但每一步都碰壁。
+      </p>
+      <div class="answer-quote">
+        "当前数据不包含备件用量信息，无法回答...缺少备件在维修中的实际使用数量或成本记录。"
+      </div>
+    </div>
+
+    <div class="eval-section">
+      <h4>6. 展示效果</h4>
+      <p><span class="tag tag-red">失败</span> 无有效展示。</p>
+    </div>
+
+    <div class="eval-section">
+      <h4>7. 综合评分：2/5</h4>
+      <p>
+        跨域思路正确（维修→备件→设备），但工具链编排能力不足，且受限于测试数据缺乏跨域关联。
+        这是 L3 最典型的难题 — 单工具能力足够，但多工具串联需要更智能的编排。
+      </p>
+      <ul>
+        <li><strong>改进 1</strong>：repair.search 的 spareSummary 应包含 topSpares 字段，直接列出用量 Top N 备件</li>
+        <li><strong>改进 2</strong>：spare.search 的 equipmentCount 必须有值，这是备件域最基本的关联信息</li>
+        <li><strong>改进 3</strong>：考虑 L3 跨域查询的 Composite Skill，把"维修→备件→设备"封装为一个编排</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== T21 ===================== -->
+<div class="question-card">
+  <div class="question-header">
+    <span class="qid">T21</span>
+    <span class="query">A 线上月维修用了哪些备件？</span>
+    <span class="score-badge score-2">2/5</span>
+  </div>
+  <div class="question-body">
+    <div class="metrics-row">
+      <div class="metric"><span class="k">工具:</span><span class="v good">eam.repair.search</span></div>
+      <div class="metric"><span class="k">Recall:</span><span class="v good">1.0</span></div>
+      <div class="metric"><span class="k">Precision:</span><span class="v good">1.0</span></div>
+      <div class="metric"><span class="k">轮次:</span><span class="v warn">3</span></div>
+      <div class="metric"><span class="k">延迟:</span><span class="v bad">52.9s</span></div>
+      <div class="metric"><span class="k">置信度:</span><span class="v warn">medium</span></div>
+    </div>
+
+    <div class="trace-timeline">
+      <div class="trace-round">
+        <div class="round-label">Round 0</div>
+        <div class="tool-call">eam.repair.search</div>
+        <div class="tool-args">{"productionLine": "A线", "dateRange": {"from": "2026-02-01T00:00:00", "to": "2026-02-28T23:59:59"}, "format": "concise"}</div>
+        <div class="tool-result">total=0, items=0（A线上月无维修工单）</div>
+      </div>
+      <div class="trace-round">
+        <div class="round-label">Round 1 (去掉时间限定)</div>
+        <div class="tool-call">eam.repair.search</div>
+        <div class="tool-args">{"productionLine": "A线", "format": "concise"}</div>
+        <div class="tool-result">total=28, items=20（有工单，但全是本月且无备件明细）</div>
+      </div>
+      <div class="trace-round">
+        <div class="round-label">Round 2 (finish)</div>
+        <div class="tool-args">分析后结束，未继续查 repair.profile</div>
+      </div>
+    </div>
+
+    <div class="eval-section">
+      <h4>1. 路由决策</h4>
+      <div class="highlight-warn">
+        <strong>部分正确但不完整</strong>。repair.search 是正确的起点，但用户问的是"用了哪些备件"，
+        repair.search 只返回 spareSummary（汇总），不返回备件明细。
+        Thought 中明确提到了这一点并规划了第二步用 repair.profile，
+        但 Round 1 找到 28 个工单后，Round 2 没有继续调用 repair.profile 查备件明细就结束了。
+        <br><br>
+        正确路径：repair.search(A线, 上月) → repair.profile(工单号) → 从中提取备件列表。
+        AI 的 Thought 规划了这个路径，但执行中断了。
+      </div>
+    </div>
+
+    <div class="eval-section">
+      <h4>2. 参数质量</h4>
+      <p>
+        <span class="tag tag-green">合格</span>
+        productionLine="A线" 正确。时间范围 2026-02 正确。
+        Round 1 洋葱泛化（去掉时间范围）是合理策略。
+        format="concise" 选择不太好 — 用 detailed 可能包含更多备件信息。
+      </p>
+    </div>
+
+    <div class="eval-section">
+      <h4>3. 执行效率</h4>
+      <div class="highlight-bad">
+        <strong>52.9 秒是 8 题中最慢的，但没产出结果</strong>。
+        Round 1 找到 28 个工单后，AI 在 Round 2 纠结于"这些是本月工单不是上月"就停止了，
+        没有继续调用 repair.profile。如果 Round 0 用 format="detailed" 可能就能看到 spareSummary，
+        即使为空也比 concise 信息更多。
+      </div>
+    </div>
+
+    <div class="eval-section">
+      <h4>4. 数据完整性</h4>
+      <div class="highlight-bad">
+        <strong>跨域覆盖不完整</strong>。用户问的是"维修"+"备件"两个域。
+        维修域通过 repair.search 覆盖了，但备件域完全没覆盖 —
+        AI 没有调用 repair.profile 查备件明细，也没有调用 spare.search。
+        Round 1 返回的工单数据中 spareSummary 字段的值未显示在 concise 格式中，
+        如果用 detailed 格式可能有更多线索。
+      </div>
+    </div>
+
+    <div class="eval-section">
+      <h4>5. 回答质量</h4>
+      <div class="highlight-bad">
+        "当前数据不包含备件信息" — 这是准确的，但根因是 AI 中途放弃了查询。
+        如果上月确实没有工单，正确回答应该是"A 线上月没有维修记录，因此没有备件使用。
+        最近的维修记录在本月（共 28 张工单），是否需要查看本月的备件使用情况？"
+      </div>
+    </div>
+
+    <div class="eval-section">
+      <h4>6. 展示效果</h4>
+      <p><span class="tag tag-red">失败</span> 无有效展示。</p>
+    </div>
+
+    <div class="eval-section">
+      <h4>7. 综合评分：2/5</h4>
+      <p>
+        Thought 规划了正确的多步路径（search → profile），但执行中断。
+        核心问题：(1) Round 2 应该继续调用 repair.profile 而非放弃；
+        (2) 发现上月无数据后应该主动告知用户并建议查看本月数据。
+      </p>
+      <ul>
+        <li><strong>改进 1</strong>：当 Thought 规划了多步路径时，不应在中间步骤就 finish</li>
+        <li><strong>改进 2</strong>：洋葱泛化找到数据后，应继续执行原始计划（查 profile 获取备件明细）</li>
+        <li><strong>改进 3</strong>：repair.search 的 concise 模式也应返回 spareSummary 摘要</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== T26 ===================== -->
+<div class="question-card">
+  <div class="question-header">
+    <span class="qid">T26</span>
+    <span class="query">A 线设备的保养计划执行率是多少？</span>
+    <span class="score-badge score-2">2/5</span>
+  </div>
+  <div class="question-body">
+    <div class="metrics-row">
+      <div class="metric"><span class="k">工具:</span><span class="v warn">scope.overview + maintenance.search</span></div>
+      <div class="metric"><span class="k">Recall:</span><span class="v good">1.0</span></div>
+      <div class="metric"><span class="k">Precision:</span><span class="v warn">0.5</span></div>
+      <div class="metric"><span class="k">轮次:</span><span class="v warn">3</span></div>
+      <div class="metric"><span class="k">延迟:</span><span class="v warn">30.0s</span></div>
+      <div class="metric"><span class="k">置信度:</span><span class="v good">high</span></div>
+    </div>
+
+    <div class="trace-timeline">
+      <div class="trace-round">
+        <div class="round-label">Round 0</div>
+        <div class="tool-call">eam.scope.overview</div>
+        <div class="tool-args">{"identifier": "A线", "format": "concise"}</div>
+        <div class="tool-error">{"error": "未找到匹配的范围", "identifier": "A线"}</div>
+      </div>
+      <div class="trace-round">
+        <div class="round-label">Round 1 (降级到 maintenance.search)</div>
+        <div class="tool-call">eam.maintenance.search</div>
+        <div class="tool-args">{"productionLine": "A线", "dateRange": {...}, "groupBy": "equipment"}</div>
+        <div class="tool-result">total=3, groups: [1009:0%, 1002:0%, 1001:0%]</div>
+      </div>
+      <div class="trace-round">
+        <div class="round-label">Round 2 (finish)</div>
+        <div class="tool-args">分析后结束</div>
+      </div>
+    </div>
+
+    <div class="eval-section">
+      <h4>1. 路由决策</h4>
+      <p>
+        <span class="tag tag-green">优秀</span>
+        先试 scope.overview（一次性获取保养完成率），失败后降级到 maintenance.search(groupBy=equipment)
+        自己计算执行率。这是正确的降级策略。唯一问题是 scope.overview 对"A线"标识符匹配失败，
+        暴露了 Resolver 的匹配范围问题。
+      </p>
+    </div>
+
+    <div class="eval-section">
+      <h4>2. 参数质量</h4>
+      <div class="highlight-warn">
+        scope.overview: identifier="A线" — 为什么匹配失败？可能系统中产线名是"A 线""产线A"
+        或带前缀的全名。Resolver 的模糊匹配能力不足。
+        <br><br>
+        maintenance.search: productionLine="A线", groupBy="equipment" 参数合理。
+        但返回结果只有 3 个设备（group ID: 1009, 1002, 1001），
+        而且只显示了设备 ID 而非设备名称，对分析有影响。
+      </div>
+    </div>
+
+    <div class="eval-section">
+      <h4>3. 执行效率</h4>
+      <p><span class="tag tag-green">合理</span> 3 轮是合理的：scope.overview 尝试 → 降级到 maintenance.search → 分析结束。</p>
+    </div>
+
+    <div class="eval-section">
+      <h4>4. 数据完整性</h4>
+      <div class="highlight-good">
+        maintenance.search 实际返回了有效数据：3 个设备，各 1 个保养任务，completionRate 均为 0%。
+        这意味着 <strong>AI 已经有了回答问题所需的全部数据</strong>：
+        A 线 3 台设备共 3 个保养任务，完成率 0%（全部未执行）。
+      </div>
+    </div>
+
+    <div class="eval-section">
+      <h4>5. 回答质量</h4>
+      <div class="highlight-bad">
+        <strong>这是最令人遗憾的一题。</strong><br>
+        AI 在 Thought Round 2 中<strong>正确计算出</strong>了答案：
+        "总任务数3，已完成数0，整体执行率0%"。
+        但最终 Answer 却说"当前数据不包含A线设备的保养计划执行率信息，无法回答"。
+        <br><br>
+        这是 Thought 和 Answer 的<strong>严重脱节</strong> — AI 的推理层得出了正确结论，
+        但 summarize 层的输出却完全否定了推理结论。
+        正确回答应该是："A 线保养计划执行率为 0%。共 3 台设备 3 个保养任务，全部未完成。"
+      </div>
+      <div class="answer-quote">
+        "当前数据不包含A线设备的保养计划执行率信息，无法回答该问题。数据提示：请输入产线名、部门名或车间名。"
+      </div>
+      <p style="margin-top:0.5rem; color:var(--text-muted);">
+        注意 Answer 引用的是 Round 0 scope.overview 的错误提示，而非 Round 1 maintenance.search 的成功结果。
+        summarize 层可能优先级排序有误，用了第一个工具的结果而非最后一个。
+      </p>
+    </div>
+
+    <div class="eval-section">
+      <h4>6. 展示效果</h4>
+      <p><span class="tag tag-red">失败</span> 应该展示：整体执行率 0% + 每台设备的保养完成情况表格。</p>
+    </div>
+
+    <div class="eval-section">
+      <h4>7. 综合评分：2/5</h4>
+      <p>
+        路由策略（scope.overview → maintenance.search 降级）和推理过程都是优秀的。
+        数据完整，推理正确，但 Answer 输出完全错误。这直接暴露了 summarize 层的 bug：
+        它引用了第一个工具（scope.overview）的错误结果，忽略了后续工具（maintenance.search）的有效数据。
+      </p>
+      <ul>
+        <li><strong>改进 1（P0）</strong>：summarize 层必须使用最终有效数据，不能被早期错误污染</li>
+        <li><strong>改进 2</strong>：scope.overview 的 Resolver 需要增强模糊匹配（"A线" → "A 线""产线A" 等变体）</li>
+        <li><strong>改进 3</strong>：maintenance.search 的 group 字段应返回设备名称而非只有 ID</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== T27 ===================== -->
+<div class="question-card">
+  <div class="question-header">
+    <span class="qid">T27</span>
+    <span class="query">维修工单 WO-005 的出库单涉及了哪些仓库？</span>
+    <span class="score-badge score-1">1/5</span>
+  </div>
+  <div class="question-body">
+    <div class="metrics-row">
+      <div class="metric"><span class="k">工具:</span><span class="v warn">repair.profile + repair.search</span></div>
+      <div class="metric"><span class="k">Recall:</span><span class="v good">1.0</span></div>
+      <div class="metric"><span class="k">Precision:</span><span class="v warn">0.5</span></div>
+      <div class="metric"><span class="k">轮次:</span><span class="v warn">3</span></div>
+      <div class="metric"><span class="k">延迟:</span><span class="v warn">30.8s</span></div>
+      <div class="metric"><span class="k">置信度:</span><span class="v warn">medium</span></div>
+    </div>
+
+    <div class="trace-timeline">
+      <div class="trace-round">
+        <div class="round-label">Round 0</div>
+        <div class="tool-call">eam.repair.profile</div>
+        <div class="tool-args">{"identifier": "WO-005", "format": "detailed"}</div>
+        <div class="tool-error">{"error": "未找到匹配的维修工单", "identifier": "WO-005"}</div>
+      </div>
+      <div class="trace-round">
+        <div class="round-label">Round 1 (搜索模糊匹配)</div>
+        <div class="tool-call">eam.repair.search</div>
+        <div class="tool-args">{"identifier": "WO-005", "format": "concise", "limit": 10}</div>
+        <div class="tool-result">total=28, items=10（全部以 RO 开头，无 WO 编号）</div>
+      </div>
+      <div class="trace-round">
+        <div class="round-label">Round 2 (猜测工单)</div>
+        <div class="tool-call">eam.repair.profile</div>
+        <div class="tool-args">{"identifier": "RO202603110002", "format": "detailed"}</div>
+        <div class="tool-error">{"message": "找到多个匹配", "candidates": [...]}</div>
+      </div>
+    </div>
+
+    <div class="eval-section">
+      <h4>1. 路由决策</h4>
+      <p>
+        <span class="tag tag-green">正确</span>
+        repair.profile 是查"维修工单+出库单+仓库"的正确且唯一的入口。
+        工具描述明确包含"出库单"数据。
+        降级到 repair.search 也是合理的恢复策略。
+      </p>
+    </div>
+
+    <div class="eval-section">
+      <h4>2. 参数质量</h4>
+      <div class="highlight-bad">
+        <strong>WO-005 在系统中不存在</strong>。系统维修工单编号格式为 RO + 日期 + 序号（如 RO202603110002），
+        用户给的 WO-005 完全不符合格式。这是一个<strong>benchmark 测试数据设计问题</strong> —
+        测试题使用了系统中不存在的标识符。
+        <br><br>
+        Round 2 中 AI 猜测选了 RO202603110002，但这与 WO-005 毫无关联，属于无根据的猜测。
+        更好的做法是告知用户"WO-005 不存在，系统中的工单编号以 RO 开头"并展示工单列表供选择。
+      </div>
+    </div>
+
+    <div class="eval-section">
+      <h4>3. 执行效率</h4>
+      <div class="highlight-warn">
+        3 轮用尽但无有效结果。Round 2 的猜测调用浪费了一轮 — 如果 Round 2 用来告知用户"WO-005 不存在"
+        并展示工单列表，效果更好。repair.profile 对 RO202603110002 返回了"多个匹配"的候选列表，
+        说明 Resolver 可以工作，但对 WO-005 就完全匹配不到。
+      </div>
+    </div>
+
+    <div class="eval-section">
+      <h4>4. 数据完整性</h4>
+      <p>
+        <span class="tag tag-red">无有效数据</span>
+        因为标识符不存在，所有查询都失败。出库单和仓库信息完全未获取到。
+        这不是系统能力问题，而是 benchmark 测试数据问题 — 测试用了系统中不存在的工单号。
+      </p>
+    </div>
+
+    <div class="eval-section">
+      <h4>5. 回答质量</h4>
+      <div class="highlight-warn">
+        Answer 表述基本准确："未找到维修工单 WO-005"。
+        但<strong>缺乏引导性</strong> — 应该明确告知用户"系统中维修工单编号以 RO 开头，
+        如 RO202603110002、RO202603110001 等"，并建议用户确认工单编号。
+      </div>
+      <div class="answer-quote">
+        "当前数据不包含维修工单 WO-005 的出库单信息，无法回答该问题。数据中显示未找到匹配的维修工单 WO-005。"
+      </div>
+    </div>
+
+    <div class="eval-section">
+      <h4>6. 展示效果</h4>
+      <p><span class="tag tag-red">失败</span> 应该展示搜索到的工单列表，供用户选择正确的工单。</p>
+    </div>
+
+    <div class="eval-section">
+      <h4>7. 综合评分：1/5</h4>
+      <p>
+        这题的核心问题是 benchmark 测试数据设计缺陷 — WO-005 在系统中根本不存在。
+        AI 的路由和恢复策略（profile → search → 再 profile）是合理的，但在标识符不匹配时缺乏用户引导。
+      </p>
+      <ul>
+        <li><strong>改进 1（benchmark）</strong>：测试数据应使用系统中存在的真实工单编号</li>
+        <li><strong>改进 2</strong>：Resolver 未找到匹配时，AI 应展示候选列表并追问用户</li>
+        <li><strong>改进 3</strong>：AI 不应擅自替用户选择不相关的工单（Round 2 的猜测行为有风险）</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== T28 ===================== -->
+<div class="question-card">
+  <div class="question-header">
+    <span class="qid">T28</span>
+    <span class="query">设备 EQ-001 最近一次故障的维修花了多少工时？</span>
+    <span class="score-badge score-2">2/5</span>
+  </div>
+  <div class="question-body">
+    <div class="metrics-row">
+      <div class="metric"><span class="k">工具:</span><span class="v warn">equipment.profile + equipment.search</span></div>
+      <div class="metric"><span class="k">Recall:</span><span class="v bad">0.5</span></div>
+      <div class="metric"><span class="k">Precision:</span><span class="v bad">0.5</span></div>
+      <div class="metric"><span class="k">轮次:</span><span class="v warn">3</span></div>
+      <div class="metric"><span class="k">延迟:</span><span class="v warn">35.0s</span></div>
+      <div class="metric"><span class="k">置信度:</span><span class="v bad">low</span></div>
+    </div>
+
+    <div class="trace-timeline">
+      <div class="trace-round">
+        <div class="round-label">Round 0</div>
+        <div class="tool-call">eam.equipment.profile</div>
+        <div class="tool-args">{"identifier": "EQ-001", "format": "concise"}</div>
+        <div class="tool-error">{"error": "未找到匹配的设备", "identifier": "EQ-001"}</div>
+      </div>
+      <div class="trace-round">
+        <div class="round-label">Round 1</div>
+        <div class="tool-call">eam.equipment.search</div>
+        <div class="tool-args">{"identifier": "EQ-001", "format": "concise"}</div>
+        <div class="tool-result">total=165, items=20（全是 EQ2026... 格式，无 EQ-001）</div>
+      </div>
+      <div class="trace-round">
+        <div class="round-label">Round 2 (finish)</div>
+        <div class="tool-args">未找到设备，结束查询</div>
+      </div>
+    </div>
+
+    <div class="eval-section">
+      <h4>1. 路由决策</h4>
+      <div class="highlight-warn">
+        <strong>起点正确但未完成跨域</strong>。AI 的规划是对的：
+        equipment.profile 获取设备详情（含故障列表）→ 找到最近故障的维修工单号 → repair.profile 查工时。
+        但第一步就失败了（EQ-001 不存在），AI 没有来得及执行跨域查询。
+        <br><br>
+        expectedTools 包含 repair.profile 但 AI 没有调用到 — 因为设备不存在，无法获取故障和工单号。
+        这再次是 <strong>benchmark 测试数据问题</strong>：EQ-001 在系统中不存在
+        （系统设备编号格式是 EQ202603260144 这种长格式）。
+      </div>
+    </div>
+
+    <div class="eval-section">
+      <h4>2. 参数质量</h4>
+      <div class="highlight-bad">
+        identifier="EQ-001" 在系统中不存在。Round 1 用 equipment.search 搜索也没找到。
+        系统中 165 台设备全部是 "EQ" + 日期格式或 "E2E-" 前缀。
+        这与 T27 的 WO-005 是同一类问题：benchmark 用了不存在的标识符。
+      </div>
+    </div>
+
+    <div class="eval-section">
+      <h4>3. 执行效率</h4>
+      <p>
+        <span class="tag tag-orange">可以接受</span>
+        equipment.profile → equipment.search 的降级是合理的恢复流程。
+        但 Round 2 放弃太早 — 可以尝试用 fault.search 或 repair.search 查找与故障关联的工单，
+        即使设备标识符不精确。
+      </p>
+    </div>
+
+    <div class="eval-section">
+      <h4>4. 数据完整性</h4>
+      <p>
+        <span class="tag tag-red">零数据</span>
+        设备域未找到，故障域和维修域完全未覆盖。recall=0.5 是 8 题中最低的。
+        这是一个需要 equipment → fault → repair 三域联动的查询，第一步就断了。
+      </p>
+    </div>
+
+    <div class="eval-section">
+      <h4>5. 回答质量</h4>
+      <p>
+        <span class="tag tag-orange">诚实准确</span>
+        "EQ-001 可能不存在或不在当前查询范围内" — 表述准确。
+        但 followUp 建议了"尝试查询 EQ202603260138" 这种随机设备，对用户帮助不大。
+        更好的做法是展示设备列表让用户自己找。
+      </p>
+    </div>
+
+    <div class="eval-section">
+      <h4>6. 展示效果</h4>
+      <p><span class="tag tag-red">失败</span> 应该展示搜索到的设备列表。</p>
+    </div>
+
+    <div class="eval-section">
+      <h4>7. 综合评分：2/5</h4>
+      <p>
+        与 T27 同理，核心问题是 benchmark 测试数据使用了系统中不存在的设备编号。
+        AI 的多步规划（equipment → fault → repair）思路正确，但因第一步失败而全线溃败。
+        confidence=low 是准确的自评。
+      </p>
+      <ul>
+        <li><strong>改进 1（benchmark）</strong>：使用系统中存在的真实设备编号</li>
+        <li><strong>改进 2</strong>：设备未找到时，展示候选设备列表并追问</li>
+        <li><strong>改进 3</strong>：考虑绕过设备直接查 — 如果用户目的是查工时，可以用 repair.search 按时间找最近工单</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== 系统性问题总结 ===================== -->
+<div class="systemic-section">
+  <h2>系统性问题诊断</h2>
+
+  <p>
+    8 题 L3 全部交出"无法回答"的白卷，但这不是 AI 笨、也不是工具少 — 问题出在三个系统层面。
+    下面按严重度排序。
+  </p>
+
+  <h3>1. [P0] Summarize 层与 Thought 层脱节 — 最致命的 bug</h3>
+  <p>
+    T22、T23、T24、T26 这 4 题中，AI 的 Thought 推理过程得出了正确或合理的结论，
+    但最终 Answer 却输出"无法回答"。这意味着：
+  </p>
+  <ul>
+    <li><strong>T22</strong>：Thought 说"所有 lowStock=false，没有库存不足" → Answer 说"不包含 BOM 信息"</li>
+    <li><strong>T24</strong>：Thought 说"Round 1/2 成功查询，结果为空" → Answer 说"API 错误导致无法获取"</li>
+    <li><strong>T26</strong>：Thought 说"总任务3，完成0，执行率0%" → Answer 说"不包含执行率信息"</li>
+  </ul>
+  <p>
+    推断原因：summarize prompt 可能过于保守 — 对"空结果"和"查询失败"不做区分，一律输出保底话术。
+    另一个可能是 summarize 层优先使用第一个工具的结果，而忽略后续工具的有效数据。
+  </p>
+  <div class="highlight-bad">
+    <strong>修复建议</strong>：
+    (1) summarize 层必须区分"查到了，结果为空集"和"查询失败/数据不足"；
+    (2) 当多轮查询时，以最终有效结果为准，不被早期错误污染；
+    (3) Thought 的结论应该是 Answer 的直接输入源，不应被保底机制覆盖。
+  </div>
+
+  <h3>2. [P0] Benchmark 测试数据与系统数据不匹配</h3>
+  <p>
+    T27 (WO-005) 和 T28 (EQ-001) 使用了系统中不存在的标识符。
+    系统设备编号格式是 "EQ202603260144"，维修工单编号是 "RO202603110002"，
+    benchmark 用的 "EQ-001" 和 "WO-005" 完全不匹配。
+  </p>
+  <div class="highlight-bad">
+    <strong>修复建议</strong>：
+    (1) 所有 L3 测试题必须使用系统中真实存在的标识符；
+    (2) 或者在 Resolver 中增加别名映射（如 EQ-001 → EQ202603110001 这种简短别名）；
+    (3) Benchmark 框架应有数据预检步骤，确认测试题引用的实体确实存在。
+  </div>
+
+  <h3>3. [P1] 跨域关联数据为空 — 让 L3 查询毫无意义</h3>
+  <p>
+    T22 的 equipmentCount=0、T25 的 spareSummary.count=0、所有工单的 knowledgeRefs=[] —
+    跨域关联字段在测试数据中全部为空值或零值。L3 查询的核心价值在于跨域串联，
+    但如果关联字段本身没有数据，再好的工具链编排也无法产出结果。
+  </p>
+  <div class="highlight-warn">
+    <strong>修复建议</strong>：
+    (1) 测试数据中必须包含跨域关联 — 至少部分工单要有备件明细、知识引用、出库单；
+    (2) spare 的 equipmentCount 必须正确反映关联设备数；
+    (3) 考虑用种子脚本创建一组完整的跨域测试数据（设备 → 故障 → 维修 → 备件出库 → 知识引用）。
+  </div>
+
+  <h3>4. [P1] MCP Handler 日期格式不一致</h3>
+  <p>
+    T24 的 anomaly.search 要求完整 ISO datetime（拒绝纯 date），
+    而 T23 的 repair.search 接受两种格式。不同 handler 的容忍度不同会导致 AI 摸不清规律。
+  </p>
+  <div class="highlight-warn">
+    <strong>修复建议</strong>：MCP 层统一做日期格式标准化 — 如果收到 "2026-02-28"，自动补充为 "2026-02-28T00:00:00"（from）或 "2026-02-28T23:59:59"（to）。
+  </div>
+
+  <h3>5. [P2] AI 在标识符不匹配时缺乏用户引导</h3>
+  <p>
+    T27 和 T28 中，AI 知道用户给的标识符不存在，但没有展示候选列表让用户选择。
+    T27 Round 2 甚至自作主张选了一个不相关的工单。
+    正确做法是展示搜索结果供用户确认，而非替用户决定。
+  </p>
+
+  <h3>6. [P2] 洋葱泛化策略执行不彻底</h3>
+  <p>
+    T24 去掉了 source 限定但没进一步去掉 productionLine 来验证全局数据。
+    T21 找到 28 个工单后没有继续查 repair.profile。
+    泛化的目标是"要么找到数据，要么确认全局都没有"，中途放弃违背了这个原则。
+  </p>
+</div>
+
+<!-- ===================== 总分和建议 ===================== -->
+<div class="systemic-section" style="margin-top: 1.5rem; border-color: var(--accent);">
+  <h2 style="color: var(--accent);">评分总表</h2>
+
+  <table style="width:100%; border-collapse: collapse; margin: 1rem 0; font-size: 0.9rem;">
+    <thead>
+      <tr style="border-bottom: 2px solid var(--border);">
+        <th style="text-align:left; padding:0.5rem; color:var(--text-muted);">题号</th>
+        <th style="text-align:left; padding:0.5rem; color:var(--text-muted);">问题</th>
+        <th style="text-align:center; padding:0.5rem; color:var(--text-muted);">评分</th>
+        <th style="text-align:left; padding:0.5rem; color:var(--text-muted);">核心病因</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr style="border-bottom:1px solid var(--border);">
+        <td style="padding:0.5rem; color:var(--accent);">T22</td>
+        <td style="padding:0.5rem;">EQ-003 BOM 库存不足</td>
+        <td style="padding:0.5rem; text-align:center; color:var(--orange);">2/5</td>
+        <td style="padding:0.5rem;">Thought 正确 / Answer 拒绝回答</td>
+      </tr>
+      <tr style="border-bottom:1px solid var(--border);">
+        <td style="padding:0.5rem; color:var(--accent);">T23</td>
+        <td style="padding:0.5rem;">上月维修知识文档</td>
+        <td style="padding:0.5rem; text-align:center; color:var(--orange);">2/5</td>
+        <td style="padding:0.5rem;">"没有"是答案 / AI 说"无法回答"</td>
+      </tr>
+      <tr style="border-bottom:1px solid var(--border);">
+        <td style="padding:0.5rem; color:var(--accent);">T24</td>
+        <td style="padding:0.5rem;">B 线巡检异常次数</td>
+        <td style="padding:0.5rem; text-align:center; color:var(--red);">1/5</td>
+        <td style="padding:0.5rem;">日期错误 + 被 R0 错误污染 Answer</td>
+      </tr>
+      <tr style="border-bottom:1px solid var(--border);">
+        <td style="padding:0.5rem; color:var(--accent);">T25</td>
+        <td style="padding:0.5rem;">维修用量最大备件 → 关联设备</td>
+        <td style="padding:0.5rem; text-align:center; color:var(--orange);">2/5</td>
+        <td style="padding:0.5rem;">跨域关联数据全空</td>
+      </tr>
+      <tr style="border-bottom:1px solid var(--border);">
+        <td style="padding:0.5rem; color:var(--accent);">T21</td>
+        <td style="padding:0.5rem;">A 线上月维修备件</td>
+        <td style="padding:0.5rem; text-align:center; color:var(--orange);">2/5</td>
+        <td style="padding:0.5rem;">多步规划未执行完 + 上月无数据</td>
+      </tr>
+      <tr style="border-bottom:1px solid var(--border);">
+        <td style="padding:0.5rem; color:var(--accent);">T26</td>
+        <td style="padding:0.5rem;">A 线保养执行率</td>
+        <td style="padding:0.5rem; text-align:center; color:var(--orange);">2/5</td>
+        <td style="padding:0.5rem;">Thought 算出 0% / Answer 说"无法回答"</td>
+      </tr>
+      <tr style="border-bottom:1px solid var(--border);">
+        <td style="padding:0.5rem; color:var(--accent);">T27</td>
+        <td style="padding:0.5rem;">WO-005 出库单仓库</td>
+        <td style="padding:0.5rem; text-align:center; color:var(--red);">1/5</td>
+        <td style="padding:0.5rem;">标识符不存在（benchmark 设计问题）</td>
+      </tr>
+      <tr style="border-bottom:1px solid var(--border);">
+        <td style="padding:0.5rem; color:var(--accent);">T28</td>
+        <td style="padding:0.5rem;">EQ-001 最近故障工时</td>
+        <td style="padding:0.5rem; text-align:center; color:var(--orange);">2/5</td>
+        <td style="padding:0.5rem;">标识符不存在（benchmark 设计问题）</td>
+      </tr>
+    </tbody>
+    <tfoot>
+      <tr style="border-top:2px solid var(--border);">
+        <td colspan="2" style="padding:0.5rem; font-weight:700; color:#f0f6fc;">平均</td>
+        <td style="padding:0.5rem; text-align:center; font-weight:700; color:var(--red);">1.75/5</td>
+        <td style="padding:0.5rem; color:var(--text-muted);">有效回答率 0%</td>
+      </tr>
+    </tfoot>
+  </table>
+</div>
+
+<div class="systemic-section" style="margin-top: 1.5rem; border-color: var(--green);">
+  <h2 style="color: var(--green);">优先修复路线图</h2>
+
+  <h3>立即修复（P0 — 直接影响所有 L3 结果）</h3>
+  <ol>
+    <li><strong>修复 summarize 层</strong> — Thought 推理结论必须直接输出到 Answer，不被保底话术覆盖。
+      区分"查到空集"与"查询失败"。多轮查询时以最终有效数据为准。</li>
+    <li><strong>修复 benchmark 测试数据</strong> — 所有题目的标识符必须用系统中真实存在的编号。
+      新增数据预检步骤确认实体存在。</li>
+    <li><strong>填充跨域关联数据</strong> — 用种子脚本创建完整的跨域业务链：
+      设备 → 故障报修 → 维修工单（含备件明细、工时明细、知识引用、出库单）。</li>
+  </ol>
+
+  <h3>短期改进（P1）</h3>
+  <ol>
+    <li><strong>MCP 日期格式统一</strong> — 所有 handler 的 dateRange 参数统一兼容 date 和 datetime 格式</li>
+    <li><strong>Resolver 模糊匹配增强</strong> — scope.overview 的产线匹配、repair.profile 的工单匹配都需要更强的容忍度</li>
+    <li><strong>重新评估 success 判定标准</strong> — 当前 success=true 仅基于工具选择 recall，应加入"是否产出有效回答"作为必要条件</li>
+  </ol>
+
+  <h3>中期改进（P2）</h3>
+  <ol>
+    <li><strong>L3 跨域 Composite Skill</strong> — 封装常见跨域查询模式（如"维修→备件→设备"）减少 AI 编排负担</li>
+    <li><strong>标识符不匹配时的用户引导</strong> — 展示候选列表 + 追问确认，不替用户猜测</li>
+    <li><strong>repair.search 增加 topSpares 字段</strong> — 在搜索结果中直接返回用量 Top N 备件，减少多步查询</li>
+  </ol>
+</div>
+
+<div class="footer">
+  Insight68 NL-API L3 跨域 Benchmark 质量审计 | 审计日期 2026-03-29 | 审计模型 Claude Opus 4.6 (1M context)
+</div>
+
+</div>
+</body>
+</html>

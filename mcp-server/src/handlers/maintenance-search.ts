@@ -2,7 +2,7 @@
 import { z } from 'zod'
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { eamSearch } from '../eam-api.js'
-import { resolveEquipment, resolveProductionLine, resolveDepartment, getEquipmentIdsByProductionLine, getEquipmentIdsByDepartment } from '../resolvers.js'
+import { resolveEquipment, resolveScope, enrichGroupNames } from '../resolvers.js'
 
 interface MaintenanceTask {
   id: number; taskCode: string; planId: number; equipmentId: number
@@ -39,18 +39,10 @@ export function registerMaintenanceSearch(server: McpServer) {
       if (args.status !== undefined) params.status = args.status
       if (args.overdue) params.status = 3 // 逾期状态码
 
-      // 产线/部门过滤
-      let scopeEquipmentIds: number[] | null = null
-      if (args.productionLine) {
-        const line = await resolveProductionLine(args.productionLine)
-        if (line.match === 'exact' && line.entity) scopeEquipmentIds = await getEquipmentIdsByProductionLine(line.entity.id)
-        else if (line.match === 'candidates') return textResult({ message: '找到多个匹配产线，请确认', candidates: line.candidates })
-      }
-      if (args.department && !scopeEquipmentIds) {
-        const dept = await resolveDepartment(args.department)
-        if (dept.match === 'exact' && dept.entity) scopeEquipmentIds = await getEquipmentIdsByDepartment(dept.entity.id)
-        else if (dept.match === 'candidates') return textResult({ message: '找到多个匹配部门，请确认', candidates: dept.candidates })
-      }
+      // 产线/部门过滤 — 通用 resolveScope
+      const scope = await resolveScope({ productionLine: args.productionLine, department: args.department })
+      if (scope.type === 'error') return textResult(scope.response)
+      const scopeEquipmentIds = scope.type === 'ids' ? scope.ids : null
 
       const result = await eamSearch<MaintenanceTask>('/eam/maintenance/task/page', params, {
         groupBy: args.groupBy,
@@ -86,14 +78,13 @@ export function registerMaintenanceSearch(server: McpServer) {
           if (t.status === 2) g.completed++
           groups.set(key, g)
         }
-        return textResult({
-          total,
-          groupBy: args.groupBy,
-          groups: [...groups.entries()].sort((a, b) => b[1].total - a[1].total).map(([group, g]) => ({
-            group, total: g.total, completed: g.completed,
-            completionRate: g.total > 0 ? `${Math.round(g.completed / g.total * 100)}%` : 'N/A',
-          })),
-        })
+        const rawGroups = [...groups.entries()].sort((a, b) => b[1].total - a[1].total).map(([group, g]) => ({
+          group, total: g.total, completed: g.completed,
+          completionRate: g.total > 0 ? `${Math.round(g.completed / g.total * 100)}%` : 'N/A',
+        }))
+        // enrichGroupNames 只替换 group 字段（设备 ID→名称），spread 保留其余字段
+        const enrichedGroups = await enrichGroupNames(rawGroups as any, args.groupBy!)
+        return textResult({ total, groupBy: args.groupBy, groups: enrichedGroups })
       }
 
       const items = list.map(t => args.format === 'concise'

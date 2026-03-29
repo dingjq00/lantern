@@ -129,3 +129,56 @@ export async function getEquipmentIdsByDepartment(deptId: number): Promise<numbe
   })
   return page.list.map(e => e.id)
 }
+
+/**
+ * 通用范围过滤解析 — 处理 productionLine/department 参数
+ * 返回 equipmentIds（过滤成功）/ error 响应（未找到）/ null（未传参数）
+ * 所有 search handler 共用，避免静默过滤失败
+ */
+export async function resolveScope(args: { productionLine?: string; department?: string }): Promise<
+  { type: 'ids'; ids: number[] } | { type: 'error'; response: any } | { type: 'skip' }
+> {
+  if (args.productionLine) {
+    const line = await resolveProductionLine(args.productionLine)
+    if (line.match === 'exact' && line.entity) {
+      return { type: 'ids', ids: await getEquipmentIdsByProductionLine(line.entity.id) }
+    }
+    if (line.match === 'candidates') {
+      return { type: 'error', response: { message: `找到多个匹配的产线，请确认`, candidates: line.candidates } }
+    }
+    return { type: 'error', response: { message: `未找到名为"${args.productionLine}"的产线。请检查名称或使用 eam.equipment.search 浏览设备列表` } }
+  }
+
+  if (args.department) {
+    const dept = await resolveDepartment(args.department)
+    if (dept.match === 'exact' && dept.entity) {
+      return { type: 'ids', ids: await getEquipmentIdsByDepartment(dept.entity.id) }
+    }
+    if (dept.match === 'candidates') {
+      return { type: 'error', response: { message: `找到多个匹配的部门，请确认`, candidates: dept.candidates } }
+    }
+    return { type: 'error', response: { message: `未找到名为"${args.department}"的部门/车间。请检查名称` } }
+  }
+
+  return { type: 'skip' }
+}
+
+/**
+ * groupBy 结果名称解析 — 把数字 ID 替换为人类可读名称
+ * 当 groupBy=equipment 时，ID→设备编号+名称
+ */
+export async function enrichGroupNames(
+  groups: Array<{ group: string; count: number }>,
+  groupBy: string,
+): Promise<Array<{ group: string; count: number }>> {
+  if (groupBy !== 'equipment' || groups.length === 0) return groups
+
+  // 批量查设备名称
+  const eqPage = await eamGet<PageResult<Equipment>>('/eam/equipment/page', { pageNo: 1, pageSize: 200 })
+  const nameMap = new Map(eqPage.list.map(e => [String(e.id), `${e.equipmentCode} ${e.equipmentName}`]))
+
+  return groups.map(g => ({
+    ...g,
+    group: nameMap.get(g.group) ?? g.group,
+  }))
+}

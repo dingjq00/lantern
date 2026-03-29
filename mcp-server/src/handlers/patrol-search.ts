@@ -4,7 +4,7 @@
 import { z } from 'zod'
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { eamGet, type PageResult } from '../eam-api.js'
-import { resolveEquipment, resolveProductionLine, resolveDepartment, getEquipmentIdsByProductionLine, getEquipmentIdsByDepartment } from '../resolvers.js'
+import { resolveEquipment, resolveScope, enrichGroupNames } from '../resolvers.js'
 
 interface PatrolTask {
   id: number; taskCode: string; planId: number; assigneeId: number | null
@@ -55,17 +55,12 @@ export function registerPatrolSearch(server: McpServer) {
       const page = await eamGet<PageResult<PatrolTask>>('/eam/patrol/task/page', params)
       let list = page.list
 
-      // 产线/部门过滤（巡检任务没有直接 equipmentId，需要更复杂的关联）
-      // 简化方案: 如果有产线/部门过滤，从分析端点获取数据
+      // 产线/部门过滤 — 通用 resolveScope（巡检任务无直接 equipmentId，回退到 analytics）
       if (args.productionLine || args.department) {
-        let deptId: number | null = null
-        if (args.department) {
-          const dept = await resolveDepartment(args.department)
-          if (dept.match === 'exact' && dept.entity) deptId = dept.entity.id
-          else if (dept.match === 'candidates') return textResult({ message: '找到多个匹配部门，请确认', candidates: dept.candidates })
-        }
+        const scope = await resolveScope({ productionLine: args.productionLine, department: args.department })
+        if (scope.type === 'error') return textResult(scope.response)
 
-        // 尝试用 analytics/by-equipment 端点
+        // 巡检任务无 equipmentId 字段，尝试 analytics 端点
         try {
           const analytics = await eamGet('/eam/patrol/task/analytics/by-equipment', { days: 90 })
           return textResult({
@@ -85,11 +80,9 @@ export function registerPatrolSearch(server: McpServer) {
           const key = args.groupBy === 'status' ? String(t.status) : String(t.planId)
           groups.set(key, (groups.get(key) ?? 0) + 1)
         }
-        return textResult({
-          total: list.length,
-          groupBy: args.groupBy,
-          groups: [...groups.entries()].sort((a, b) => b[1] - a[1]).map(([group, count]) => ({ group, count })),
-        })
+        const rawGroups = [...groups.entries()].sort((a, b) => b[1] - a[1]).map(([group, count]) => ({ group, count }))
+        const enrichedGroups = await enrichGroupNames(rawGroups, args.groupBy)
+        return textResult({ total: list.length, groupBy: args.groupBy, groups: enrichedGroups })
       }
 
       const items = list.map(t => args.format === 'concise'

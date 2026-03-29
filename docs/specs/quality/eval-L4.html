@@ -1,0 +1,1088 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>L4 Benchmark Quality Audit -- Cross-Domain Analysis</title>
+<style>
+  /* ========== 基础 ========== */
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", "Segoe UI", Roboto, sans-serif;
+    background: #f0f2f5;
+    color: #1a1a2e;
+    line-height: 1.7;
+    font-size: 15px;
+  }
+  a { color: #2d6cb4; text-decoration: none; }
+  a:hover { text-decoration: underline; }
+
+  /* ========== 顶部导航 ========== */
+  .top-bar {
+    background: linear-gradient(135deg, #1e3a5f, #2d4a7a);
+    color: #fff;
+    padding: 18px 40px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.15);
+  }
+  .top-bar h1 { font-size: 20px; font-weight: 600; letter-spacing: 0.5px; }
+  .top-bar .subtitle { font-size: 13px; opacity: 0.75; margin-top: 2px; }
+
+  /* ========== 布局 ========== */
+  .container { max-width: 1200px; margin: 0 auto; padding: 32px 24px 80px; }
+
+  /* ========== Section 卡片 ========== */
+  .section {
+    background: #fff;
+    border: 1px solid #e0e4ea;
+    border-radius: 12px;
+    padding: 32px 36px;
+    margin-bottom: 28px;
+    box-shadow: 0 1px 6px rgba(0,0,0,0.04);
+  }
+  .section h2 {
+    font-size: 22px;
+    color: #1e3a5f;
+    border-bottom: 2px solid #e8ecf1;
+    padding-bottom: 10px;
+    margin-bottom: 20px;
+    font-weight: 700;
+  }
+  .section h3 {
+    font-size: 17px;
+    color: #2d4a7a;
+    margin: 22px 0 10px;
+    font-weight: 600;
+  }
+  .section h4 {
+    font-size: 15px;
+    color: #3a5a8a;
+    margin: 16px 0 8px;
+    font-weight: 600;
+  }
+  .section p { margin-bottom: 12px; }
+
+  /* ========== 表格 ========== */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 14px 0 20px;
+    font-size: 13.5px;
+  }
+  th {
+    background: linear-gradient(135deg, #1e3a5f, #2d4a7a);
+    color: #fff;
+    padding: 10px 14px;
+    text-align: left;
+    font-weight: 600;
+    font-size: 13px;
+    white-space: nowrap;
+  }
+  td {
+    padding: 9px 14px;
+    border-bottom: 1px solid #e8ecf1;
+    vertical-align: top;
+  }
+  tr:hover td { background: #f6f8fb; }
+  tr:last-child td { border-bottom: none; }
+
+  /* ========== inline code ========== */
+  code {
+    font-family: "JetBrains Mono", "Fira Code", "SF Mono", Menlo, Monaco, Consolas, monospace;
+    font-size: 12.5px;
+    background: #eef1f6;
+    color: #c7254e;
+    padding: 2px 6px;
+    border-radius: 4px;
+  }
+
+  /* ========== 评分标签 ========== */
+  .score-badge {
+    display: inline-block;
+    padding: 4px 14px;
+    border-radius: 20px;
+    font-weight: 700;
+    font-size: 14px;
+    letter-spacing: 0.5px;
+  }
+  .score-1 { background: #fee2e2; color: #991b1b; }
+  .score-2 { background: #fed7aa; color: #9a3412; }
+  .score-3 { background: #fef08a; color: #854d0e; }
+  .score-4 { background: #bbf7d0; color: #166534; }
+  .score-5 { background: #a7f3d0; color: #065f46; }
+
+  /* ========== 评估维度 ========== */
+  .eval-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin: 16px 0;
+  }
+  .eval-item {
+    background: #f8f9fc;
+    border: 1px solid #e0e4ea;
+    border-radius: 8px;
+    padding: 14px 18px;
+  }
+  .eval-item.full-width {
+    grid-column: 1 / -1;
+  }
+  .eval-item h4 {
+    margin: 0 0 6px;
+    font-size: 14px;
+    color: #1e3a5f;
+  }
+  .eval-item p {
+    margin: 0;
+    font-size: 13.5px;
+    line-height: 1.6;
+  }
+
+  /* ========== 标签 ========== */
+  .tag {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 11.5px;
+    font-weight: 600;
+    margin-right: 4px;
+  }
+  .tag-green { background: #dcfce7; color: #166534; }
+  .tag-red { background: #fee2e2; color: #991b1b; }
+  .tag-yellow { background: #fef3c7; color: #92400e; }
+  .tag-blue { background: #dbeafe; color: #1e40af; }
+  .tag-gray { background: #f3f4f6; color: #4b5563; }
+
+  /* ========== 问题卡片 ========== */
+  .question-card {
+    border-left: 4px solid #2d4a7a;
+    background: #f0f4fa;
+    padding: 14px 20px;
+    border-radius: 0 8px 8px 0;
+    margin-bottom: 20px;
+    font-size: 16px;
+    font-weight: 600;
+    color: #1e3a5f;
+  }
+  .question-card .qid {
+    font-size: 12px;
+    color: #6b7280;
+    font-weight: 400;
+    margin-right: 10px;
+  }
+
+  /* ========== trace 时间线 ========== */
+  .trace-timeline {
+    position: relative;
+    padding-left: 24px;
+    margin: 12px 0 16px;
+  }
+  .trace-timeline::before {
+    content: '';
+    position: absolute;
+    left: 8px;
+    top: 4px;
+    bottom: 4px;
+    width: 2px;
+    background: #cbd5e1;
+  }
+  .trace-round {
+    position: relative;
+    padding: 8px 0 8px 16px;
+    font-size: 13px;
+    line-height: 1.5;
+  }
+  .trace-round::before {
+    content: '';
+    position: absolute;
+    left: -20px;
+    top: 14px;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: #2d4a7a;
+    border: 2px solid #fff;
+    box-shadow: 0 0 0 2px #cbd5e1;
+  }
+  .trace-round .round-label {
+    font-weight: 600;
+    color: #1e3a5f;
+    margin-right: 8px;
+  }
+  .trace-round .tool-call {
+    display: inline-block;
+    background: #e0e7ff;
+    color: #3730a3;
+    padding: 1px 7px;
+    border-radius: 4px;
+    font-size: 12px;
+    margin: 2px 2px;
+    font-family: "JetBrains Mono", monospace;
+  }
+  .trace-round .round-note {
+    color: #6b7280;
+    font-size: 12.5px;
+    display: block;
+    margin-top: 4px;
+  }
+
+  /* ========== 问题高亮 ========== */
+  .issue-box {
+    background: #fef2f2;
+    border: 1px solid #fecaca;
+    border-radius: 8px;
+    padding: 12px 16px;
+    margin: 10px 0;
+  }
+  .issue-box p { margin: 0; color: #991b1b; font-size: 13.5px; }
+  .improve-box {
+    background: #f0fdf4;
+    border: 1px solid #bbf7d0;
+    border-radius: 8px;
+    padding: 12px 16px;
+    margin: 10px 0;
+  }
+  .improve-box p { margin: 0; color: #166534; font-size: 13.5px; }
+
+  /* ========== 总结卡片 ========== */
+  .summary-card {
+    background: linear-gradient(135deg, #1e3a5f, #2d4a7a);
+    color: #fff;
+    border-radius: 12px;
+    padding: 28px 36px;
+    margin-bottom: 28px;
+  }
+  .summary-card h2 {
+    color: #fff;
+    border-bottom: 2px solid rgba(255,255,255,0.2);
+    padding-bottom: 10px;
+    margin-bottom: 20px;
+    font-size: 22px;
+  }
+  .summary-card .stat-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+    margin: 16px 0;
+  }
+  .summary-card .stat-item {
+    background: rgba(255,255,255,0.1);
+    border-radius: 8px;
+    padding: 16px;
+    text-align: center;
+  }
+  .summary-card .stat-item .stat-value {
+    font-size: 28px;
+    font-weight: 700;
+    display: block;
+  }
+  .summary-card .stat-item .stat-label {
+    font-size: 12px;
+    opacity: 0.75;
+    margin-top: 4px;
+    display: block;
+  }
+
+  /* ========== 答案引用 ========== */
+  .answer-quote {
+    background: #fffbeb;
+    border-left: 3px solid #f59e0b;
+    padding: 10px 16px;
+    margin: 10px 0;
+    font-size: 13.5px;
+    color: #78350f;
+    border-radius: 0 6px 6px 0;
+  }
+
+  /* ========== 响应式 ========== */
+  @media (max-width: 768px) {
+    .eval-grid { grid-template-columns: 1fr; }
+    .summary-card .stat-grid { grid-template-columns: repeat(2, 1fr); }
+    .top-bar { padding: 14px 20px; }
+    .section { padding: 20px 18px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ==================== 顶部导航 ==================== -->
+<div class="top-bar">
+  <div>
+    <h1>L4 Benchmark Quality Audit</h1>
+    <div class="subtitle">Cross-Domain Analysis -- 6 Questions / DeepSeek Chat / 2026-03-29</div>
+  </div>
+</div>
+
+<div class="container">
+
+<!-- ==================== 总结概览 ==================== -->
+<div class="summary-card">
+  <h2>Executive Summary</h2>
+  <div class="stat-grid">
+    <div class="stat-item">
+      <span class="stat-value">6/6</span>
+      <span class="stat-label">Recall = 100%</span>
+    </div>
+    <div class="stat-item">
+      <span class="stat-value">1/6</span>
+      <span class="stat-label">Real Cross-Analysis</span>
+    </div>
+    <div class="stat-item">
+      <span class="stat-value">2.5</span>
+      <span class="stat-label">Avg Score (of 5)</span>
+    </div>
+    <div class="stat-item">
+      <span class="stat-value">46.6s</span>
+      <span class="stat-label">Avg Latency</span>
+    </div>
+  </div>
+  <p style="margin-top:16px; opacity:0.9; font-size:14px;">
+    <strong>Verdict:</strong> Tool routing is solid -- all 6 questions achieved 100% recall on expected tools. But L4 is about cross-domain <em>analysis</em>, not just cross-domain <em>fetching</em>.
+    Out of 6 questions, only T31 delivered a genuine cross-domain conclusion. The rest either hit data gaps they could not bridge, or simply dumped data from two sources without correlation.
+    The core problem is not routing -- it is the AI's inability to perform in-context joins on data that comes back with mismatched identifiers (numeric IDs vs. codes/names). This is a structural weakness that prompt engineering alone cannot fix.
+  </p>
+</div>
+
+<!-- ==================== 全局指标对比表 ==================== -->
+<div class="section">
+  <h2>Per-Question Metrics</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>ID</th>
+        <th>Query</th>
+        <th>Expected Tools</th>
+        <th>Actual Tools</th>
+        <th>Recall</th>
+        <th>Precision</th>
+        <th>Rounds</th>
+        <th>Latency</th>
+        <th>Confidence</th>
+        <th>Score</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>T30</td>
+        <td>上月维修成本最高的设备，巡检有没有异常？</td>
+        <td><code>repair.search</code> <code>anomaly.search</code></td>
+        <td><code>repair.search</code> <code>anomaly.search</code></td>
+        <td><span class="tag tag-green">100%</span></td>
+        <td><span class="tag tag-green">100%</span></td>
+        <td>3</td>
+        <td>42.6s</td>
+        <td><span class="tag tag-red">low</span></td>
+        <td><span class="score-badge score-2">2/5</span></td>
+      </tr>
+      <tr>
+        <td>T29</td>
+        <td>故障率最高的设备，保养是否按计划执行？</td>
+        <td><code>fault.search</code> <code>maintenance.search</code></td>
+        <td><code>fault.search</code> <code>maintenance.search</code> <code>equipment.profile</code> <code>equipment.search</code></td>
+        <td><span class="tag tag-green">100%</span></td>
+        <td><span class="tag tag-yellow">50%</span></td>
+        <td>3</td>
+        <td>55.4s</td>
+        <td><span class="tag tag-yellow">medium</span></td>
+        <td><span class="score-badge score-2">2/5</span></td>
+      </tr>
+      <tr>
+        <td>T31</td>
+        <td>备件库存预警涉及的设备中，有哪些正在维修？</td>
+        <td><code>spare.search</code> <code>equipment.search</code></td>
+        <td><code>spare.search</code> <code>equipment.search</code></td>
+        <td><span class="tag tag-green">100%</span></td>
+        <td><span class="tag tag-green">100%</span></td>
+        <td>2</td>
+        <td>33.6s</td>
+        <td><span class="tag tag-yellow">medium</span></td>
+        <td><span class="score-badge score-4">4/5</span></td>
+      </tr>
+      <tr>
+        <td>T34</td>
+        <td>外协维修的设备中，有没有重点设备？</td>
+        <td><code>repair.search</code></td>
+        <td><code>repair.search</code> <code>equipment.search</code></td>
+        <td><span class="tag tag-green">100%</span></td>
+        <td><span class="tag tag-yellow">50%</span></td>
+        <td>3</td>
+        <td>41.5s</td>
+        <td><span class="tag tag-red">low</span></td>
+        <td><span class="score-badge score-3">3/5</span></td>
+      </tr>
+      <tr>
+        <td>T32</td>
+        <td>A 线设备的故障、保养、巡检三项指标概览</td>
+        <td><code>scope.overview</code></td>
+        <td><code>scope.overview</code> <code>fault.search</code> <code>maintenance.search</code> <code>patrol.search</code></td>
+        <td><span class="tag tag-green">100%</span></td>
+        <td><span class="tag tag-red">25%</span></td>
+        <td>3</td>
+        <td>45.2s</td>
+        <td><span class="tag tag-yellow">medium</span></td>
+        <td><span class="score-badge score-2">2/5</span></td>
+      </tr>
+      <tr>
+        <td>T33</td>
+        <td>近 3 个月有故障但没安排保养的设备有哪些？</td>
+        <td><code>fault.search</code> <code>maintenance.search</code></td>
+        <td><code>fault.search</code> <code>maintenance.search</code> <code>equipment.search</code></td>
+        <td><span class="tag tag-green">100%</span></td>
+        <td><span class="tag tag-yellow">67%</span></td>
+        <td>3</td>
+        <td>61.6s</td>
+        <td><span class="tag tag-red">low</span></td>
+        <td><span class="score-badge score-1">1/5</span></td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- ==================== T30 详细评估 ==================== -->
+<div class="section">
+  <div class="question-card">
+    <span class="qid">T30</span>上月维修成本最高的设备，它的巡检有没有发现过异常？
+  </div>
+
+  <div style="display:flex; gap:12px; align-items:center; margin-bottom:16px;">
+    <span class="score-badge score-2">2 / 5</span>
+    <span class="tag tag-green">Recall 100%</span>
+    <span class="tag tag-green">Precision 100%</span>
+    <span class="tag tag-blue">3 rounds</span>
+    <span class="tag tag-red">confidence: low</span>
+  </div>
+
+  <h3>Execution Trace</h3>
+  <div class="trace-timeline">
+    <div class="trace-round">
+      <span class="round-label">Round 0 -- Plan + Parallel Fetch</span><br>
+      <span class="tool-call">eam.repair.search</span> dateRange=2026-02, groupBy=equipment
+      <span class="tool-call">eam.anomaly.search</span> source=PATROL
+      <span class="round-note">Correct intent decomposition: repair domain for cost, anomaly domain for patrol findings. Both tools fired in parallel.</span>
+    </div>
+    <div class="trace-round">
+      <span class="round-label">Round 1 -- Retry: noticed groupBy only returns count, not cost</span><br>
+      <span class="tool-call">eam.repair.search</span> dateRange=2026-02, format=detailed, limit=50
+      <span class="round-note">Result: total=0, items=[]. February has no repair orders -- this is a real data gap, not a tool error.</span>
+    </div>
+    <div class="trace-round">
+      <span class="round-label">Round 2 -- Widen: drop dateRange</span><br>
+      <span class="tool-call">eam.repair.search</span> format=detailed, limit=50
+      <span class="round-note">Got 28 repair orders but ALL have laborCost=null, materialCost=null, spareSummary.totalCost=0. No cost data exists in the system.</span>
+    </div>
+  </div>
+
+  <div class="eval-grid">
+    <div class="eval-item">
+      <h4>1. Route Decision</h4>
+      <p><strong>Correct.</strong> Selected repair.search + anomaly.search, exactly matching the two domains needed: repair costs and patrol-originated anomalies. The domain coverage prompt apparently worked -- both domains identified on first think.</p>
+    </div>
+    <div class="eval-item">
+      <h4>2. Parameter Quality</h4>
+      <p><strong>Mixed.</strong> First call used groupBy=equipment which only returns count, not cost -- this is a misunderstanding of the tool's groupBy behavior. The anomaly.search correctly used source=PATROL but did not filter by equipment (it couldn't, since the target equipment was unknown). Round 1 correctly dropped groupBy. Round 2 correctly dropped dateRange for widening.</p>
+    </div>
+    <div class="eval-item">
+      <h4>3. Execution Efficiency</h4>
+      <p><strong>3 rounds, acceptable for the situation.</strong> Round 0 parallel fetch was efficient. Round 1 was a necessary correction (groupBy does not surface cost). Round 2 was the standard widening strategy. The problem is not efficiency but the fundamental data gap.</p>
+    </div>
+    <div class="eval-item">
+      <h4>4. Data Completeness</h4>
+      <p><strong>Failed.</strong> Repair domain returned 28 orders but ZERO cost data (all null/0). Anomaly domain returned 13 patrol-sourced anomalies but without equipment association in the concise format. Two domains fetched, zero usable cross-links.</p>
+    </div>
+    <div class="eval-item">
+      <h4>5. Answer Quality</h4>
+      <p><strong>Honest but unhelpful.</strong> AI correctly stated it cannot determine the highest-cost equipment or link anomalies to it. This is accurate given the data. But the AI did not attempt to use repair order count as a proxy for cost (the data does have per-equipment repair counts), which would have been a reasonable fallback.</p>
+    </div>
+    <div class="eval-item">
+      <h4>6. Display Quality</h4>
+      <p><strong>Plain text, no structure.</strong> display=text with empty columns. For a cross-domain analysis question, even a failed one should show what data <em>was</em> available (e.g., "here are the top equipment by repair count, here are the anomalies found -- but we cannot link them").</p>
+    </div>
+  </div>
+
+  <div class="issue-box">
+    <p><strong>Core Issue:</strong> The repair data has no cost fields populated (laborCost, materialCost all null). This is a data quality problem, not a routing problem. But the AI also missed an opportunity: anomaly.search returned 13 items without equipment IDs in concise format -- switching to detailed format or filtering by specific equipment could have yielded linkable data.</p>
+  </div>
+  <div class="improve-box">
+    <p><strong>Improvement:</strong> (1) When cost data is null, AI should explicitly suggest a proxy metric (e.g., repair frequency or repair duration) rather than giving up. (2) MCP repair.search groupBy should surface cost aggregates (sum of spareSummary.totalCost per group) to avoid the Round 0 wasted call. (3) anomaly.search in detailed format should include equipmentId for cross-linking.</p>
+  </div>
+</div>
+
+<!-- ==================== T29 详细评估 ==================== -->
+<div class="section">
+  <div class="question-card">
+    <span class="qid">T29</span>故障率最高的设备，保养是否按计划执行？
+  </div>
+
+  <div style="display:flex; gap:12px; align-items:center; margin-bottom:16px;">
+    <span class="score-badge score-2">2 / 5</span>
+    <span class="tag tag-green">Recall 100%</span>
+    <span class="tag tag-yellow">Precision 50%</span>
+    <span class="tag tag-blue">3 rounds</span>
+    <span class="tag tag-yellow">confidence: medium</span>
+  </div>
+
+  <h3>Execution Trace</h3>
+  <div class="trace-timeline">
+    <div class="trace-round">
+      <span class="round-label">Round 0 -- Parallel: fault stats + maintenance list</span><br>
+      <span class="tool-call">eam.fault.search</span> groupBy=equipment (last 30 days)
+      <span class="tool-call">eam.maintenance.search</span> last 30 days
+      <span class="round-note">fault.search: 12 devices tied at 6 faults each (IDs: 1666, 1617, ...). maintenance.search: only 3 tasks for equipment IDs 1009, 1002, 1001 -- no overlap with high-fault devices.</span>
+    </div>
+    <div class="trace-round">
+      <span class="round-label">Round 1 -- Try to resolve device ID 1666</span><br>
+      <span class="tool-call">eam.equipment.profile</span> identifier="1666"
+      <span class="tool-call">eam.maintenance.search</span> equipment="1666"
+      <span class="round-note">equipment.profile CRASHED: "Cannot read properties of null (reading 'id')". maintenance.search with equipment="1666" returned the same 3 generic tasks (not filtered by that equipment at all).</span>
+    </div>
+    <div class="trace-round">
+      <span class="round-label">Round 2 -- Fallback: fetch all equipment</span><br>
+      <span class="tool-call">eam.equipment.search</span> format=detailed, limit=50
+      <span class="round-note">Got 50 of 165 devices. The fault group IDs (1666, 1617, etc.) exist in the equipment list but are E2E test data, not real production equipment. The AI did not filter or cross-reference successfully.</span>
+    </div>
+  </div>
+
+  <div class="eval-grid">
+    <div class="eval-item">
+      <h4>1. Route Decision</h4>
+      <p><strong>Correct initial routing.</strong> fault.search + maintenance.search are the right pair. The extra equipment.profile and equipment.search calls in Rounds 1-2 were reasonable recovery attempts when the initial data could not be cross-linked. Domain coverage prompt worked for the initial plan.</p>
+    </div>
+    <div class="eval-item">
+      <h4>2. Parameter Quality</h4>
+      <p><strong>Problematic.</strong> (1) fault.search groupBy=equipment correctly surfaced the ranking, but the group IDs are numeric internal IDs. (2) equipment.profile with identifier="1666" hit a null pointer -- the Resolver failed on this ID, suggesting the equipment does not exist or the ID format is wrong. (3) maintenance.search with equipment="1666" silently ignored the filter and returned all 3 tasks -- this is an MCP bug (should return empty, not unfiltered results).</p>
+    </div>
+    <div class="eval-item">
+      <h4>3. Execution Efficiency</h4>
+      <p><strong>3 rounds, 55s -- wasteful.</strong> Round 1 was entirely wasted: equipment.profile crashed, and maintenance.search ignored the filter. Round 2 fetched all equipment but the AI didn't do anything useful with it (did not attempt to match IDs). The verdict system gave this a prior toolChain of [fault.search, maintenance.search] with avgScore=0.48 -- learning is happening but the score reflects repeated failure.</p>
+    </div>
+    <div class="eval-item">
+      <h4>4. Data Completeness</h4>
+      <p><strong>Half-complete.</strong> Fault domain: got equipment-grouped counts, sufficient to identify high-fault devices. Maintenance domain: got 3 pending tasks but for different equipment. The cross-link is impossible because (a) fault groups use numeric IDs that don't resolve via equipment.profile, and (b) maintenance.search does not reliably filter by equipment parameter.</p>
+    </div>
+    <div class="eval-item">
+      <h4>5. Answer Quality</h4>
+      <p><strong>Data dump, not analysis.</strong> The answer lists 12 equipment IDs with 6 faults each and then says the 3 maintenance tasks don't match. This is accurate but superficial. A real cross-domain analysis would attempt to match the IDs (even partially) or explicitly state "these 12 high-fault devices have ZERO maintenance tasks scheduled, which is itself a critical finding."</p>
+    </div>
+    <div class="eval-item">
+      <h4>6. Display Quality</h4>
+      <p><strong>Poor.</strong> Plain text with raw equipment IDs (1666, 1617...) that mean nothing to a human user. No table, no comparison. The ideal output would be a table: Equipment Name | Fault Count | Maintenance Status.</p>
+    </div>
+  </div>
+
+  <div class="answer-quote">
+    "根据提供的数据，故障率最高的设备是设备ID为1666、1617、1568...它们各有6次故障。然而，当前数据不包含这些设备的保养计划执行信息，无法回答保养是否按计划执行。"
+  </div>
+
+  <div class="issue-box">
+    <p><strong>Core Issues:</strong> (1) <code>eam.equipment.profile</code> crashed on numeric ID "1666" -- this is an MCP bug (Resolver should handle raw numeric IDs gracefully). (2) <code>eam.maintenance.search</code> silently ignores invalid equipment parameter instead of returning empty -- this is a second MCP bug that wastes a round and misleads the AI. (3) fault.search groupBy returns only numeric IDs, not equipment names/codes -- the AI has no human-readable identifier to work with.</p>
+  </div>
+  <div class="improve-box">
+    <p><strong>Improvement:</strong> (1) fault.search groupBy=equipment should include equipment name/code in the group, not just ID. (2) equipment.profile Resolver must handle numeric ID strings without crashing. (3) maintenance.search must properly filter by equipment parameter. (4) AI should recognize "12 high-fault devices with 0 matching maintenance tasks" as itself a meaningful cross-domain insight.</p>
+  </div>
+</div>
+
+<!-- ==================== T31 详细评估 ==================== -->
+<div class="section">
+  <div class="question-card">
+    <span class="qid">T31</span>备件库存预警涉及的设备中，有哪些正在维修？
+  </div>
+
+  <div style="display:flex; gap:12px; align-items:center; margin-bottom:16px;">
+    <span class="score-badge score-4">4 / 5</span>
+    <span class="tag tag-green">Recall 100%</span>
+    <span class="tag tag-green">Precision 100%</span>
+    <span class="tag tag-blue">2 rounds</span>
+    <span class="tag tag-yellow">confidence: medium</span>
+  </div>
+
+  <h3>Execution Trace</h3>
+  <div class="trace-timeline">
+    <div class="trace-round">
+      <span class="round-label">Round 0 -- Parallel: spare warnings + repairing equipment</span><br>
+      <span class="tool-call">eam.spare.search</span> lowStock=true, format=detailed
+      <span class="tool-call">eam.equipment.search</span> status=2 (repairing)
+      <span class="round-note">spare.search: total=21 low-stock spares but items=[] (empty because concise/detailed format difference?). equipment.search: 1 device in repair -- HMC-630.</span>
+    </div>
+    <div class="trace-round">
+      <span class="round-label">Round 1 -- Synthesize: no additional calls needed</span><br>
+      <span class="round-note">AI determined the data was sufficient: spare domain says 21 low-stock spares exist (but no detailed item list), equipment domain says 1 device repairing. AI made the cross-link judgment that HMC-630 is among the spare-warning equipment. Ended early.</span>
+    </div>
+  </div>
+
+  <div class="eval-grid">
+    <div class="eval-item">
+      <h4>1. Route Decision</h4>
+      <p><strong>Good, with a smart substitution.</strong> Expected tools were spare.search + equipment.search, and that's exactly what was used. Instead of using repair.search to find repairing equipment, the AI correctly used equipment.search with status=2 (repairing), which is more direct. The domain coverage is complete: spare domain + equipment status domain.</p>
+    </div>
+    <div class="eval-item">
+      <h4>2. Parameter Quality</h4>
+      <p><strong>Good.</strong> spare.search(lowStock=true) is the correct filter for inventory warnings. equipment.search(status=2) directly targets repairing equipment. Both parameters are precise and correct. Only issue: spare.search returned total=21 but count=0, items=[] -- this suggests the API pagination or format parameter behaves unexpectedly, but the AI still got the total count.</p>
+    </div>
+    <div class="eval-item">
+      <h4>3. Execution Efficiency</h4>
+      <p><strong>Excellent -- 2 rounds, 33.6s.</strong> This is the most efficient L4 question. Parallel fetch in Round 0, synthesis in Round 1 with no extra calls. The AI correctly judged it had enough information. This is the ideal execution pattern for cross-domain queries.</p>
+    </div>
+    <div class="eval-item">
+      <h4>4. Data Completeness</h4>
+      <p><strong>Partially complete but sufficient.</strong> spare.search returned total=21 but no item details (count=0). The AI cannot actually verify which specific equipment the low-stock spares are associated with. equipment.search returned 1 repairing device. The cross-link relies on inference rather than data: we know HMC-630 is repairing AND there are 21 low-stock spares, but we don't know if those spares are for HMC-630.</p>
+    </div>
+    <div class="eval-item">
+      <h4>5. Answer Quality</h4>
+      <p><strong>Clear and actionable.</strong> "HMC-630 (EQ202603110003) is in repair." This is a concrete, specific answer that a plant manager can act on. The answer makes a reasonable inference that this equipment is among the spare-warning devices, though the data technically doesn't prove the link. The confidence is appropriately "medium" -- not overclaimed.</p>
+    </div>
+    <div class="eval-item">
+      <h4>6. Display Quality</h4>
+      <p><strong>Acceptable.</strong> Plain text with device name and code. For a single-result answer this is fine, though a mini-card showing "Spare Warnings: 21 items | Repairing Equipment: 1 | Overlap: HMC-630" would be cleaner.</p>
+    </div>
+  </div>
+
+  <div class="issue-box">
+    <p><strong>Caveat:</strong> The answer states HMC-630 is in the spare-warning set, but spare.search returned 0 items (no detail). The AI inferred the overlap without proving it. This happens to be a reasonable inference (if there are 21 low-stock spares and only 1 repairing device, it's likely involved), but it is technically unverified. A stricter audit would flag this as an unsupported claim.</p>
+  </div>
+  <div class="improve-box">
+    <p><strong>Improvement:</strong> (1) spare.search with lowStock=true should return item details (the total=21 but count=0 is a pagination/format bug). (2) AI should call spare.search with equipment=HMC-630 to verify the link explicitly. (3) The answer could be more transparent: "21 spares at low stock; 1 device repairing; overlap verification pending."</p>
+  </div>
+</div>
+
+<!-- ==================== T34 详细评估 ==================== -->
+<div class="section">
+  <div class="question-card">
+    <span class="qid">T34</span>外协维修的设备中，有没有重点设备？
+  </div>
+
+  <div style="display:flex; gap:12px; align-items:center; margin-bottom:16px;">
+    <span class="score-badge score-3">3 / 5</span>
+    <span class="tag tag-green">Recall 100%</span>
+    <span class="tag tag-yellow">Precision 50%</span>
+    <span class="tag tag-blue">3 rounds</span>
+    <span class="tag tag-red">confidence: low</span>
+  </div>
+
+  <h3>Execution Trace</h3>
+  <div class="trace-timeline">
+    <div class="trace-round">
+      <span class="round-label">Round 0 -- Parallel: external repairs + key equipment</span><br>
+      <span class="tool-call">eam.repair.search</span> orderType=EXTERNAL, last 30 days
+      <span class="tool-call">eam.equipment.search</span> isKey=true
+      <span class="round-note">repair.search: total=0 (no external repairs in last 30 days). equipment.search: 7 key devices found. The two sets cannot be intersected because one is empty.</span>
+    </div>
+    <div class="trace-round">
+      <span class="round-label">Round 1 -- Widen: remove dateRange</span><br>
+      <span class="tool-call">eam.repair.search</span> orderType=EXTERNAL (no date filter)
+      <span class="round-note">Still total=0. No external repair orders exist in the entire system. This is a real data situation, not a query error.</span>
+    </div>
+    <div class="trace-round">
+      <span class="round-label">Round 2 -- Conclude: empty set</span><br>
+      <span class="round-note">No additional calls. AI correctly concluded: no external repairs exist, so the question of overlap with key equipment is moot.</span>
+    </div>
+  </div>
+
+  <div class="eval-grid">
+    <div class="eval-item">
+      <h4>1. Route Decision</h4>
+      <p><strong>Good, and better than expected.</strong> Expected tool was only repair.search, but the AI also called equipment.search(isKey=true) to get the key equipment list. This is the right approach for a cross-domain question: you need both sets to compute the intersection. The extra tool call actually <em>improved</em> the analysis capability (even though precision dropped to 50% as a result -- a misleading metric here).</p>
+    </div>
+    <div class="eval-item">
+      <h4>2. Parameter Quality</h4>
+      <p><strong>Correct.</strong> orderType=EXTERNAL is the right filter for outsourced repairs. isKey=true correctly fetches key/critical equipment. The Round 1 widening (removing dateRange) followed the standard empty-result recovery protocol. All parameters are well-chosen.</p>
+    </div>
+    <div class="eval-item">
+      <h4>3. Execution Efficiency</h4>
+      <p><strong>3 rounds but justified.</strong> Round 0 parallel fetch was efficient. Round 1 was the required empty-result widening. Round 2 was just synthesis. The 41.5s is reasonable. The widening protocol is exactly right.</p>
+    </div>
+    <div class="eval-item">
+      <h4>4. Data Completeness</h4>
+      <p><strong>Complete given the data reality.</strong> Repair domain: confirmed 0 external repairs (both with and without date filter). Equipment domain: 7 key devices identified. The data is complete -- the answer is simply "no external repairs exist."</p>
+    </div>
+    <div class="eval-item">
+      <h4>5. Answer Quality</h4>
+      <p><strong>Misleading.</strong> The AI said "cannot determine if there are key equipment among external repairs because the data doesn't mark which are key equipment." This is WRONG. The AI DID fetch key equipment (7 devices via equipment.search), and it also confirmed 0 external repairs. The correct answer is: "No external repair orders exist in the system, so there are no key equipment in external repairs." The AI confused itself.</p>
+    </div>
+    <div class="eval-item">
+      <h4>6. Display Quality</h4>
+      <p><strong>Adequate.</strong> Plain text. Given the answer is "no results," there isn't much to display. But listing the 7 key devices would have been informative context.</p>
+    </div>
+  </div>
+
+  <div class="answer-quote">
+    "当前数据不包含设备是否为重点设备的信息，无法判断外协维修的设备中是否有重点设备。数据中列出了7台设备...但未标注哪些是重点设备。"
+  </div>
+
+  <div class="issue-box">
+    <p><strong>Core Issue:</strong> The AI contradicted its own data. It fetched 7 key equipment (isKey=true) AND confirmed 0 external repairs, yet the answer claims "data doesn't indicate which are key equipment." The data clearly does -- equipment.search returned 7 devices explicitly filtered by isKey. The real answer should be: "There are 0 external repair orders, so the question is not applicable. For reference, the system has 7 key equipment: VMC-850, CONTURA 7/10/6, SE-180EV, VMC-1060, HMC-630, VMC-850 #2, VMC-850 #1."</p>
+  </div>
+  <div class="improve-box">
+    <p><strong>Improvement:</strong> (1) The summarize step needs to cross-reference ALL data sources it received, not just the primary one. The AI apparently forgot it had the equipment.search results. (2) When one set is empty, the answer should be "empty intersection because set A is empty" not "cannot determine." (3) The 7 key devices should be listed as useful context.</p>
+  </div>
+</div>
+
+<!-- ==================== T32 详细评估 ==================== -->
+<div class="section">
+  <div class="question-card">
+    <span class="qid">T32</span>A 线设备的故障、保养、巡检三项指标概览
+  </div>
+
+  <div style="display:flex; gap:12px; align-items:center; margin-bottom:16px;">
+    <span class="score-badge score-2">2 / 5</span>
+    <span class="tag tag-green">Recall 100%</span>
+    <span class="tag tag-red">Precision 25%</span>
+    <span class="tag tag-blue">3 rounds</span>
+    <span class="tag tag-yellow">confidence: medium</span>
+  </div>
+
+  <h3>Execution Trace</h3>
+  <div class="trace-timeline">
+    <div class="trace-round">
+      <span class="round-label">Round 0 -- Ideal tool first</span><br>
+      <span class="tool-call">eam.scope.overview</span> identifier="A线"
+      <span class="round-note">FAILED: "未找到匹配的范围". The production line name "A线" doesn't match any record in the system. This is likely because the actual line names use a different format (e.g., "A产线", "产线A", or a full name).</span>
+    </div>
+    <div class="trace-round">
+      <span class="round-label">Round 1 -- Fallback: three separate searches</span><br>
+      <span class="tool-call">eam.fault.search</span> productionLine="A线"
+      <span class="tool-call">eam.maintenance.search</span> productionLine="A线"
+      <span class="tool-call">eam.patrol.search</span> productionLine="A线"
+      <span class="round-note">fault: 108 total, 20 shown. maintenance: 3 tasks, all pending. patrol: analytics=[] (empty). The productionLine="A线" filter seems to return ALL data (not actually filtering), since 108 is the same total as other unfiltered queries.</span>
+    </div>
+    <div class="trace-round">
+      <span class="round-label">Round 2 -- Enrich: add groupBy for distributions</span><br>
+      <span class="tool-call">eam.fault.search</span> productionLine="A线", groupBy=status
+      <span class="tool-call">eam.maintenance.search</span> productionLine="A线", groupBy=status
+      <span class="tool-call">eam.patrol.search</span> productionLine="A线", dateRange
+      <span class="round-note">fault status: 待审核55, 待接单26, 已拒绝14, 已撤回13 (totals to 108, same as overall -- confirming the filter is not working). patrol: still empty. maintenance: 3 tasks all 待执行, 0% completion.</span>
+    </div>
+  </div>
+
+  <div class="eval-grid">
+    <div class="eval-item">
+      <h4>1. Route Decision</h4>
+      <p><strong>Initially optimal, then degraded.</strong> scope.overview was the perfect single-tool choice for a multi-domain overview. When it failed, the fallback to three separate search tools was correct in principle. The domain coverage prompt clearly worked: the AI identified all three domains (fault, maintenance, patrol) and attempted to cover each. However, the data is suspect.</p>
+    </div>
+    <div class="eval-item">
+      <h4>2. Parameter Quality</h4>
+      <p><strong>Critical failure: productionLine="A线" does not filter.</strong> The scope.overview Resolver could not match "A线" -- this may mean the line doesn't exist, or the name format is different. The subsequent search tools accepted "A线" without error but appear to return unfiltered data (fault total=108 is the same as the global total seen in T29/T33). The AI never noticed this discrepancy.</p>
+    </div>
+    <div class="eval-item">
+      <h4>3. Execution Efficiency</h4>
+      <p><strong>7 tool calls across 3 rounds -- expensive.</strong> scope.overview failure triggered a cascade of 6 more calls. Round 2 was a reasonable enrichment (groupBy), but patrol.search returned empty both times. The AI should have tried alternative line names after scope.overview failed (e.g., asking the user or searching equipment by line).</p>
+    </div>
+    <div class="eval-item">
+      <h4>4. Data Completeness</h4>
+      <p><strong>Suspect.</strong> Fault: 108 records (but likely unfiltered, not A-line specific). Maintenance: 3 tasks (likely unfiltered). Patrol: empty (either no patrol data or filter issue). The AI presented this as "A线 data" but it's probably the entire system's data. This is a data integrity failure -- the answer is based on wrong data.</p>
+    </div>
+    <div class="eval-item">
+      <h4>5. Answer Quality</h4>
+      <p><strong>Structured but untrustworthy.</strong> The answer provides a nice three-section breakdown (fault/maintenance/patrol indicators) which is the right format. But the data is likely global, not A-line-specific. The patrol section correctly notes "data not available." The answer says "部分故障详情未完全显示（仅显示20个）" which is transparent about pagination limits.</p>
+    </div>
+    <div class="eval-item">
+      <h4>6. Display Quality</h4>
+      <p><strong>Decent format, wrong data.</strong> The three-section structure with status distributions is what a plant manager would want. But display=text instead of a table/dashboard is a missed opportunity. This question screams for a structured comparison view.</p>
+    </div>
+  </div>
+
+  <div class="issue-box">
+    <p><strong>Core Issues:</strong> (1) scope.overview Resolver cannot match "A线" -- needs fuzzy matching or line name normalization. (2) Search tools silently accept "A线" as productionLine but likely ignore it, returning unfiltered data. This is worse than returning an error -- it gives the AI false confidence. (3) patrol.search returns empty analytics for "A线" -- either the patrol system has no data or the filter is broken. (4) The AI never questioned whether 108 faults is really A-line only (same number appeared in T29's unfiltered query).</p>
+  </div>
+  <div class="improve-box">
+    <p><strong>Improvement:</strong> (1) MCP tools must return an error or warning when a productionLine parameter doesn't match any known line, rather than silently returning unfiltered results. (2) scope.overview should support fuzzy matching: "A线" -> "A产线" -> matched. (3) AI should cross-check: if the total for a filtered query equals the total for an unfiltered query, flag it as "filter may not be working." (4) patrol.search needs investigation -- why does it always return empty analytics?</p>
+  </div>
+</div>
+
+<!-- ==================== T33 详细评估 ==================== -->
+<div class="section">
+  <div class="question-card">
+    <span class="qid">T33</span>近 3 个月有故障但没安排保养的设备有哪些？
+  </div>
+
+  <div style="display:flex; gap:12px; align-items:center; margin-bottom:16px;">
+    <span class="score-badge score-1">1 / 5</span>
+    <span class="tag tag-green">Recall 100%</span>
+    <span class="tag tag-yellow">Precision 67%</span>
+    <span class="tag tag-blue">3 rounds</span>
+    <span class="tag tag-red">confidence: low</span>
+  </div>
+
+  <h3>Execution Trace</h3>
+  <div class="trace-timeline">
+    <div class="trace-round">
+      <span class="round-label">Round 0 -- Parallel: fault devices + maintenance tasks</span><br>
+      <span class="tool-call">eam.fault.search</span> dateRange=3 months, groupBy=equipment
+      <span class="tool-call">eam.maintenance.search</span> dateRange=3 months
+      <span class="round-note">fault: 18 equipment groups with fault counts (IDs: 1666, 1617, ... down to 824). maintenance: 3 tasks for equipment IDs 1009, 1002, 1001. The data for set-difference is RIGHT HERE: fault devices minus maintenance devices.</span>
+    </div>
+    <div class="trace-round">
+      <span class="round-label">Round 1 -- Unnecessary: fetch equipment list (concise)</span><br>
+      <span class="tool-call">eam.equipment.search</span> format=concise, limit=100
+      <span class="round-note">Got 100 of 165 devices but without ID field (concise format has no "id"). Cannot map fault group IDs to equipment names.</span>
+    </div>
+    <div class="trace-round">
+      <span class="round-label">Round 2 -- Retry: fetch equipment list (detailed)</span><br>
+      <span class="tool-call">eam.equipment.search</span> format=detailed, limit=200
+      <span class="round-note">Got all 165 devices with IDs. Now has the mapping table: ID -> name/code. But the AI DID NOT PERFORM THE SET DIFFERENCE. It had all three datasets and gave up.</span>
+    </div>
+  </div>
+
+  <div class="eval-grid">
+    <div class="eval-item full-width">
+      <h4>1. Route Decision</h4>
+      <p><strong>Correct.</strong> fault.search + maintenance.search are exactly right. The extra equipment.search was a legitimate attempt to resolve IDs to names. All domains covered. The domain coverage prompt worked perfectly for tool selection.</p>
+    </div>
+    <div class="eval-item">
+      <h4>2. Parameter Quality</h4>
+      <p><strong>Good.</strong> 3-month dateRange correctly set. groupBy=equipment on fault.search gives the device-level fault counts. maintenance.search returns all tasks with equipmentId. The only waste was calling equipment.search twice (concise then detailed) -- should have gone detailed immediately.</p>
+    </div>
+    <div class="eval-item">
+      <h4>3. Execution Efficiency</h4>
+      <p><strong>4 calls across 3 rounds, 61.6s -- the slowest L4 question.</strong> Round 1 was wasted (concise format lacks IDs). Round 2 got the right data. But the real waste is that the AI had everything it needed and STILL DID NOT COMPUTE THE ANSWER.</p>
+    </div>
+    <div class="eval-item full-width">
+      <h4>4. Data Completeness</h4>
+      <p><strong>100% complete. This is the tragedy.</strong> After Round 2, the AI had:
+        <br>- Set A: 18 equipment IDs with faults (from fault.search groupBy=equipment)
+        <br>- Set B: 3 equipment IDs with maintenance (1009, 1002, 1001 from maintenance.search)
+        <br>- Mapping table: 165 equipment records with id, name, code (from equipment.search detailed)
+        <br><br>The answer is: Set A minus Set B = 18 - 0 overlap = 18 devices (since none of the fault IDs appear in the maintenance list). The AI had perfect data and refused to compute it.</p>
+    </div>
+    <div class="eval-item">
+      <h4>5. Answer Quality</h4>
+      <p><strong>Complete failure.</strong> "无法回答该问题...缺少将故障设备与保养安排进行关联的信息" -- this is factually wrong. The AI HAD the information. fault.search returned equipment IDs, maintenance.search returned equipment IDs. The set difference is trivial. The AI either (a) could not perform in-context set operations, or (b) was confused by the ID-vs-name mismatch and gave up prematurely.</p>
+    </div>
+    <div class="eval-item">
+      <h4>6. Display Quality</h4>
+      <p><strong>N/A -- no meaningful output.</strong> The AI returned a "cannot answer" message. If it had computed the set difference, it should have shown a table: Equipment Name | Fault Count | Has Maintenance Plan?</p>
+    </div>
+  </div>
+
+  <div class="answer-quote">
+    "当前数据不包含近3个月有故障但没安排保养的设备信息，无法回答该问题。数据中提供了设备故障统计、保养任务和设备列表，但缺少将故障设备与保养安排进行关联的信息。"
+  </div>
+
+  <div class="issue-box">
+    <p><strong>This is the worst result in the entire L4 set.</strong> The AI collected all necessary data across 3 domains, spent 61.6 seconds and 4 tool calls, and then said "cannot answer." The data was there:
+    <br>- fault.search: groups [{1666: 6}, {1617: 6}, ... {824: 2}] -- 18 unique equipment IDs with faults
+    <br>- maintenance.search: items [{equipmentId: 1009}, {equipmentId: 1002}, {equipmentId: 1001}] -- 3 unique equipment IDs with maintenance
+    <br>- equipment.search: 165 records with id, name, code -- the lookup table
+    <br><br>The set difference is: all 18 fault equipment IDs (none of them are 1009/1002/1001) have faults but no maintenance. The AI literally had the answer in front of it and could not perform the join.</p>
+  </div>
+  <div class="improve-box">
+    <p><strong>Improvement:</strong> This is the single most important finding in this audit. The fix is architectural:
+    <br>(1) <strong>MCP-level:</strong> fault.search groupBy=equipment must return equipment name/code alongside ID, eliminating the need for a separate lookup.
+    <br>(2) <strong>Prompt-level:</strong> Add explicit instruction: "When you have two lists with shared identifiers (equipmentId), compute the set difference/intersection yourself. Do not claim you cannot link them."
+    <br>(3) <strong>Architecture-level:</strong> Consider a cross-domain analysis MCP tool that accepts two result sets and computes joins/differences server-side, since LLMs are unreliable at in-context data operations.</p>
+  </div>
+</div>
+
+<!-- ==================== 系统性问题 ==================== -->
+<div class="section">
+  <h2>Systemic Issues</h2>
+
+  <h3>1. The ID Resolution Problem (affects T29, T30, T33)</h3>
+  <p>Three of six questions failed because <code>fault.search</code> and <code>repair.search</code> return <code>groupBy</code> results with numeric internal IDs that the AI cannot map to human-readable equipment names. The AI then wastes rounds trying to resolve these IDs via <code>equipment.profile</code> (which crashes) or <code>equipment.search</code> (which returns a massive list). Even when the ID lookup succeeds (T33), the AI cannot perform the in-context join.</p>
+  <p><strong>Fix:</strong> All groupBy results must include the entity's name/code, not just its internal ID. Example: <code>{"group": "1666", "groupName": "VMC-850 #1", "groupCode": "EQ001", "count": 6}</code>.</p>
+
+  <h3>2. The Silent Filter Failure Problem (affects T32)</h3>
+  <p>When <code>productionLine="A线"</code> doesn't match a known line, the search tools return unfiltered data instead of an error. This gives the AI false confidence that it has line-specific data when it actually has global data. The AI never noticed the total (108) was identical to unfiltered queries.</p>
+  <p><strong>Fix:</strong> If a filter parameter doesn't match any known entity, return <code>{"warning": "productionLine 'A线' not found", "didYouMean": ["A产线", "生产线A"]}</code>.</p>
+
+  <h3>3. The In-Context Join Failure (affects T29, T33)</h3>
+  <p>LLMs are fundamentally weak at performing set operations (intersection, difference) on lists of 18+ items with numeric identifiers. T33 is the clearest example: the AI had all the data and could not compute "18 fault IDs minus 3 maintenance IDs." This is not a prompt issue -- it is a capability limitation.</p>
+  <p><strong>Fix:</strong> Consider a server-side cross-reference tool: <code>eam.cross.analyze(setA={tool, field}, setB={tool, field}, operation="difference")</code>. Or, at minimum, add a Prompt instruction that walks the AI through the set operation step-by-step.</p>
+
+  <h3>4. The "Cannot Answer" vs. "Empty Result" Confusion (affects T34)</h3>
+  <p>T34's AI had the answer (0 external repairs, so no overlap with key equipment) but reported "cannot determine." The AI conflated "no data returned" with "cannot answer the question." An empty result set IS an answer: "None."</p>
+  <p><strong>Fix:</strong> Prompt instruction: "If one of your data sets is empty, the answer to 'which items overlap?' is 'none.' Report this as a finding, not as inability to answer."</p>
+
+  <h3>5. Precision Metric is Misleading for L4</h3>
+  <p>T34 gets precision=50% because it called equipment.search in addition to the expected repair.search. But equipment.search was the RIGHT call -- you need both sets to compute an intersection. T32 gets precision=25% because scope.overview failed and it had to call 3 fallback tools. The precision metric penalizes correct recovery behavior.</p>
+  <p><strong>Fix:</strong> For L4 cross-domain questions, redefine expected tools to include ALL tools needed for the cross-domain analysis, not just the primary domain tools.</p>
+</div>
+
+<!-- ==================== 最终评级 ==================== -->
+<div class="section">
+  <h2>Final Scoring Summary</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>ID</th>
+        <th>Query</th>
+        <th>Routing</th>
+        <th>Params</th>
+        <th>Efficiency</th>
+        <th>Data</th>
+        <th>Answer</th>
+        <th>Display</th>
+        <th>Overall</th>
+        <th>Root Cause</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>T30</td>
+        <td>维修成本 + 巡检异常</td>
+        <td><span class="tag tag-green">Good</span></td>
+        <td><span class="tag tag-yellow">Mixed</span></td>
+        <td><span class="tag tag-yellow">OK</span></td>
+        <td><span class="tag tag-red">No cost data</span></td>
+        <td><span class="tag tag-yellow">Honest</span></td>
+        <td><span class="tag tag-red">None</span></td>
+        <td><span class="score-badge score-2">2</span></td>
+        <td>Data gap: cost fields all null</td>
+      </tr>
+      <tr>
+        <td>T29</td>
+        <td>故障率 + 保养执行</td>
+        <td><span class="tag tag-green">Good</span></td>
+        <td><span class="tag tag-red">MCP bugs</span></td>
+        <td><span class="tag tag-yellow">Wasteful</span></td>
+        <td><span class="tag tag-yellow">Half</span></td>
+        <td><span class="tag tag-yellow">Dump</span></td>
+        <td><span class="tag tag-red">Raw IDs</span></td>
+        <td><span class="score-badge score-2">2</span></td>
+        <td>ID resolution + MCP bugs</td>
+      </tr>
+      <tr>
+        <td>T31</td>
+        <td>备件预警 + 维修状态</td>
+        <td><span class="tag tag-green">Good</span></td>
+        <td><span class="tag tag-green">Good</span></td>
+        <td><span class="tag tag-green">2 rounds</span></td>
+        <td><span class="tag tag-yellow">Inferred</span></td>
+        <td><span class="tag tag-green">Clear</span></td>
+        <td><span class="tag tag-yellow">Basic</span></td>
+        <td><span class="score-badge score-4">4</span></td>
+        <td>Best L4 result (minor inference gap)</td>
+      </tr>
+      <tr>
+        <td>T34</td>
+        <td>外协维修 + 重点设备</td>
+        <td><span class="tag tag-green">Good+</span></td>
+        <td><span class="tag tag-green">Good</span></td>
+        <td><span class="tag tag-green">OK</span></td>
+        <td><span class="tag tag-green">Complete</span></td>
+        <td><span class="tag tag-red">Wrong</span></td>
+        <td><span class="tag tag-yellow">Basic</span></td>
+        <td><span class="score-badge score-3">3</span></td>
+        <td>AI ignored its own data</td>
+      </tr>
+      <tr>
+        <td>T32</td>
+        <td>A线三域概览</td>
+        <td><span class="tag tag-green">Good</span></td>
+        <td><span class="tag tag-red">Filter broken</span></td>
+        <td><span class="tag tag-yellow">7 calls</span></td>
+        <td><span class="tag tag-red">Unfiltered</span></td>
+        <td><span class="tag tag-yellow">Structured</span></td>
+        <td><span class="tag tag-yellow">Text only</span></td>
+        <td><span class="score-badge score-2">2</span></td>
+        <td>Silent filter failure + no patrol data</td>
+      </tr>
+      <tr>
+        <td>T33</td>
+        <td>故障无保养的设备</td>
+        <td><span class="tag tag-green">Good</span></td>
+        <td><span class="tag tag-green">Good</span></td>
+        <td><span class="tag tag-red">4 calls, 62s</span></td>
+        <td><span class="tag tag-green">100%</span></td>
+        <td><span class="tag tag-red">Failed</span></td>
+        <td><span class="tag tag-red">N/A</span></td>
+        <td><span class="score-badge score-1">1</span></td>
+        <td>AI cannot do in-context set ops</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h3>Score Distribution</h3>
+  <p>
+    <span class="score-badge score-1" style="margin-right:8px;">1/5 x1</span>
+    <span class="score-badge score-2" style="margin-right:8px;">2/5 x3</span>
+    <span class="score-badge score-3" style="margin-right:8px;">3/5 x1</span>
+    <span class="score-badge score-4" style="margin-right:8px;">4/5 x1</span>
+    <span class="score-badge score-5" style="margin-right:8px;">5/5 x0</span>
+  </p>
+  <p><strong>Average: 2.33 / 5</strong> -- L4 cross-domain analysis is the weakest tier in the system.</p>
+
+  <h3>Priority Fix List</h3>
+  <table>
+    <thead>
+      <tr><th>#</th><th>Fix</th><th>Layer</th><th>Impact</th><th>Effort</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>1</td>
+        <td>groupBy results include entity name/code (not just ID)</td>
+        <td>MCP</td>
+        <td>Fixes T29, T30, T33</td>
+        <td>Low</td>
+      </tr>
+      <tr>
+        <td>2</td>
+        <td>Prompt: "compute set difference when you have two ID lists"</td>
+        <td>Prompt</td>
+        <td>Fixes T33</td>
+        <td>Low</td>
+      </tr>
+      <tr>
+        <td>3</td>
+        <td>Search tools error on unrecognized filter values (not silent ignore)</td>
+        <td>MCP</td>
+        <td>Fixes T32</td>
+        <td>Medium</td>
+      </tr>
+      <tr>
+        <td>4</td>
+        <td>Prompt: "empty result set IS an answer for intersection questions"</td>
+        <td>Prompt</td>
+        <td>Fixes T34</td>
+        <td>Low</td>
+      </tr>
+      <tr>
+        <td>5</td>
+        <td>equipment.profile Resolver handles numeric ID strings</td>
+        <td>MCP</td>
+        <td>Fixes T29</td>
+        <td>Low</td>
+      </tr>
+      <tr>
+        <td>6</td>
+        <td>scope.overview fuzzy matching for line names</td>
+        <td>MCP</td>
+        <td>Fixes T32</td>
+        <td>Medium</td>
+      </tr>
+      <tr>
+        <td>7</td>
+        <td>spare.search lowStock=true returns item details (not just total)</td>
+        <td>MCP</td>
+        <td>Fixes T31</td>
+        <td>Low</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- ==================== 结论 ==================== -->
+<div class="summary-card">
+  <h2>Conclusion</h2>
+  <p style="font-size:15px; line-height:1.8;">
+    <strong>L4 routing is solved. L4 analysis is not.</strong>
+    <br><br>
+    All 6 questions achieved 100% tool recall. The domain coverage prompt successfully guides the AI to identify and fetch from multiple domains. This is a real achievement -- the routing layer handles cross-domain intent decomposition correctly.
+    <br><br>
+    But L4 is supposed to test <em>cross-domain analysis</em>, not just <em>cross-domain fetching</em>. Only T31 produced a genuine cross-referenced answer. T33 is the most damning case: perfect data collection, zero analysis. The AI collected 18 fault equipment IDs, 3 maintenance equipment IDs, and a full 165-device lookup table, then said "cannot determine."
+    <br><br>
+    The root causes split into two categories:
+    <br>- <strong>MCP-level (fixable):</strong> groupBy returns opaque IDs, filters fail silently, Resolver crashes on numeric IDs, spare.search pagination bug.
+    <br>- <strong>AI-level (harder):</strong> LLMs cannot reliably perform set operations on 18+ item lists with numeric identifiers. This is a known limitation that no amount of prompt engineering fully solves.
+    <br><br>
+    <strong>Recommendation:</strong> Fix the 4 low-effort MCP issues first (groupBy names, Resolver robustness, filter validation, spare.search pagination). Then re-run the benchmark. If the AI still cannot do set operations with readable identifiers, build a server-side cross-reference tool.
+  </p>
+</div>
+
+</div><!-- /container -->
+</body>
+</html>

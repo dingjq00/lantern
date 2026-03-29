@@ -1,0 +1,1007 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>L5 Benchmark Deep Evaluation - Trend &amp; Complex Analytics</title>
+<style>
+  :root {
+    --blue-900: #1e3a5f; --blue-700: #2563eb; --blue-100: #dbeafe; --blue-50: #eff6ff;
+    --green-700: #15803d; --green-100: #dcfce7; --green-50: #f0fdf4;
+    --amber-700: #b45309; --amber-100: #fef3c7; --amber-50: #fffbeb;
+    --red-700: #b91c1c; --red-100: #fee2e2; --red-50: #fef2f2;
+    --orange-700: #c2410c; --orange-100: #ffedd5;
+    --gray-900: #111827; --gray-700: #374151; --gray-500: #6b7280;
+    --gray-300: #d1d5db; --gray-100: #f3f4f6; --gray-50: #f9fafb;
+    --purple-700: #7c3aed; --purple-100: #ede9fe;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; color: var(--gray-900); background: var(--gray-50); line-height: 1.6; }
+  .container { max-width: 1200px; margin: 0 auto; padding: 40px 24px; }
+
+  .header { background: linear-gradient(135deg, #7f1d1d, #991b1b, #b91c1c); color: white; padding: 40px; border-radius: 16px; margin-bottom: 32px; position: relative; overflow: hidden; }
+  .header::after { content: 'L5'; position: absolute; right: 40px; top: 50%; transform: translateY(-50%); font-size: 80px; font-weight: 900; opacity: 0.15; letter-spacing: -4px; }
+  .header h1 { font-size: 26px; font-weight: 700; margin-bottom: 6px; }
+  .header .subtitle { font-size: 14px; opacity: 0.85; }
+  .header .meta { margin-top: 12px; display: flex; gap: 24px; font-size: 13px; opacity: 0.7; }
+
+  .section { background: white; border-radius: 12px; border: 1px solid var(--gray-300); padding: 28px; margin-bottom: 20px; }
+  .section h2 { font-size: 18px; color: var(--blue-900); margin-bottom: 14px; padding-bottom: 6px; border-bottom: 2px solid var(--blue-100); }
+  .section h3 { font-size: 15px; color: var(--blue-700); margin: 18px 0 10px; }
+  .section p, .section li { color: var(--gray-700); margin-bottom: 8px; font-size: 14px; }
+  .section ul { margin-left: 20px; margin-bottom: 12px; }
+
+  .verdict-banner { padding: 20px 28px; border-radius: 12px; margin-bottom: 20px; border: 2px solid; }
+  .verdict-fail { background: var(--red-50); border-color: var(--red-700); }
+  .verdict-fail .verdict-title { color: var(--red-700); font-size: 20px; font-weight: 700; }
+  .verdict-fail .verdict-desc { color: var(--gray-700); font-size: 14px; margin-top: 4px; }
+
+  .summary-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; margin: 16px 0; }
+  .summary-card { padding: 16px; border-radius: 10px; border: 1px solid var(--gray-300); text-align: center; }
+  .summary-card .num { font-size: 28px; font-weight: 700; }
+  .summary-card .label { font-size: 12px; color: var(--gray-500); margin-top: 4px; }
+
+  code { background: var(--gray-100); padding: 1px 5px; border-radius: 3px; font-size: 12px; font-family: 'SF Mono', monospace; }
+  table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 13px; }
+  th { padding: 8px 12px; background: var(--blue-900); color: white; text-align: left; font-weight: 600; }
+  td { padding: 8px 12px; border-bottom: 1px solid var(--gray-100); color: var(--gray-700); vertical-align: top; }
+  tr:nth-child(even) { background: var(--gray-50); }
+  .mono { font-family: 'SF Mono', monospace; font-size: 12px; }
+
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; }
+  .badge-pass { background: var(--green-100); color: var(--green-700); }
+  .badge-fail { background: var(--red-100); color: var(--red-700); }
+  .badge-warn { background: var(--amber-100); color: var(--amber-700); }
+  .badge-info { background: var(--blue-100); color: var(--blue-700); }
+  .badge-purple { background: var(--purple-100); color: var(--purple-700); }
+
+  .score-bar { display: flex; align-items: center; gap: 8px; margin: 4px 0; }
+  .score-bar .bar { flex: 1; height: 8px; background: var(--gray-100); border-radius: 4px; overflow: hidden; }
+  .score-bar .fill { height: 100%; border-radius: 4px; transition: width 0.3s; }
+  .score-bar .score-label { font-size: 13px; font-weight: 600; min-width: 40px; text-align: right; }
+
+  .question-card { background: white; border-radius: 12px; border: 1px solid var(--gray-300); margin-bottom: 24px; overflow: hidden; }
+  .question-header { padding: 20px 28px; border-bottom: 1px solid var(--gray-100); display: flex; justify-content: space-between; align-items: center; }
+  .question-header .qid { font-size: 13px; font-weight: 700; color: var(--blue-700); }
+  .question-header .query { font-size: 16px; font-weight: 600; color: var(--gray-900); margin-top: 4px; }
+  .question-body { padding: 20px 28px; }
+
+  .eval-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 16px 0; }
+  .eval-item { padding: 14px; border-radius: 8px; border: 1px solid var(--gray-300); }
+  .eval-item .eval-label { font-size: 12px; font-weight: 600; color: var(--gray-500); text-transform: uppercase; margin-bottom: 6px; }
+  .eval-item .eval-content { font-size: 13px; color: var(--gray-700); }
+
+  .trace-block { background: var(--gray-50); border: 1px solid var(--gray-300); border-radius: 8px; padding: 14px; margin: 10px 0; font-size: 13px; }
+  .trace-round { border-left: 3px solid var(--blue-700); padding-left: 12px; margin: 8px 0; }
+  .trace-round .round-label { font-size: 11px; font-weight: 700; color: var(--blue-700); text-transform: uppercase; }
+  .trace-round .round-detail { font-size: 12px; color: var(--gray-700); margin-top: 4px; }
+
+  .answer-block { background: var(--amber-50); border: 1px solid var(--amber-100); border-radius: 8px; padding: 14px; margin: 10px 0; font-size: 13px; color: var(--gray-700); }
+  .answer-block .answer-label { font-size: 11px; font-weight: 700; color: var(--amber-700); margin-bottom: 6px; }
+
+  .issue-list { list-style: none; margin-left: 0; }
+  .issue-list li { padding: 6px 0 6px 20px; position: relative; font-size: 13px; }
+  .issue-list li::before { content: ''; position: absolute; left: 0; top: 12px; width: 8px; height: 8px; border-radius: 50%; }
+  .issue-list li.critical::before { background: var(--red-700); }
+  .issue-list li.major::before { background: var(--orange-700); }
+  .issue-list li.minor::before { background: var(--amber-700); }
+
+  .overall-score { font-size: 48px; font-weight: 900; text-align: center; padding: 20px; }
+
+  .system-issue { background: var(--red-50); border: 2px solid var(--red-700); border-radius: 8px; padding: 16px; margin: 12px 0; }
+  .system-issue .issue-title { font-size: 14px; font-weight: 700; color: var(--red-700); margin-bottom: 6px; }
+  .system-issue .issue-desc { font-size: 13px; color: var(--gray-700); }
+
+  .improvement { background: var(--green-50); border: 1px solid var(--green-100); border-radius: 8px; padding: 14px; margin: 8px 0; }
+  .improvement .imp-title { font-size: 13px; font-weight: 600; color: var(--green-700); }
+  .improvement .imp-desc { font-size: 12px; color: var(--gray-700); margin-top: 4px; }
+
+  .flex-row { display: flex; gap: 12px; align-items: center; }
+
+  @media (max-width: 768px) {
+    .summary-grid { grid-template-columns: repeat(2, 1fr); }
+    .eval-grid { grid-template-columns: 1fr; }
+    .header::after { display: none; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+<!-- ==================== HEADER ==================== -->
+<div class="header">
+  <h1>L5 Benchmark Quality Audit</h1>
+  <div class="subtitle">Trend Analysis &amp; Complex Analytics -- 6 Questions Deep Evaluation</div>
+  <div class="meta">
+    <span>2026-03-29</span>
+    <span>Model: DeepSeek Chat (benchmark runner)</span>
+    <span>Auditor: Claude Opus 4.6</span>
+    <span>6 L5 Questions</span>
+  </div>
+</div>
+
+<!-- ==================== VERDICT ==================== -->
+<div class="verdict-banner verdict-fail">
+  <div class="verdict-title">FAIL -- L5 Trend Analysis is Fundamentally Broken</div>
+  <div class="verdict-desc">
+    All 6 questions marked <code>success: true</code> in benchmark, but 0 out of 6 actually delivered a useful answer.
+    The system cannot perform trend analysis in its current state. The "success" metric is lying.
+  </div>
+</div>
+
+<!-- ==================== EXECUTIVE SUMMARY ==================== -->
+<div class="section">
+  <h2>Executive Summary</h2>
+  <div class="summary-grid">
+    <div class="summary-card" style="border-color: var(--red-100);">
+      <div class="num" style="color: var(--red-700);">0/6</div>
+      <div class="label">Usable Answers</div>
+    </div>
+    <div class="summary-card" style="border-color: var(--amber-100);">
+      <div class="num" style="color: var(--amber-700);">6/6</div>
+      <div class="label">"Data Insufficient"</div>
+    </div>
+    <div class="summary-card" style="border-color: var(--green-100);">
+      <div class="num" style="color: var(--green-700);">100%</div>
+      <div class="label">Tool Recall</div>
+    </div>
+    <div class="summary-card" style="border-color: var(--blue-100);">
+      <div class="num" style="color: var(--blue-700);">3.0</div>
+      <div class="label">Avg Rounds</div>
+    </div>
+    <div class="summary-card" style="border-color: var(--red-100);">
+      <div class="num" style="color: var(--red-700);">44.7s</div>
+      <div class="label">Avg Latency</div>
+    </div>
+  </div>
+
+  <h3>Core Finding</h3>
+  <p>
+    <strong>The routing is correct. The tools are chosen correctly. The parameters are reasonable. But the data returned by
+    <code>eam.trend</code> is catastrophically incomplete.</strong> Every single trend query across all 6 domains
+    (fault, spare, patrol, anomaly, maintenance, repair) returns at most 1 data point in the time series (typically only
+    "2026-03"), regardless of the requested date range or groupBy. This means:
+  </p>
+  <ul>
+    <li>No trend can be computed (requires >= 2 time points)</li>
+    <li>No year-over-year comparison is possible (historical periods return empty)</li>
+    <li><code>splitBy</code> parameter appears to be silently ignored (no productionLine/equipment split in results)</li>
+    <li>The AI correctly identifies data insufficiency but cannot work around a fundamentally broken data layer</li>
+  </ul>
+
+  <div class="system-issue">
+    <div class="issue-title">ROOT CAUSE: eam.trend MCP Tool Returns Degenerate Data</div>
+    <div class="issue-desc">
+      The <code>eam.trend</code> tool is documented to return <code>[{period, count, ...splitFields}]</code> time series.
+      In practice, it returns a single-element array like <code>[{"period": "2026-03", "count": 108}]</code> for ANY date
+      range, ANY groupBy, ANY splitBy. The "from 5 domains, fetch paginated data and aggregate in MCP layer" approach
+      appears to be aggregating everything into a single bucket. The backend aggregation logic is broken.
+      This is NOT an AI problem -- this is a data pipeline problem.
+    </div>
+  </div>
+</div>
+
+<!-- ==================== QUESTION-BY-QUESTION ==================== -->
+
+<!-- ============ T35 ============ -->
+<div class="question-card">
+  <div class="question-header">
+    <div>
+      <div class="qid">T35 <span class="badge badge-fail">FAIL</span> <span class="badge badge-purple">Cross-Domain</span></div>
+      <div class="query">"Which production line has rising faults in the past 3 months, with insufficient spare inventory?"</div>
+    </div>
+    <div style="text-align:right;">
+      <div style="font-size: 36px; font-weight: 900; color: var(--red-700);">1/5</div>
+      <div style="font-size: 11px; color: var(--gray-500);">Score</div>
+    </div>
+  </div>
+  <div class="question-body">
+    <p style="font-size: 14px; font-weight: 600; color: var(--gray-900); margin-bottom: 12px;">
+      Original: "哪条产线近 3 个月故障呈上升趋势，且备件库存不足？"
+    </p>
+
+    <div class="eval-grid">
+      <div class="eval-item">
+        <div class="eval-label">1. Routing Decision</div>
+        <div class="eval-content">
+          <span class="badge badge-pass">CORRECT</span>
+          Selected <code>eam.trend</code> (fault domain) + <code>eam.spare.search</code> (lowStock). This is the optimal
+          tool combination for a cross-domain trend+inventory question. The AI correctly identified both data domains
+          (fault trend + spare inventory) and planned a cross-analysis.
+        </div>
+      </div>
+      <div class="eval-item">
+        <div class="eval-label">2. Parameter Quality</div>
+        <div class="eval-content">
+          <span class="badge badge-pass">GOOD</span>
+          <code>dateRange: 2026-01-01 to 2026-03-29</code> -- correct 3-month window.
+          <code>groupBy: month</code> -- appropriate for 3-month range.
+          <code>splitBy: productionLine</code> -- exactly what's needed.
+          <code>lowStock: true</code> for spare search -- correct filter.
+          All parameters textbook perfect.
+        </div>
+      </div>
+      <div class="eval-item">
+        <div class="eval-label">3. Execution Efficiency</div>
+        <div class="eval-content">
+          <span class="badge badge-warn">3 ROUNDS / 42s</span>
+          Round 0: parallel call to trend + spare.search (good).
+          Round 1: retry trend with same params (wasteful -- same input, same output).
+          Round 2: gives up. The retry was pointless since the problem is in the backend, not the parameters.
+        </div>
+      </div>
+      <div class="eval-item">
+        <div class="eval-label">4. Data Completeness</div>
+        <div class="eval-content">
+          <span class="badge badge-fail">ZERO</span>
+          Trend returned single bucket: <code>{"2026-03": 108}</code>. No Jan, no Feb, no productionLine split.
+          Cannot compute any trend (need >= 2 points). Spare search returned <code>items: []</code> (no low stock items).
+          Both data sources are empty/degenerate.
+        </div>
+      </div>
+      <div class="eval-item">
+        <div class="eval-label">5. Answer Quality</div>
+        <div class="eval-content">
+          <span class="badge badge-fail">NO ANALYSIS</span>
+          "数据不包含产线故障趋势和备件库存信息，无法回答." The AI honestly reported data insufficiency. This is
+          the correct response given garbage input. But the user gets zero value.
+        </div>
+      </div>
+      <div class="eval-item">
+        <div class="eval-label">6. Display</div>
+        <div class="eval-content">
+          <span class="badge badge-fail">TEXT ONLY</span>
+          No chart, no table, no visualization. Just a text paragraph saying "can't answer." For a trend question, this is
+          the worst possible display mode. Even with limited data, a table showing what WAS returned would be better.
+        </div>
+      </div>
+    </div>
+
+    <div class="answer-block">
+      <div class="answer-label">AI's Answer</div>
+      "当前数据不包含产线故障趋势和备件库存信息，无法回答哪条产线近3个月故障呈上升趋势且备件库存不足。
+      数据仅显示故障总数，但未按产线分组或提供月度趋势对比，也没有备件库存数据。"
+    </div>
+
+    <ul class="issue-list">
+      <li class="critical"><strong>[Critical]</strong> eam.trend ignores <code>splitBy: productionLine</code> -- returns global aggregate only</li>
+      <li class="critical"><strong>[Critical]</strong> 3-month range returns only 1 month of data -- Jan/Feb missing entirely</li>
+      <li class="major"><strong>[Major]</strong> eam.spare.search with <code>lowStock: true</code> returns <code>total: 21, items: []</code> -- contradictory (21 total but 0 items?)</li>
+      <li class="minor"><strong>[Minor]</strong> Round 1 retry with identical params is wasted latency (should try different approach)</li>
+    </ul>
+  </div>
+</div>
+
+<!-- ============ T36 ============ -->
+<div class="question-card">
+  <div class="question-header">
+    <div>
+      <div class="qid">T36 <span class="badge badge-fail">FAIL</span> <span class="badge badge-info">Statistics + Ranking</span></div>
+      <div class="query">"Last quarter's maintenance completion rate ranking by production line?"</div>
+    </div>
+    <div style="text-align:right;">
+      <div style="font-size: 36px; font-weight: 900; color: var(--red-700);">1.5/5</div>
+      <div style="font-size: 11px; color: var(--gray-500);">Score</div>
+    </div>
+  </div>
+  <div class="question-body">
+    <p style="font-size: 14px; font-weight: 600; color: var(--gray-900); margin-bottom: 12px;">
+      Original: "上季度各产线的保养完成率排名？"
+    </p>
+
+    <div class="eval-grid">
+      <div class="eval-item">
+        <div class="eval-label">1. Routing Decision</div>
+        <div class="eval-content">
+          <span class="badge badge-warn">REASONABLE BUT PROBLEMATIC</span>
+          Started with <code>eam.maintenance.search</code> with <code>groupBy: productionLine</code>.
+          The tool's schema only allows <code>groupBy: equipment | status</code> -- the AI didn't know this.
+          This is a Skill YAML gap: the when_to_use promises "按产线统计保养完成率" but the tool doesn't support it.
+          Expected tool was just <code>eam.maintenance.search</code>, but the tool literally cannot answer this question.
+        </div>
+      </div>
+      <div class="eval-item">
+        <div class="eval-label">2. Parameter Quality</div>
+        <div class="eval-content">
+          <span class="badge badge-warn">DATE RANGE ISSUE</span>
+          "上季度" interpreted as 2025-12-01 to 2026-02-28. If "today" is 2026-03-29, last quarter is
+          2025 Q4 (Oct-Dec) or 2026 Q1 (Jan-Mar) depending on fiscal year. The AI chose Dec-Feb which is
+          neither standard Q4 nor Q1 -- it's a rolling 3-month window, not a quarter.
+          <strong>Should be: 2025-10-01 to 2025-12-31 (2025 Q4) or 2026-01-01 to 2026-03-31 (2026 Q1).</strong>
+        </div>
+      </div>
+      <div class="eval-item">
+        <div class="eval-label">3. Execution Efficiency</div>
+        <div class="eval-content">
+          <span class="badge badge-warn">3 ROUNDS / 35s -- ALL ERRORS</span>
+          Round 0: <code>groupBy: productionLine</code> -- validation error.
+          Round 1: tries <code>equipment.search groupBy: productionLine</code> -- same error.
+          Round 2: drops groupBy, gets <code>items: []</code> (no data in that date range).
+          Good problem-solving behavior (try alternatives when blocked), but 2 of 3 rounds hit the same enum error pattern.
+        </div>
+      </div>
+      <div class="eval-item">
+        <div class="eval-label">4. Data Completeness</div>
+        <div class="eval-content">
+          <span class="badge badge-fail">ZERO</span>
+          All three calls returned errors or empty results. The AI never got any maintenance data, let alone
+          per-production-line completion rates. Even the fallback (raw list without groupBy) returned 0 items.
+        </div>
+      </div>
+      <div class="eval-item">
+        <div class="eval-label">5. Answer Quality</div>
+        <div class="eval-content">
+          <span class="badge badge-fail">HONEST FAILURE</span>
+          The AI correctly reported the tool limitation. But it missed a potential workaround: use
+          <code>eam.trend(domain=maintenance, splitBy=productionLine)</code> or <code>eam.scope.overview</code>
+          per production line. The thinking in Round 2 even mentions trend as a possibility but dismisses it
+          because "trend returns counts not completion rate" -- this is actually reasonable thinking.
+        </div>
+      </div>
+      <div class="eval-item">
+        <div class="eval-label">6. Display</div>
+        <div class="eval-content">
+          <span class="badge badge-fail">ERROR DUMP</span>
+          The <code>data</code> array literally contains raw MCP error messages as the answer payload.
+          The user sees validation errors. This should never leak to the user.
+        </div>
+      </div>
+    </div>
+
+    <div class="answer-block">
+      <div class="answer-label">AI's Answer</div>
+      "当前数据不包含上季度各产线的保养完成率信息，无法回答排名问题。数据查询时出现了参数验证错误，因为工具不支持按'productionLine'（产线）分组查询。"
+    </div>
+
+    <ul class="issue-list">
+      <li class="critical"><strong>[Critical]</strong> <code>eam.maintenance.search</code> doesn't support <code>groupBy: productionLine</code> -- Skill YAML/Prompt promises what the tool can't deliver</li>
+      <li class="critical"><strong>[Critical]</strong> MCP validation errors leak into user-facing <code>data</code> array</li>
+      <li class="major"><strong>[Major]</strong> "上季度" parsed as Dec-Feb instead of standard Q4 (Oct-Dec) or Q1 (Jan-Mar)</li>
+      <li class="major"><strong>[Major]</strong> AI didn't try <code>eam.scope.overview</code> per line or <code>eam.trend(domain=maintenance)</code> as alternatives</li>
+      <li class="minor"><strong>[Minor]</strong> Round 1 tries the same enum pattern on a different tool -- should recognize the pattern</li>
+    </ul>
+  </div>
+</div>
+
+<!-- ============ T38 ============ -->
+<div class="question-card">
+  <div class="question-header">
+    <div>
+      <div class="qid">T38 <span class="badge badge-fail">FAIL</span> <span class="badge badge-info">Ranking + Calculation</span></div>
+      <div class="query">"Top 3 devices by repair frequency in the past 6 months, with average repair cycle?"</div>
+    </div>
+    <div style="text-align:right;">
+      <div style="font-size: 36px; font-weight: 900; color: var(--amber-700);">2/5</div>
+      <div style="font-size: 11px; color: var(--gray-500);">Score</div>
+    </div>
+  </div>
+  <div class="question-body">
+    <p style="font-size: 14px; font-weight: 600; color: var(--gray-900); margin-bottom: 12px;">
+      Original: "近半年维修频次最高的 3 台设备，各自的平均维修周期是多少？"
+    </p>
+
+    <div class="eval-grid">
+      <div class="eval-item">
+        <div class="eval-label">1. Routing Decision</div>
+        <div class="eval-content">
+          <span class="badge badge-pass">CORRECT</span>
+          Selected <code>eam.repair.search</code> to get all repair orders, planning to count per-equipment frequency
+          and calculate cycle time from order data. This is the right approach given the available tools.
+        </div>
+      </div>
+      <div class="eval-item">
+        <div class="eval-label">2. Parameter Quality</div>
+        <div class="eval-content">
+          <span class="badge badge-pass">GOOD</span>
+          <code>dateRange: 2025-09-29 to 2026-03-29</code> -- correct 6-month window.
+          <code>format: detailed</code> in Round 0 to get timestamps, then <code>concise</code> with higher limit
+          in Round 2 to get all 28 records. Reasonable progression.
+        </div>
+      </div>
+      <div class="eval-item">
+        <div class="eval-label">3. Execution Efficiency</div>
+        <div class="eval-content">
+          <span class="badge badge-warn">3 ROUNDS / 41s</span>
+          Round 0: get detailed data (10/28 items). Round 1: filter completed orders (0 results).
+          Round 2: get all 28 with concise format. The data IS there -- 28 orders with equipmentId.
+          Equipment frequency: 1666(2), 1617(2), 1568(2), 1519(2), 1442(2)...
+          <strong>The AI HAD enough data to rank equipment by frequency but didn't do it.</strong>
+        </div>
+      </div>
+      <div class="eval-item">
+        <div class="eval-label">4. Data Completeness</div>
+        <div class="eval-content">
+          <span class="badge badge-warn">PARTIAL</span>
+          Got 28 repair orders with equipmentId. Frequency ranking IS computable (multiple equipment have 2 orders each).
+          Average repair cycle is NOT computable because all orders are "待分配" (status=0) with <code>repairMinutes: null</code>.
+          No completed orders exist, so cycle time is unknowable.
+        </div>
+      </div>
+      <div class="eval-item">
+        <div class="eval-label">5. Answer Quality</div>
+        <div class="eval-content">
+          <span class="badge badge-fail">GAVE UP TOO EARLY</span>
+          The AI said "缺少设备维修频次统计和维修周期" -- but it DID have frequency data!
+          It should have reported: "Top equipment by repair frequency: 1666 (2 orders), 1617 (2), 1568 (2), 1519 (2)...
+          Note: all orders are still pending, so average repair cycle cannot be calculated yet."
+          <strong>Partial answer is better than no answer.</strong>
+        </div>
+      </div>
+      <div class="eval-item">
+        <div class="eval-label">6. Display</div>
+        <div class="eval-content">
+          <span class="badge badge-fail">TEXT ONLY</span>
+          Should have shown a ranking table of equipment by repair count, even if cycle data is unavailable.
+          The raw data (28 orders) was there but the AI didn't analyze it.
+        </div>
+      </div>
+    </div>
+
+    <div class="answer-block">
+      <div class="answer-label">AI's Answer</div>
+      "当前数据不包含近半年维修频次最高的3台设备信息，也无法计算平均维修周期。数据中仅提供了部分维修工单的列表，但缺少设备维修频次统计和维修周期（如维修时长或时间间隔）的具体数值。"
+    </div>
+
+    <ul class="issue-list">
+      <li class="critical"><strong>[Critical]</strong> AI had 28 orders with equipmentId but didn't compute frequency ranking -- this is an AI analysis failure</li>
+      <li class="major"><strong>[Major]</strong> "Partial answer" pattern missing: should answer what it CAN and flag what it CAN'T</li>
+      <li class="major"><strong>[Major]</strong> All 28 repair orders are "待分配" -- suggests test data quality issue (no completed repairs in 6 months?)</li>
+      <li class="minor"><strong>[Minor]</strong> Equipment IDs are returned but not resolved to names -- user sees "1666" not "CNC-001"</li>
+    </ul>
+  </div>
+</div>
+
+<!-- ============ T37 ============ -->
+<div class="question-card">
+  <div class="question-header">
+    <div>
+      <div class="qid">T37 <span class="badge badge-fail">FAIL</span> <span class="badge badge-purple">Year-over-Year</span></div>
+      <div class="query">"Compared to the same period last year, has Q1 fault count increased or decreased?"</div>
+    </div>
+    <div style="text-align:right;">
+      <div style="font-size: 36px; font-weight: 900; color: var(--amber-700);">2.5/5</div>
+      <div style="font-size: 11px; color: var(--gray-500);">Score</div>
+    </div>
+  </div>
+  <div class="question-body">
+    <p style="font-size: 14px; font-weight: 600; color: var(--gray-900); margin-bottom: 12px;">
+      Original: "同比去年同期，今年 Q1 的故障报修数是增还是减？"
+    </p>
+
+    <div class="eval-grid">
+      <div class="eval-item">
+        <div class="eval-label">1. Routing Decision</div>
+        <div class="eval-content">
+          <span class="badge badge-pass">CORRECT</span>
+          Selected <code>eam.trend</code> for year-over-year comparison. This is the right tool.
+          The AI correctly planned to compare 2025 Q1 vs 2026 Q1 by issuing separate queries.
+        </div>
+      </div>
+      <div class="eval-item">
+        <div class="eval-label">2. Parameter Quality</div>
+        <div class="eval-content">
+          <span class="badge badge-pass">EXCELLENT</span>
+          Round 0: single query spanning 2025-01 to 2026-03 (ambitious but reasonable).
+          Round 1: smartly split into two queries -- 2025 Q1 (Jan-Mar 2025) and 2026 Q1 (Jan-Mar 2026).
+          This is the correct decomposition for year-over-year comparison.
+        </div>
+      </div>
+      <div class="eval-item">
+        <div class="eval-label">3. Execution Efficiency</div>
+        <div class="eval-content">
+          <span class="badge badge-pass">GOOD RECOVERY</span>
+          Round 0: single wide query returned 1 data point. Round 1: parallel split queries (smart).
+          Round 2: analysis and conclusion. The split-query approach in Round 1 was excellent problem-solving.
+        </div>
+      </div>
+      <div class="eval-item">
+        <div class="eval-label">4. Data Completeness</div>
+        <div class="eval-content">
+          <span class="badge badge-warn">PARTIAL</span>
+          2025 Q1: <code>totalRecords: 0, series: []</code> -- no data (could be real or missing).
+          2026 Q1: <code>totalRecords: 108, series: [{"2026-03": 108}]</code> -- only March, missing Jan/Feb.
+          The comparison IS possible (0 vs 108), but the data quality is questionable:
+          is 2025 truly zero, or was the system not in use yet?
+        </div>
+      </div>
+      <div class="eval-item">
+        <div class="eval-label">5. Answer Quality</div>
+        <div class="eval-content">
+          <span class="badge badge-warn">HEDGED CORRECTLY</span>
+          The AI reported: "2025 Q1 = 0, 2026 Q1 = 108" and flagged data quality concern.
+          It could have given a clearer verdict: "Yes, increased -- from 0 to 108 (+100%)." But instead it
+          said "缺少2024年Q1数据" which is confusing -- the user asked about "去年" (last year = 2025), not 2024.
+          <strong>The answer text has a year calculation error: "去年同期" from 2026 is 2025, not 2024.</strong>
+        </div>
+      </div>
+      <div class="eval-item">
+        <div class="eval-label">6. Display</div>
+        <div class="eval-content">
+          <span class="badge badge-fail">TEXT ONLY</span>
+          A simple side-by-side comparison (2025 Q1: 0 | 2026 Q1: 108) would have been powerful.
+          Even a simple bar chart showing the dramatic increase would have been impactful.
+        </div>
+      </div>
+    </div>
+
+    <div class="answer-block">
+      <div class="answer-label">AI's Answer</div>
+      "当前数据不包含2024年Q1的故障报修信息，无法进行同比分析。数据中只有2025年Q1和2026年Q1的信息：2025年Q1故障报修数为0，2026年Q1故障报修数为108。"
+    </div>
+
+    <ul class="issue-list">
+      <li class="critical"><strong>[Critical]</strong> Year calculation error: "去年" from 2026 is 2025, AI mentions "2024年Q1" which is wrong (off by one year)</li>
+      <li class="major"><strong>[Major]</strong> 2026 Q1 data only shows March (108) but Jan/Feb are missing -- eam.trend aggregation bug</li>
+      <li class="major"><strong>[Major]</strong> AI had enough data to answer (0 vs 108 = increase) but hedged too much instead of giving the direct answer</li>
+      <li class="minor"><strong>[Minor]</strong> Confidence marked "high" but answer says "can't analyze" -- contradictory metadata</li>
+    </ul>
+  </div>
+</div>
+
+<!-- ============ T40 ============ -->
+<div class="question-card">
+  <div class="question-header">
+    <div>
+      <div class="qid">T40 <span class="badge badge-fail">FAIL</span> <span class="badge badge-purple">Seasonality</span></div>
+      <div class="query">"Patrol anomaly rate trend over 6 months -- any seasonal patterns?"</div>
+    </div>
+    <div style="text-align:right;">
+      <div style="font-size: 36px; font-weight: 900; color: var(--red-700);">1.5/5</div>
+      <div style="font-size: 11px; color: var(--gray-500);">Score</div>
+    </div>
+  </div>
+  <div class="question-body">
+    <p style="font-size: 14px; font-weight: 600; color: var(--gray-900); margin-bottom: 12px;">
+      Original: "近 6 个月巡检异常率变化趋势，有没有季节性规律？"
+    </p>
+
+    <div class="eval-grid">
+      <div class="eval-item">
+        <div class="eval-label">1. Routing Decision</div>
+        <div class="eval-content">
+          <span class="badge badge-warn">REASONABLE BUT OVER-FETCHED</span>
+          Started with <code>eam.trend(patrol)</code> + <code>eam.trend(anomaly)</code>. The idea is sound: anomaly rate =
+          anomaly count / patrol count. Then added <code>eam.anomaly.search</code> in Round 2 as fallback.
+          However, the patrol domain's native analytics already returns <code>abnormalRate</code> -- the AI didn't
+          realize the first call already had the rate (albeit 0).
+        </div>
+      </div>
+      <div class="eval-item">
+        <div class="eval-label">2. Parameter Quality</div>
+        <div class="eval-content">
+          <span class="badge badge-pass">GOOD</span>
+          <code>dateRange: 2025-10-01 to 2026-03-31</code> -- correct 6-month window.
+          <code>groupBy: month</code> -- appropriate for seasonality analysis.
+          Round 2 tried <code>eam.anomaly.search(groupBy: month)</code> which hit a validation error
+          (only supports equipment/severity/status).
+        </div>
+      </div>
+      <div class="eval-item">
+        <div class="eval-label">3. Execution Efficiency</div>
+        <div class="eval-content">
+          <span class="badge badge-warn">3 ROUNDS / 52s -- HEAVY</span>
+          Round 0: parallel trend(patrol) + trend(anomaly) -- good.
+          Round 1: retry both with same params -- wasteful again.
+          Round 2: anomaly.search with invalid groupBy -- error. Longest latency of all 6 questions.
+        </div>
+      </div>
+      <div class="eval-item">
+        <div class="eval-label">4. Data Completeness</div>
+        <div class="eval-content">
+          <span class="badge badge-fail">ZERO USEFUL</span>
+          Patrol domain returned daily data (native analytics) but ALL values are 0 -- no patrol tasks exist.
+          Anomaly domain returned single bucket: <code>{"2026-03": 121}</code>. No multi-month series.
+          Anomaly rate cannot be computed: numerator has 1 data point, denominator is all zeros.
+        </div>
+      </div>
+      <div class="eval-item">
+        <div class="eval-label">5. Answer Quality</div>
+        <div class="eval-content">
+          <span class="badge badge-fail">NO ANALYSIS</span>
+          "数据不包含巡检异常率变化趋势信息，无法回答." Correct assessment given the data, but zero analytical value.
+          A good system would note: "121 anomalies recorded in March 2026, but no patrol task data exists to compute
+          anomaly rate. Recommend checking if patrol plans are configured."
+        </div>
+      </div>
+      <div class="eval-item">
+        <div class="eval-label">6. Display</div>
+        <div class="eval-content">
+          <span class="badge badge-fail">TEXT ONLY</span>
+          For a seasonality question, the ideal output is a line chart with monthly data points.
+          Even showing "all zeros" as a flat line would communicate the data gap visually.
+        </div>
+      </div>
+    </div>
+
+    <div class="answer-block">
+      <div class="answer-label">AI's Answer</div>
+      "当前数据不包含巡检异常率变化趋势信息，无法回答近6个月的变化趋势或季节性规律。数据中巡检相关的异常趋势（abnormalTrend）所有日期的正常和异常计数均为0，且没有提供异常率（abnormalRate）的具体数值。"
+    </div>
+
+    <ul class="issue-list">
+      <li class="critical"><strong>[Critical]</strong> Patrol domain returns all zeros -- no patrol tasks in test data at all</li>
+      <li class="critical"><strong>[Critical]</strong> Anomaly trend only shows March -- same single-bucket aggregation bug</li>
+      <li class="major"><strong>[Major]</strong> Round 2 hits groupBy validation error on anomaly.search -- AI doesn't learn the enum-only pattern from T36</li>
+      <li class="minor"><strong>[Minor]</strong> Precision=0.5 because eam.anomaly.search was called but wasn't in expected tools -- but it was a reasonable attempt</li>
+    </ul>
+  </div>
+</div>
+
+<!-- ============ T39 ============ -->
+<div class="question-card">
+  <div class="question-header">
+    <div>
+      <div class="qid">T39 <span class="badge badge-fail">FAIL</span> <span class="badge badge-purple">Month-over-Month</span></div>
+      <div class="query">"Spare parts monthly consumption trend -- which parts are continuously rising?"</div>
+    </div>
+    <div style="text-align:right;">
+      <div style="font-size: 36px; font-weight: 900; color: var(--amber-700);">2/5</div>
+      <div style="font-size: 11px; color: var(--gray-500);">Score</div>
+    </div>
+  </div>
+  <div class="question-body">
+    <p style="font-size: 14px; font-weight: 600; color: var(--gray-900); margin-bottom: 12px;">
+      Original: "备件月消耗量环比分析，哪些备件用量在持续上升？"
+    </p>
+
+    <div class="eval-grid">
+      <div class="eval-item">
+        <div class="eval-label">1. Routing Decision</div>
+        <div class="eval-content">
+          <span class="badge badge-pass">CORRECT</span>
+          Selected <code>eam.trend(domain=spare)</code>. This is the right tool for consumption trend analysis.
+          The AI correctly identified the need for time-series data on spare part consumption.
+        </div>
+      </div>
+      <div class="eval-item">
+        <div class="eval-label">2. Parameter Quality</div>
+        <div class="eval-content">
+          <span class="badge badge-pass">GOOD PROGRESSION</span>
+          Round 0: 3-month range, groupBy=month. Round 1: expanded to 6 months + splitBy=equipment.
+          Round 2: expanded to 12 months. Systematic widening of time range is smart troubleshooting.
+          The AI correctly tried splitBy to get per-item breakdown.
+        </div>
+      </div>
+      <div class="eval-item">
+        <div class="eval-label">3. Execution Efficiency</div>
+        <div class="eval-content">
+          <span class="badge badge-warn">3 ROUNDS / 55s -- LONGEST</span>
+          Three calls to eam.trend with progressively wider date ranges and different params.
+          All return the exact same result: <code>{"2026-03": 29}</code>. The AI was persistent but the
+          underlying data is a brick wall. The third call (12-month range) was unlikely to help
+          if 6-month already failed.
+        </div>
+      </div>
+      <div class="eval-item">
+        <div class="eval-label">4. Data Completeness</div>
+        <div class="eval-content">
+          <span class="badge badge-fail">SINGLE POINT</span>
+          All three queries returned identical: <code>totalRecords: 29, series: [{"2026-03": 29}]</code>.
+          splitBy=equipment was silently ignored. No breakdown by spare part item.
+          Month-over-month analysis requires >= 2 months of data. We have exactly 1.
+        </div>
+      </div>
+      <div class="eval-item">
+        <div class="eval-label">5. Answer Quality</div>
+        <div class="eval-content">
+          <span class="badge badge-fail">NO ANALYSIS</span>
+          "数据不包含备件消耗量的具体数值或备件名称信息." Correct but unhelpful. The AI could have said:
+          "29 spare part consumption records found in March 2026. Earlier months show no consumption data.
+          Month-over-month comparison not possible with single-month data."
+        </div>
+      </div>
+      <div class="eval-item">
+        <div class="eval-label">6. Display</div>
+        <div class="eval-content">
+          <span class="badge badge-fail">TEXT ONLY</span>
+          For MoM analysis, a bar chart or table showing monthly consumption is standard.
+          Nothing was rendered. The followUp suggestions are generic and unhelpful ("换个关键词搜索").
+        </div>
+      </div>
+    </div>
+
+    <div class="answer-block">
+      <div class="answer-label">AI's Answer</div>
+      "当前数据不包含备件消耗量的具体数值或备件名称信息，无法进行环比分析或识别哪些备件用量在持续上升。数据仅显示了查询的日期范围和总记录数，但未提供各月份或各备件的消耗量细节。"
+    </div>
+
+    <ul class="issue-list">
+      <li class="critical"><strong>[Critical]</strong> eam.trend(spare) always returns single-month data regardless of dateRange -- aggregation completely broken</li>
+      <li class="critical"><strong>[Critical]</strong> splitBy=equipment silently ignored -- no per-spare-part breakdown possible</li>
+      <li class="major"><strong>[Major]</strong> Confidence marked "high" despite 3 failed attempts and zero useful data -- confidence calibration is wrong</li>
+      <li class="minor"><strong>[Minor]</strong> followUp suggestions are generic ("换个关键词搜索") instead of actionable</li>
+    </ul>
+  </div>
+</div>
+
+<!-- ==================== CROSS-CUTTING ANALYSIS ==================== -->
+<div class="section">
+  <h2>Cross-Cutting Analysis</h2>
+
+  <h3>Pattern 1: eam.trend Returns Degenerate Single-Bucket Data</h3>
+  <table>
+    <tr>
+      <th>Question</th>
+      <th>Domain</th>
+      <th>Requested Range</th>
+      <th>groupBy</th>
+      <th>splitBy</th>
+      <th>Returned Series</th>
+    </tr>
+    <tr>
+      <td>T35</td>
+      <td>fault</td>
+      <td>3 months (Jan-Mar 2026)</td>
+      <td>month</td>
+      <td>productionLine</td>
+      <td><code>[{"2026-03": 108}]</code> -- 1 bucket, no split</td>
+    </tr>
+    <tr>
+      <td>T37</td>
+      <td>fault</td>
+      <td>15 months (Jan 2025-Mar 2026)</td>
+      <td>month</td>
+      <td>--</td>
+      <td><code>[{"2026-03": 108}]</code> -- 1 bucket</td>
+    </tr>
+    <tr>
+      <td>T37</td>
+      <td>fault</td>
+      <td>3 months (Jan-Mar 2025)</td>
+      <td>month</td>
+      <td>--</td>
+      <td><code>[]</code> -- empty (historical data missing)</td>
+    </tr>
+    <tr>
+      <td>T39</td>
+      <td>spare</td>
+      <td>3/6/12 months</td>
+      <td>month</td>
+      <td>equipment</td>
+      <td><code>[{"2026-03": 29}]</code> -- always same</td>
+    </tr>
+    <tr>
+      <td>T40</td>
+      <td>anomaly</td>
+      <td>6 months</td>
+      <td>month</td>
+      <td>--</td>
+      <td><code>[{"2026-03": 121}]</code> -- 1 bucket</td>
+    </tr>
+    <tr>
+      <td>T40</td>
+      <td>patrol</td>
+      <td>6 months</td>
+      <td>month</td>
+      <td>--</td>
+      <td>All zeros (native analytics)</td>
+    </tr>
+  </table>
+  <p>
+    <strong>Conclusion:</strong> The eam.trend tool's "fetch paginated data then aggregate in MCP layer" approach has a
+    fundamental bug. For non-patrol domains (fault, repair, spare, anomaly, maintenance), the aggregation collapses all
+    records into the latest month regardless of their actual dates. The patrol domain uses a different path (native analytics)
+    and returns proper daily data, but with all zeros (no patrol data in test DB).
+  </p>
+
+  <h3>Pattern 2: splitBy is Silently Ignored</h3>
+  <p>
+    T35 explicitly passed <code>splitBy: productionLine</code> and T39 passed <code>splitBy: equipment</code>.
+    Both times, the returned series contained no split fields -- just a global aggregate. The MCP layer either doesn't
+    implement splitBy, or the split logic has a bug. This makes ALL comparative trend analysis impossible.
+  </p>
+
+  <h3>Pattern 3: AI Gives Up Instead of Giving Partial Answers</h3>
+  <p>
+    In T38, the AI had 28 repair orders with equipmentId. It could have computed a frequency ranking (the first half of the
+    question) even though it couldn't compute average repair cycle (the second half). Instead, it reported "data insufficient"
+    for the entire question. In T37, it had 0 vs 108 data -- enough to say "increased" -- but hedged with a wrong year reference.
+    <strong>The "summarize" step needs a "partial answer" mode: answer what you CAN, explicitly flag what you CAN'T.</strong>
+  </p>
+
+  <h3>Pattern 4: groupBy Enum Mismatches</h3>
+  <p>
+    In T36 and T40, the AI tried <code>groupBy: productionLine</code> and <code>groupBy: month</code> on search tools that
+    don't support those enum values. The Skill YAML's <code>when_to_use</code> promises capabilities the tool schema doesn't
+    actually support. This is a Prompt-Schema alignment gap.
+  </p>
+
+  <h3>Pattern 5: Confidence Calibration is Broken</h3>
+  <table>
+    <tr><th>Question</th><th>Confidence</th><th>Actual Result</th><th>Verdict</th></tr>
+    <tr><td>T35</td><td><span class="badge badge-warn">low</span></td><td>Complete failure</td><td>Correct calibration</td></tr>
+    <tr><td>T36</td><td><span class="badge badge-warn">medium</span></td><td>All errors/empty</td><td>Over-confident</td></tr>
+    <tr><td>T38</td><td><span class="badge badge-warn">low</span></td><td>Had data, didn't analyze</td><td>Correct calibration</td></tr>
+    <tr><td>T37</td><td><span class="badge badge-pass">high</span></td><td>Had answer, gave wrong year</td><td>Over-confident</td></tr>
+    <tr><td>T40</td><td><span class="badge badge-warn">medium</span></td><td>Complete failure</td><td>Over-confident</td></tr>
+    <tr><td>T39</td><td><span class="badge badge-pass">high</span></td><td>Single bucket, no analysis</td><td>Grossly over-confident</td></tr>
+  </table>
+</div>
+
+<!-- ==================== SCORE SUMMARY ==================== -->
+<div class="section">
+  <h2>Score Summary</h2>
+  <table>
+    <tr>
+      <th>ID</th>
+      <th>Question</th>
+      <th>Routing</th>
+      <th>Params</th>
+      <th>Efficiency</th>
+      <th>Data</th>
+      <th>Answer</th>
+      <th>Display</th>
+      <th style="background: var(--red-700);">Total</th>
+    </tr>
+    <tr>
+      <td><strong>T35</strong></td>
+      <td>产线故障趋势+备件库存</td>
+      <td><span class="badge badge-pass">OK</span></td>
+      <td><span class="badge badge-pass">OK</span></td>
+      <td><span class="badge badge-warn">MED</span></td>
+      <td><span class="badge badge-fail">ZERO</span></td>
+      <td><span class="badge badge-fail">NONE</span></td>
+      <td><span class="badge badge-fail">TEXT</span></td>
+      <td><strong style="color: var(--red-700);">1.0</strong></td>
+    </tr>
+    <tr>
+      <td><strong>T36</strong></td>
+      <td>保养完成率排名</td>
+      <td><span class="badge badge-warn">GAP</span></td>
+      <td><span class="badge badge-warn">DATE</span></td>
+      <td><span class="badge badge-fail">ERR</span></td>
+      <td><span class="badge badge-fail">ZERO</span></td>
+      <td><span class="badge badge-fail">NONE</span></td>
+      <td><span class="badge badge-fail">ERR</span></td>
+      <td><strong style="color: var(--red-700);">1.5</strong></td>
+    </tr>
+    <tr>
+      <td><strong>T38</strong></td>
+      <td>维修频次Top3+周期</td>
+      <td><span class="badge badge-pass">OK</span></td>
+      <td><span class="badge badge-pass">OK</span></td>
+      <td><span class="badge badge-warn">MED</span></td>
+      <td><span class="badge badge-warn">HALF</span></td>
+      <td><span class="badge badge-fail">LAZY</span></td>
+      <td><span class="badge badge-fail">TEXT</span></td>
+      <td><strong style="color: var(--amber-700);">2.0</strong></td>
+    </tr>
+    <tr>
+      <td><strong>T37</strong></td>
+      <td>故障同比增减</td>
+      <td><span class="badge badge-pass">OK</span></td>
+      <td><span class="badge badge-pass">GOOD</span></td>
+      <td><span class="badge badge-pass">GOOD</span></td>
+      <td><span class="badge badge-warn">HALF</span></td>
+      <td><span class="badge badge-warn">WRONG</span></td>
+      <td><span class="badge badge-fail">TEXT</span></td>
+      <td><strong style="color: var(--amber-700);">2.5</strong></td>
+    </tr>
+    <tr>
+      <td><strong>T40</strong></td>
+      <td>巡检异常率季节性</td>
+      <td><span class="badge badge-warn">OK-ISH</span></td>
+      <td><span class="badge badge-pass">OK</span></td>
+      <td><span class="badge badge-warn">HEAVY</span></td>
+      <td><span class="badge badge-fail">ZERO</span></td>
+      <td><span class="badge badge-fail">NONE</span></td>
+      <td><span class="badge badge-fail">TEXT</span></td>
+      <td><strong style="color: var(--red-700);">1.5</strong></td>
+    </tr>
+    <tr>
+      <td><strong>T39</strong></td>
+      <td>备件消耗环比</td>
+      <td><span class="badge badge-pass">OK</span></td>
+      <td><span class="badge badge-pass">GOOD</span></td>
+      <td><span class="badge badge-warn">HEAVY</span></td>
+      <td><span class="badge badge-fail">SINGLE</span></td>
+      <td><span class="badge badge-fail">NONE</span></td>
+      <td><span class="badge badge-fail">TEXT</span></td>
+      <td><strong style="color: var(--amber-700);">2.0</strong></td>
+    </tr>
+    <tr style="background: var(--red-50);">
+      <td colspan="7" style="text-align: right; font-weight: 700; border-bottom: 2px solid var(--red-700);">L5 Average</td>
+      <td colspan="2" style="border-bottom: 2px solid var(--red-700);"><strong style="color: var(--red-700); font-size: 18px;">1.75 / 5.0</strong></td>
+    </tr>
+  </table>
+</div>
+
+<!-- ==================== ROOT CAUSE HIERARCHY ==================== -->
+<div class="section">
+  <h2>Root Cause Hierarchy (Priority Order)</h2>
+
+  <div class="system-issue" style="margin-bottom: 16px;">
+    <div class="issue-title">P0 -- eam.trend MCP Aggregation is Broken</div>
+    <div class="issue-desc">
+      <strong>Impact:</strong> Blocks ALL 6 L5 questions. No trend analysis is possible.<br>
+      <strong>Root cause:</strong> The MCP layer's in-memory aggregation for non-patrol domains collapses all records into
+      the latest month. Likely bug: date parsing or bucket assignment in the aggregation loop.<br>
+      <strong>Fix:</strong> Debug the <code>eam.trend</code> MCP tool's aggregation logic. Verify that records are assigned
+      to the correct month/week/day bucket based on their creation date, not the query date. Add unit tests for multi-month
+      date ranges.
+    </div>
+  </div>
+
+  <div class="system-issue" style="margin-bottom: 16px; background: var(--amber-50); border-color: var(--amber-700);">
+    <div class="issue-title" style="color: var(--amber-700);">P1 -- splitBy Parameter Silently Ignored</div>
+    <div class="issue-desc">
+      <strong>Impact:</strong> Blocks comparative analysis (T35 productionLine split, T39 equipment split).<br>
+      <strong>Root cause:</strong> The MCP tool accepts the parameter without error but doesn't use it in aggregation.<br>
+      <strong>Fix:</strong> Implement splitBy grouping in the aggregation loop. Each split value should produce its own
+      time series. Add tests for <code>splitBy=productionLine</code> and <code>splitBy=equipment</code>.
+    </div>
+  </div>
+
+  <div class="system-issue" style="margin-bottom: 16px; background: var(--amber-50); border-color: var(--amber-700);">
+    <div class="issue-title" style="color: var(--amber-700);">P1 -- Test Data Lacks Historical Depth</div>
+    <div class="issue-desc">
+      <strong>Impact:</strong> Even if trend tool is fixed, 2025 data is empty for all domains.<br>
+      <strong>Root cause:</strong> Test database only has 2026-03 records. Year-over-year comparisons will always fail.<br>
+      <strong>Fix:</strong> Seed test database with 6-12 months of historical data across all domains.
+      Include realistic patterns (seasonal variation, equipment-specific clustering).
+    </div>
+  </div>
+
+  <div class="improvement" style="margin-bottom: 12px;">
+    <div class="imp-title">P2 -- AI "Partial Answer" Pattern</div>
+    <div class="imp-desc">
+      T38 had enough data to answer half the question. T37 had enough to answer the full question.
+      The summarize step should be trained/prompted to deliver what it CAN, not refuse entirely when
+      one dimension is missing. Add to system prompt: "If you can answer part of the question with
+      available data, do so. Clearly label which parts are answered and which need more data."
+    </div>
+  </div>
+
+  <div class="improvement" style="margin-bottom: 12px;">
+    <div class="imp-title">P2 -- Skill YAML / Tool Schema Alignment</div>
+    <div class="imp-desc">
+      <code>maintenance.search</code> and <code>anomaly.search</code> have limited <code>groupBy</code> enums,
+      but the AI tries <code>productionLine</code> and <code>month</code> which don't exist. Either expand the
+      tool's groupBy options or update the Skill YAML's <code>when_to_use</code> to NOT promise productionLine grouping.
+    </div>
+  </div>
+
+  <div class="improvement" style="margin-bottom: 12px;">
+    <div class="imp-title">P3 -- Display Mode: Trend Questions Should Default to Chart/Table</div>
+    <div class="imp-desc">
+      All 6 questions returned <code>display: "text"</code>. Trend analysis questions should trigger
+      chart or table display mode. Even empty data is better shown as a table ("No data for Jan, No data for Feb,
+      108 in Mar") than as a paragraph of text.
+    </div>
+  </div>
+
+  <div class="improvement">
+    <div class="imp-title">P3 -- Confidence Calibration</div>
+    <div class="imp-desc">
+      T39 marked "high" confidence with zero useful data. T37 marked "high" with a year calculation error.
+      Confidence should be LOW when the answer is "data insufficient" or when multiple retries yielded no improvement.
+    </div>
+  </div>
+</div>
+
+<!-- ==================== WHAT WORKS ==================== -->
+<div class="section">
+  <h2>What Actually Works Well</h2>
+  <p>Despite the catastrophic results, the AI layer shows real competence:</p>
+  <ul>
+    <li><strong>Routing is correct for 5/6 questions</strong> -- the AI picks the right tools every time</li>
+    <li><strong>Parameter construction is excellent</strong> -- date ranges, groupBy, splitBy are all appropriate</li>
+    <li><strong>Self-correction behavior</strong> -- T37's split-query strategy (separate 2025 Q1 and 2026 Q1) was smart</li>
+    <li><strong>Progressive widening</strong> -- T39 tried 3mo, then 6mo, then 12mo, systematically expanding the search</li>
+    <li><strong>Cross-domain planning</strong> -- T35 correctly planned trend+spare cross-analysis</li>
+    <li><strong>Honest failure reporting</strong> -- the AI never fabricates data, which is architecturally correct (Rule 6: "summarize must not invent data")</li>
+  </ul>
+  <p>
+    <strong>The AI is doing its job. The MCP data layer is not.</strong> Fix the plumbing, and L5 scores should jump
+    from 1.75 to potentially 3.5-4.0 overnight.
+  </p>
+</div>
+
+<!-- ==================== FOOTER ==================== -->
+<div style="text-align: center; padding: 24px; color: var(--gray-500); font-size: 12px;">
+  Generated by Claude Opus 4.6 (Quality Audit) | 2026-03-29 | Insight68 NL-API Platform
+</div>
+
+</div>
+</body>
+</html>

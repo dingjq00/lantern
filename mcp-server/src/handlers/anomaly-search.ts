@@ -2,7 +2,7 @@
 import { z } from 'zod'
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { eamSearch } from '../eam-api.js'
-import { resolveEquipment, resolveProductionLine, resolveDepartment, getEquipmentIdsByProductionLine, getEquipmentIdsByDepartment } from '../resolvers.js'
+import { resolveEquipment, resolveScope, enrichGroupNames } from '../resolvers.js'
 
 interface AnomalyRecord {
   id: number; equipmentId: number; source: string; severity: number
@@ -41,18 +41,10 @@ export function registerAnomalySearch(server: McpServer) {
         params.createTimeEnd = args.dateRange.to
       }
 
-      // 产线/部门过滤
-      let scopeEquipmentIds: number[] | null = null
-      if (args.productionLine) {
-        const line = await resolveProductionLine(args.productionLine)
-        if (line.match === 'exact' && line.entity) scopeEquipmentIds = await getEquipmentIdsByProductionLine(line.entity.id)
-        else if (line.match === 'candidates') return textResult({ message: '找到多个匹配产线，请确认', candidates: line.candidates })
-      }
-      if (args.department && !scopeEquipmentIds) {
-        const dept = await resolveDepartment(args.department)
-        if (dept.match === 'exact' && dept.entity) scopeEquipmentIds = await getEquipmentIdsByDepartment(dept.entity.id)
-        else if (dept.match === 'candidates') return textResult({ message: '找到多个匹配部门，请确认', candidates: dept.candidates })
-      }
+      // 产线/部门过滤 — 通用 resolveScope
+      const scope = await resolveScope({ productionLine: args.productionLine, department: args.department })
+      if (scope.type === 'error') return textResult(scope.response)
+      const scopeEquipmentIds = scope.type === 'ids' ? scope.ids : null
 
       const result = await eamSearch<AnomalyRecord>('/eam/anomaly/page', params, {
         groupBy: args.groupBy,
@@ -69,7 +61,8 @@ export function registerAnomalySearch(server: McpServer) {
       }
 
       if (result.groups) {
-        return textResult({ total, groupBy: args.groupBy, groups: result.groups })
+        const enrichedGroups = await enrichGroupNames(result.groups, args.groupBy!)
+        return textResult({ total, groupBy: args.groupBy, groups: enrichedGroups })
       }
 
       const items = list.map(a => args.format === 'concise'

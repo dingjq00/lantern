@@ -2,7 +2,7 @@
 import { z } from 'zod'
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { eamSearch, eamGet, eamParallel, type RepairOrder } from '../eam-api.js'
-import { resolveEquipment, resolveProductionLine, resolveDepartment, getEquipmentIdsByProductionLine, getEquipmentIdsByDepartment } from '../resolvers.js'
+import { resolveEquipment, resolveScope, enrichGroupNames } from '../resolvers.js'
 
 export function registerRepairSearch(server: McpServer) {
   server.tool(
@@ -29,18 +29,10 @@ export function registerRepairSearch(server: McpServer) {
       }
       if (args.status !== undefined) params.status = args.status
 
-      // 产线/部门过滤
-      let scopeEquipmentIds: number[] | null = null
-      if (args.productionLine) {
-        const line = await resolveProductionLine(args.productionLine)
-        if (line.match === 'exact' && line.entity) scopeEquipmentIds = await getEquipmentIdsByProductionLine(line.entity.id)
-        else if (line.match === 'candidates') return textResult({ message: '找到多个匹配产线，请确认', candidates: line.candidates })
-      }
-      if (args.department && !scopeEquipmentIds) {
-        const dept = await resolveDepartment(args.department)
-        if (dept.match === 'exact' && dept.entity) scopeEquipmentIds = await getEquipmentIdsByDepartment(dept.entity.id)
-        else if (dept.match === 'candidates') return textResult({ message: '找到多个匹配部门，请确认', candidates: dept.candidates })
-      }
+      // 产线/部门过滤 — 通用 resolveScope
+      const scope = await resolveScope({ productionLine: args.productionLine, department: args.department })
+      if (scope.type === 'error') return textResult(scope.response)
+      const scopeEquipmentIds = scope.type === 'ids' ? scope.ids : null
 
       const result = await eamSearch<RepairOrder>('/eam/repair-order/page', params, {
         groupBy: args.groupBy,
@@ -65,7 +57,8 @@ export function registerRepairSearch(server: McpServer) {
       if (scopeEquipmentIds || args.orderType || args.dateRange) total = list.length
 
       if (result.groups) {
-        return textResult({ total, groupBy: args.groupBy, groups: result.groups })
+        const enrichedGroups = await enrichGroupNames(result.groups, args.groupBy!)
+        return textResult({ total, groupBy: args.groupBy, groups: enrichedGroups })
       }
 
       // concise: 不做丰富化
