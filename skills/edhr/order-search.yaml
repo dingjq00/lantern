@@ -1,0 +1,76 @@
+# edhr.order.search — 工单搜索
+# 支持按状态/产品/批号/日期过滤，可按维度聚合
+
+name: edhr.order.search
+version: "1.0"
+system: edhr
+type: simple
+maps_to: edhr.order.search
+
+description: >
+  按条件搜索工单列表。支持按进度状态、产品编号、批号、创建日期范围过滤，
+  可按状态维度聚合统计。返回工单编号、状态、批号、生产日期等信息。
+
+domains:
+  - order
+
+operation: search
+
+input_schema:
+  type: object
+  properties:
+    progressStatus:
+      type: string
+      description: >
+        进度状态过滤。可选值: INIT(初始化)/RUNNING(执行中)/PENDING(暂停)/
+        FINISHED(已完成)/REVIEWED(已审核)/ARCHIVED(已归档)/TERMINATED(已终止)/
+        REPAIRING(返修中)/WAITING(等待中)/ABANDONED(已废弃)。
+        用户说"正在做的工单"传RUNNING，"做完的工单"传FINISHED。
+    productCode:
+      type: string
+      description: >
+        产品编号（模糊匹配），用于按产品筛选工单。
+        用户说"7103005这个产品的工单"就传"7103005"。
+    lotCode:
+      type: string
+      description: >
+        批号（模糊匹配）。用户说"批号681895"就传"681895"。
+    dateRange:
+      type: object
+      description: >
+        创建日期范围 {from: "ISO日期", to: "ISO日期"}。
+        用户说"上周的工单""八月份的工单"时计算对应日期范围。
+    groupBy:
+      type: string
+      description: >
+        按维度聚合统计。progressStatus=按进度状态分布，validatedStatus=按验证状态分布。
+        用户说"各状态工单数量"传progressStatus。
+      enum: [progressStatus, validatedStatus]
+    limit:
+      type: integer
+      default: 20
+
+when_to_use:
+  - 用户搜索/筛选工单列表，如"有多少工单在执行""上周完成了几个工单"
+  - 用户按产品/批号查工单，如"7103005这个产品的工单""批号681895"
+  - 用户统计工单分布，如"各状态的工单数量""完成了多少个工单"
+  - 用户查某段时间的工单，如"八月份的工单""最近一周新建的工单"
+
+when_not_to_use:
+  - 用户想看某个具体工单的详细信息和检测结果 → 用 edhr.order.profile
+  - 用户想看工单数量的时间趋势 → 用 edhr.trend
+  - 用户想看全局概况 → 用 edhr.dashboard
+
+examples:
+  - query: "目前有多少工单在执行？"
+    arguments:
+      progressStatus: "RUNNING"
+  - query: "各状态工单数量分布"
+    arguments:
+      groupBy: "progressStatus"
+  - query: "上个月完成了几个工单？"
+    arguments:
+      progressStatus: "FINISHED"
+      dateRange:
+        from: "2024-07-01"
+        to: "2024-07-31"

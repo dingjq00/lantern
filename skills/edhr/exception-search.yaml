@@ -1,0 +1,63 @@
+# edhr.exception.search — 质量异常搜索
+# 异常管理: OPEN→ACKNOWLEDGED→DECIDED(接受/返工/报废)→CLOSED
+
+name: edhr.exception.search
+version: "1.0"
+system: edhr
+type: simple
+maps_to: edhr.exception.search
+
+description: >
+  按条件搜索质量异常记录。支持按异常状态(打开/已确认/已决策/已关闭)、
+  决策类型(接受/返工/报废)、关联工单过滤。
+  异常流程: OPEN→ACKNOWLEDGED→DECIDED→CLOSED，决策类型决定后续处理方式。
+
+domains:
+  - exception
+
+operation: search
+
+input_schema:
+  type: object
+  properties:
+    exceptionStatus:
+      type: string
+      description: >
+        异常状态。OPEN=待处理, ACKNOWLEDGED=已确认, DECIDED=已决策, CLOSED=已关闭。
+        用户说"未关闭的异常"用 OPEN 或 ACKNOWLEDGED，"已处理的"用 CLOSED。
+      enum: [OPEN, ACKNOWLEDGED, DECIDED, CLOSED]
+    decisionType:
+      type: string
+      description: >
+        决策类型。ACCEPT=接受(让步放行), REWORK=返工, SCRAP=报废。
+        用户说"返工的异常"传REWORK，"报废了多少"传SCRAP。
+      enum: [ACCEPT, REWORK, SCRAP]
+    orderCode:
+      type: string
+      description: >
+        关联工单编号。查看某个工单的质量异常。
+    limit:
+      type: integer
+      default: 20
+
+when_to_use:
+  - 用户查看质量异常，如"有几个异常没关闭""最近的质量问题"
+  - 用户按决策类型查异常，如"返工的有几个""报废了多少"
+  - 用户查某个工单的异常，如"这个工单有什么质量问题"
+  - 质量审计相关，如"所有已关闭的异常""异常处理情况汇总"
+
+when_not_to_use:
+  - 用户想看某个工单的完整信息（包含异常） → 用 edhr.order.profile
+  - 用户想看异常数量的时间趋势 → 用 edhr.trend（domain=exception）
+  - 用户问的是 EAM 设备故障/异常 → 用 eam.anomaly.search 或 eam.fault.search
+
+examples:
+  - query: "有几个质量异常还没关闭？"
+    arguments:
+      exceptionStatus: "OPEN"
+  - query: "有多少异常是返工处理的？"
+    arguments:
+      decisionType: "REWORK"
+  - query: "工单 7103005-681895 有什么异常？"
+    arguments:
+      orderCode: "7103005-681895"

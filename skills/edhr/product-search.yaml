@@ -1,0 +1,46 @@
+# edhr.product.search — 产品+配方查询
+# 参考数据: 产品/产品类别/配方工序模板
+
+name: edhr.product.search
+version: "1.0"
+system: edhr
+type: simple
+maps_to: edhr.product.search
+
+description: >
+  查询产品和配方信息。返回产品列表（编号/名称/替代编码/主要物料）、
+  产品类别（版本/状态/文档编号）、配方工序模板（编号/名称/适用产品）。
+
+domains:
+  - product
+
+operation: search
+
+input_schema:
+  type: object
+  properties:
+    keyword:
+      type: string
+      description: >
+        产品编号或名称（模糊匹配）。用户说"7103005这个产品"就传"7103005"。
+    categoryCode:
+      type: string
+      description: >
+        产品类别编号过滤。
+
+when_to_use:
+  - 用户查看产品列表，如"有哪些产品""系统里有几种产品"
+  - 用户查某个产品的信息，如"7103005是什么产品""这个编号对应什么"
+  - 用户查配方/工艺信息，如"这个产品的配方版本""有几个检测工序"
+  - 用户查产品类别，如"有哪些产品分类""类别版本是多少"
+
+when_not_to_use:
+  - 用户想看某个产品的生产工单 → 用 edhr.order.search（productCode 参数）
+  - 用户想看全局概况 → 用 edhr.dashboard（包含产品列表摘要）
+
+examples:
+  - query: "系统里有哪些产品？"
+    arguments: {}
+  - query: "7103005 是什么产品？"
+    arguments:
+      keyword: "7103005"

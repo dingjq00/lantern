@@ -1,0 +1,72 @@
+# edhr.trend — 趋势分析
+# 时间序列: 工单完成/检测不合格/异常数量 按天/周/月聚合
+
+name: edhr.trend
+version: "1.0"
+system: edhr
+type: simple
+maps_to: edhr.trend
+
+description: >
+  获取 EDHR 趋势分析时间序列。支持工单(order)、检测项(item)、异常(exception)三个域，
+  按天/周/月聚合。返回 [{period, count}] 格式的时间序列数据。
+  适用于分析变化趋势、同比环比、发现规律等分析类问题。
+
+domains:
+  - order
+  - item
+  - exception
+
+operation: trend
+
+input_schema:
+  type: object
+  required:
+    - domain
+    - dateRange
+  properties:
+    domain:
+      type: string
+      description: >
+        数据域。order=工单创建趋势, item=检测项操作趋势, exception=异常发生趋势。
+        用户说"工单完成趋势"传order，"不合格趋势"传item，"异常趋势"传exception。
+      enum: [order, item, exception]
+    dateRange:
+      type: object
+      description: >
+        时间范围 {from: "ISO日期", to: "ISO日期"}。
+        用户说"最近一个月"计算近30天，"上季度"计算上个季度日期范围。
+    groupBy:
+      type: string
+      description: >
+        时间粒度。day=按天, week=按周, month=按月。
+        默认按天，长时间范围建议按周或月避免数据点过多。
+      enum: [day, week, month]
+      default: day
+
+when_to_use:
+  - 用户问趋势/变化，如"工单完成趋势""检测不合格率变化""异常数量趋势"
+  - 用户做同比/环比分析，如"这个月比上个月工单多了吗""不合格率在上升还是下降"
+  - 用户看规律/周期，如"有没有季节性规律""哪个月生产最多"
+  - 用户需要时间序列数据来支持决策
+
+when_not_to_use:
+  - 用户只想看当前状态不看趋势 → 用 edhr.dashboard 或 edhr.order.search
+  - 用户问某个具体工单的情况 → 用 edhr.order.profile
+  - 用户问的是 EAM 设备相关的趋势（故障/维修/保养） → 用 eam.trend
+
+examples:
+  - query: "最近一个月的工单完成趋势"
+    arguments:
+      domain: "order"
+      dateRange:
+        from: "2024-07-01"
+        to: "2024-07-31"
+      groupBy: "day"
+  - query: "上半年异常数量按月趋势"
+    arguments:
+      domain: "exception"
+      dateRange:
+        from: "2024-01-01"
+        to: "2024-06-30"
+      groupBy: "month"

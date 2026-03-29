@@ -1,0 +1,72 @@
+# edhr.item.search — 检测项搜索
+# 核心数据: 11万+ 检测记录，按状态/工单/时间搜索
+
+name: edhr.item.search
+version: "1.0"
+system: edhr
+type: simple
+maps_to: edhr.item.search
+
+description: >
+  按条件搜索检测项记录。支持按检测状态(合格/不合格/待检)、工单编号、
+  操作时间范围过滤，可按状态聚合统计。
+  适用于质量分析: 查看不合格项明细、统计合格率、追溯检测记录。
+
+domains:
+  - item
+
+operation: search
+
+input_schema:
+  type: object
+  properties:
+    status:
+      type: string
+      description: >
+        检测项状态过滤。PASSED=合格, FAILED=不合格, INIT=未检, PENDING=待判定,
+        REPAIRING=返修中, PASSEDAFTERREPAIED=返修后合格, WRONGRECORDED=记录错误,
+        ABANDONED=已废弃。
+        用户说"不合格项"传FAILED，"合格项"传PASSED。
+    orderCode:
+      type: string
+      description: >
+        工单编号（精确匹配）。查看某个工单的所有检测项。
+        用户说"工单681895的检测项"就传对应工单编号。
+    dateRange:
+      type: object
+      description: >
+        操作时间范围 {from: "ISO日期", to: "ISO日期"}。
+        用户说"最近一周的检测记录"时计算日期范围。
+    groupBy:
+      type: string
+      description: >
+        按状态聚合统计。用户说"各状态检测项数量"或"合格率"时使用。
+      enum: [status]
+    limit:
+      type: integer
+      default: 20
+
+when_to_use:
+  - 用户搜索检测项记录，如"最近有哪些不合格项""有多少检测项通过了"
+  - 用户统计合格率/不合格率，如"整体合格率是多少""不合格项占比"
+  - 用户查某个工单的检测项，如"这个工单有多少检测项""哪些项不合格"
+  - 用户做质量分析，如"最近一周的不合格趋势""不合格项的分布"
+  - 跨域分析中需要检测数据，如"故障最多的产品，它的检测合格率怎么样"
+
+when_not_to_use:
+  - 用户只想看某个工单的整体检测统计（不需要明细列表） → 用 edhr.order.profile
+  - 用户想看检测项的时间趋势 → 用 edhr.trend（domain=item）
+  - 用户想看全局检测概况 → 用 edhr.dashboard
+
+examples:
+  - query: "最近有哪些不合格的检测项？"
+    arguments:
+      status: "FAILED"
+      limit: 20
+  - query: "各状态的检测项数量分布"
+    arguments:
+      groupBy: "status"
+  - query: "工单 7103005-681895 的检测项合格了多少？"
+    arguments:
+      orderCode: "7103005-681895"
+      groupBy: "status"

@@ -1,0 +1,55 @@
+# edhr.order.profile — 单工单全景画像
+# 含 5 层层级遍历: 工单→工序→阶段→检测项+异常 逐层聚合
+
+name: edhr.order.profile
+version: "1.0"
+system: edhr
+type: simple
+maps_to: edhr.order.profile
+
+description: >
+  查看单个工单的完整档案。通过工单号定位，返回工单基本信息、各工序进度状态、
+  检测项合格/不合格统计（含合格率）、质量异常列表。
+  内部自动遍历工单→工序→检测项的层级结构并聚合统计。
+  当匹配到多个工单时返回候选列表。
+
+domains:
+  - order
+  - item
+  - exception
+
+operation: detail
+
+input_schema:
+  type: object
+  required:
+    - identifier
+  properties:
+    identifier:
+      type: string
+      description: >
+        工单编号（code），如"7103005-681895"。支持精确匹配和模糊匹配。
+        用户说"工单681895"或"7103005-681895"均可识别。
+
+when_to_use:
+  - 用户问某个工单的整体情况，如"工单681895怎么样了""这个批次做到哪了"
+  - 用户问某个工单的进度，如"这个工单执行到哪个工序了""做完了没有"
+  - 用户问某个工单的检测结果，如"这个批次的合格率""有多少项不合格"
+  - 用户问某个工单的异常，如"这个工单有什么质量问题""异常处理了吗"
+  - 需要某个工单的全面信息作为分析基础
+
+when_not_to_use:
+  - 用户想搜索/筛选多个工单 → 用 edhr.order.search
+  - 用户想看全局概况而不是单个工单 → 用 edhr.dashboard
+  - 用户想按条件搜索检测项（不限定单个工单） → 用 edhr.item.search
+
+examples:
+  - query: "工单 7103005-681895 的情况怎么样？"
+    arguments:
+      identifier: "7103005-681895"
+  - query: "批次 681895 做完了吗？"
+    arguments:
+      identifier: "681895"
+  - query: "这个工单有多少不合格项？"
+    arguments:
+      identifier: "7103005-681895"

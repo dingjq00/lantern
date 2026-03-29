@@ -1,0 +1,45 @@
+# edhr.dashboard — EDHR 全局概览
+# 全局指标快照：工单状态分布、不合格检测项、异常统计、产品列表
+
+name: edhr.dashboard
+version: "1.0"
+system: edhr
+type: simple
+maps_to: edhr.dashboard
+
+description: >
+  获取 EDHR 系统全局概览。并行聚合工单总数及各状态分布、检测项不合格数、
+  质量异常统计、产品列表。适用于管理层视角的"生产情况怎么样"类问题。
+
+domains:
+  - order
+  - item
+  - exception
+  - product
+
+operation: dashboard
+
+input_schema:
+  type: object
+  required: []
+  properties: {}
+
+when_to_use:
+  - 用户询问 EDHR/生产/检测的整体概况，如"生产情况怎么样""工单概况""检测概览"
+  - 用户询问全局统计数字，如"有多少工单在执行""不合格项有多少""异常有几个"
+  - 用户询问产品列表，如"有哪些产品""系统里有几种产品"
+  - 作为分析链的起点——先全局再深入某个工单
+
+when_not_to_use:
+  - 用户问某个具体工单的情况 → 用 edhr.order.profile
+  - 用户想搜索/筛选工单列表 → 用 edhr.order.search
+  - 用户想看时间趋势 → 用 edhr.trend
+  - 用户问的是 EAM 设备维护相关（故障/维修/保养） → 用 eam.* 系列工具
+
+examples:
+  - query: "生产情况怎么样？"
+    arguments: {}
+  - query: "有多少工单在执行中？"
+    arguments: {}
+  - query: "当前有几个质量异常？"
+    arguments: {}
