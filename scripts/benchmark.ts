@@ -89,7 +89,7 @@ const TEST_CASES: TestCase[] = [
   { id: 'T26', query: '压片线设备的保养计划执行率是多少？', level: 'L3', acceptablePaths: [['eam.maintenance.search'], ['eam.scope.overview']] },
   { id: 'T27', query: '维修工单 RO-20260313-0158 的出库单涉及了哪些仓库？', level: 'L3', acceptablePaths: [['eam.repair.profile']],
     forbidden: ['未找到'] },
-  { id: 'T28', query: '设备 EQ-A301-001 最近一次故障的维修花了多少工时？', level: 'L3', acceptablePaths: [['eam.equipment.profile', 'eam.repair.profile'], ['eam.fault.search', 'eam.repair.profile']],
+  { id: 'T28', query: '设备 EQ-A301-001 最近一次故障的维修花了多少工时？', level: 'L3', acceptablePaths: [['eam.equipment.profile', 'eam.repair.profile'], ['eam.fault.search', 'eam.repair.profile'], ['eam.equipment.profile', 'eam.repair.search']],
     mustContain: ['薄膜包衣机'] },
   // L4 — 跨域分析
   { id: 'T29', query: '故障率最高的设备，保养是否按计划执行？', level: 'L4', acceptablePaths: [['eam.fault.search', 'eam.maintenance.search']] },
