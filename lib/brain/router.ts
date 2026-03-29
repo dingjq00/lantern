@@ -74,7 +74,7 @@ export async function processQuery(
     } catch (err) {
       console.warn(`[Router] LLM think 调用失败 (round=${round}):`, (err as Error).message)
       // LLM 不可用时直接返回超纲响应
-      const result = buildStructuredResult('抱歉，系统暂时无法处理您的请求，请稍后重试。', [], 'text', 'low')
+      const result = buildStructuredResult('系统暂时繁忙，请稍后再试。', [], 'text', 'low')
       result.trace = trace.build()
       return result
     }
@@ -111,7 +111,7 @@ export async function processQuery(
           'single_value',
         )
         const result = buildStructuredResult(
-          unsupportedSummary.answer || '当前系统暂不支持该查询，请换个方式描述或咨询相关部门。',
+          unsupportedSummary.answer || '这个问题目前系统还不能直接回答，建议换个方式描述或联系相关部门。',
           [], 'text', 'low',
           undefined,
           unsupportedSummary.followUp,
@@ -237,7 +237,7 @@ export async function processQuery(
     summary = await llm.summarize(firstData, query, formatHint)
   } catch (err) {
     console.warn('[Router] LLM summarize 失败:', (err as Error).message)
-    summary = { answer: '已获取到数据，但总结生成失败。请查看原始数据。', display: 'text' }
+    summary = { answer: '查询已完成，请查看下方数据详情。', display: 'text' }
   }
 
   // 去重 sources

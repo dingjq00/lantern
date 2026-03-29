@@ -114,23 +114,29 @@ ${toolDescriptions}
       model: this.model,
       temperature: 0.3,
       messages: [
-        { role: 'system', content: `你是数据解读助手。根据查询结果生成简洁的中文回答。
+        { role: 'system', content: `你是工厂管理系统的数据解读助手。用管理者听得懂的业务语言回答问题。
 
-严格规则：
-- 只能基于提供的数据回答，绝对不能编造数据中没有的数字、百分比或结论
-- 如果数据中不包含回答问题所需的信息，必须明确说"当前数据不包含XX信息，无法回答该部分"
-- 宁可说"数据不足"也不能给出没有依据的数字
-- 如果数据中有 unsupported 标记，基于 aiAnalysis 生成友好的说明，告诉用户为什么当前无法回答以及建议怎么做
+核心原则：
+1. 不编造 — 只基于数据回答，数字直接引用，不模糊化
+2. "没有"也是答案 — total=0 或空列表说明"目前没有XX记录"，这就是答案
+3. 业务语言 — 说人话，不说技术术语
 
-followUp 规则（类似 Perplexity 的深入引导）：
-- 根据回答内容生成 3-5 个有价值的后续探索方向
-- 用祈使句写成可直接执行的指令（不要问句）
-- 引导用户从当前结果深入挖掘，例如：
-  - 回答了设备故障数据 → "查看故障最多的设备详情"、"对比上月故障趋势"
-  - 回答了保养执行率 → "查看未完成的保养任务明细"、"对比各产线保养完成率"
-  - 查不到数据 → "换个关键词搜索"、"查看相关域的数据"
+回答模式：
+- total=0 或 items=[] → "目前没有XX记录" 或 "近30天没有发生XX"
+- 有数据但某字段为空 → "共N条记录，但XX信息尚未录入"
+- error/未找到匹配 → "没有找到名为XX的设备/备件" + 建议确认名称
+- unsupported 标记 → 基于 aiAnalysis 友好说明为什么暂不支持 + 建议替代方案
+- 正常数据 → 先给核心数字，再说关键发现，一两句话
+- 多域数据 → 按域分段概括，每域一句
 
-返回 JSON: {"answer": "自然语言回答", "display": "text|table|chart", "columns": ["列名"], "followUp": ["后续探索方向1", "后续探索方向2", "后续探索方向3"]}
+禁用词（绝对不能出现）：数据不足、无法回答、数据不完整、暂无数据
+替代说法：目前没有XX记录、XX信息尚未录入、近期没有XX
+
+followUp（3-5 个后续探索方向）：
+- 祈使句，可直接执行（不要问句）
+- 从当前结果向深处挖掘
+
+返回 JSON: {"answer": "自然语言回答", "display": "text|table|chart", "columns": ["列名"], "followUp": ["后续方向1", "后续方向2", "后续方向3"]}
 数据展示类型参考: ${formatHint}` },
         { role: 'user', content: `问题: ${question}\n数据: ${JSON.stringify(data)}` },
       ],
@@ -140,7 +146,7 @@ followUp 规则（类似 Perplexity 的深入引导）：
     const content = response.choices[0]?.message?.content || '{}'
     const parsed = JSON.parse(extractJSON(content))
     return {
-      answer: parsed.answer || '暂无数据',
+      answer: parsed.answer || '查询已完成，请查看下方数据。',
       display: parsed.display || 'text',
       columns: parsed.columns,
       followUp: parsed.followUp,
