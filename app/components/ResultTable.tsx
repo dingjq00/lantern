@@ -1,3 +1,5 @@
+import { flattenMcpData, formatCellValue, buildMetaSummary } from '@/lib/ui/data-flatten'
+
 interface ResultTableProps {
   columns?: string[]
   data: Record<string, unknown>[]
@@ -6,12 +8,13 @@ interface ResultTableProps {
 export function ResultTable({ columns, data }: ResultTableProps) {
   if (!data || data.length === 0) return null
 
-  // 先把数据拍平：如果数据是 { pendingX: [...], pendingY: [...] } 这种嵌套结构，
-  // 把所有子数组合并成一个平坦的行列表
-  const rows = flattenData(data)
+  const { rows, meta } = flattenMcpData(data)
   if (rows.length === 0) return null
 
-  const dataKeys = Object.keys(rows[0])
+  // 用所有行的 key 并集作为列（处理多工具返回不同列的情况）
+  const keySet = new Set<string>()
+  for (const row of rows) for (const k of Object.keys(row)) keySet.add(k)
+  const dataKeys = [...keySet]
 
   let keys: string[]
   let headers: string[]
@@ -27,66 +30,36 @@ export function ResultTable({ columns, data }: ResultTableProps) {
     headers = dataKeys
   }
 
+  const metaSummary = buildMetaSummary(meta)
+
   return (
-    <div className="mt-3 overflow-x-auto rounded-lg border border-gray-200">
-      <table className="w-full text-sm text-gray-900">
-        <thead>
-          <tr className="bg-blue-600 text-white">
-            {headers.map(h => (
-              <th key={h} className="px-3 py-2 text-left font-medium">{h}</th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((row, i) => (
-            <tr key={i} className={i % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-              {keys.map((key, j) => (
-                <td key={j} className="px-3 py-2 border-t border-gray-100">
-                  {formatCell(row[key])}
-                </td>
+    <div className="mt-3">
+      {/* 元数据摘要 */}
+      {metaSummary && (
+        <div className="text-xs text-gray-500 mb-1.5 px-1">{metaSummary}</div>
+      )}
+      <div className="overflow-x-auto rounded-lg border border-gray-200">
+        <table className="w-full text-sm text-gray-900">
+          <thead>
+            <tr className="bg-blue-600 text-white">
+              {headers.map(h => (
+                <th key={h} className="px-3 py-2 text-left font-medium">{h}</th>
               ))}
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {rows.map((row, i) => (
+              <tr key={i} className={i % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                {keys.map((key, j) => (
+                  <td key={j} className="px-3 py-2 border-t border-gray-100">
+                    {formatCellValue(row[key])}
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   )
-}
-
-/** 把嵌套数据拍平成行列表 */
-function flattenData(data: Record<string, unknown>[]): Record<string, unknown>[] {
-  const result: Record<string, unknown>[] = []
-
-  for (const item of data) {
-    // 检查是否每个 value 都是数组（嵌套结构，如 todo list）
-    const values = Object.values(item)
-    const allArrays = values.length > 0 && values.every(v => Array.isArray(v))
-
-    if (allArrays) {
-      // 合并所有子数组的对象
-      for (const arr of values) {
-        for (const row of arr as Record<string, unknown>[]) {
-          if (typeof row === 'object' && row !== null && !Array.isArray(row)) {
-            result.push(row)
-          }
-        }
-      }
-    } else if ('items' in item && Array.isArray(item.items)) {
-      // 常见模式: { total: 128, items: [...] }
-      for (const row of item.items as Record<string, unknown>[]) {
-        result.push(row)
-      }
-    } else {
-      // 已经是平坦行
-      result.push(item)
-    }
-  }
-
-  return result
-}
-
-function formatCell(value: unknown): string {
-  if (value === null || value === undefined) return '-'
-  if (typeof value === 'object') return JSON.stringify(value)
-  return String(value)
 }

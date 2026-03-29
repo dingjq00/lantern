@@ -1,5 +1,6 @@
 'use client'
 import { useState, useEffect } from 'react'
+import { flattenMcpData, formatCellValue, buildMetaSummary } from '@/lib/ui/data-flatten'
 
 interface RunSummary {
   runId: string; timestamp: string; model: string
@@ -329,10 +330,12 @@ function RunDetailPanel({ result: r }: { result: any }) {
   const missing = r.expectedTools.filter((t: string) => !r.actualTools.includes(t))
   const extra = r.actualTools.filter((t: string) => !r.expectedTools.includes(t))
 
-  // 展平嵌套数据用于表格渲染（复用 ResultTable 的 key/header 分离策略）
-  const tableData = r.data?.length > 0 ? flattenBenchmarkData(r.data) : null
-  const dataKeys = tableData ? Object.keys(tableData[0] ?? {}).filter(k => typeof tableData[0][k] !== 'object') : []
-  // columns 和 dataKeys 对齐时用 columns 做中文表头，否则直接用 dataKeys
+  // 智能展平 MCP 返回数据（自动识别 items/groups/records/trend 等模式）
+  const flatResult = r.data?.length > 0 ? flattenMcpData(r.data) : null
+  const tableData = flatResult?.rows ?? null
+  const metaSummary = flatResult ? buildMetaSummary(flatResult.meta) : null
+
+  const dataKeys = tableData?.length ? Object.keys(tableData[0]) : []
   const tableHeaders = r.columns?.length > 0 && r.columns.length === dataKeys.length
     ? r.columns
     : r.columns?.length > 0 && r.columns.every((c: string) => c in (tableData?.[0] ?? {}))
@@ -352,6 +355,9 @@ function RunDetailPanel({ result: r }: { result: any }) {
       {/* ② 数据表格 */}
       {tableData && tableKeys.length > 0 && (
         <div className="overflow-x-auto">
+          {metaSummary && (
+            <div className="text-xs text-gray-500 mb-1">{metaSummary}</div>
+          )}
           <table className="w-full text-xs border border-gray-200 rounded-lg overflow-hidden">
             <thead>
               <tr className="bg-blue-700 text-white">
@@ -365,9 +371,7 @@ function RunDetailPanel({ result: r }: { result: any }) {
                 <tr key={ri} className={ri % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
                   {tableKeys.map((key: string, ki: number) => (
                     <td key={ki} className="px-3 py-1.5 text-gray-700">
-                      {row[key] !== undefined && row[key] !== null
-                        ? (typeof row[key] === 'object' ? JSON.stringify(row[key]) : String(row[key]))
-                        : '-'}
+                      {formatCellValue(row[key])}
                     </td>
                   ))}
                 </tr>
@@ -479,27 +483,6 @@ function RunDetailPanel({ result: r }: { result: any }) {
       )}
     </div>
   )
-}
-
-/** 展平嵌套数据（和 ResultTable 的 flattenData 同逻辑） */
-function flattenBenchmarkData(data: Record<string, unknown>[]): Record<string, unknown>[] {
-  const result: Record<string, unknown>[] = []
-  for (const item of data) {
-    const values = Object.values(item)
-    const allArrays = values.length > 0 && values.every(v => Array.isArray(v))
-    if (allArrays) {
-      for (const arr of values) {
-        for (const row of arr as Record<string, unknown>[]) {
-          if (typeof row === 'object' && row !== null && !Array.isArray(row)) result.push(row)
-        }
-      }
-    } else if ('items' in item && Array.isArray(item.items)) {
-      for (const row of item.items as Record<string, unknown>[]) result.push(row)
-    } else {
-      result.push(item)
-    }
-  }
-  return result
 }
 
 function LessonsPanel({ lessons, loading }: { lessons: LessonItem[]; loading: boolean }) {
