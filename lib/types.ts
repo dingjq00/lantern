@@ -67,7 +67,7 @@ export interface ConfidenceSignals {
 // 工具层 — YAML 声明 + 匹配 + 执行
 // ============================================================
 
-export type ToolOperation = 'list' | 'detail' | 'statistics' | 'trend' | 'alert' | 'mutation'
+export type ToolOperation = 'list' | 'detail' | 'statistics' | 'trend' | 'alert' | 'mutation' | 'search' | 'dashboard'
 export type ToolCost = 'low' | 'medium' | 'high'
 
 /** YAML 工具声明解析后的内存表示 */
