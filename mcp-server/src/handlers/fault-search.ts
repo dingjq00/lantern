@@ -3,6 +3,7 @@ import { z } from 'zod'
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { eamSearch, type FaultReport } from '../eam-api.js'
 import { resolveEquipment, resolveScope, enrichGroupNames } from '../resolvers.js'
+import { textResult } from '../shared.js'
 
 export function registerFaultSearch(server: McpServer) {
   server.tool(
@@ -81,7 +82,3 @@ const FAULT_STATUS: Record<number, string> = {
   0: '待审核', 1: '待接单', 2: '维修中', 3: '挂起', 4: '待验收', 5: '已完成', 6: '已关闭', 7: '已拒绝', 8: '已撤回',
 }
 const URGENCY_MAP: Record<number, string> = { 0: '一般', 1: '紧急', 2: '特急' }
-
-function textResult(data: unknown) {
-  return { content: [{ type: 'text' as const, text: JSON.stringify(data, null, 2) }] }
-}

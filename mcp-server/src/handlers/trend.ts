@@ -5,6 +5,7 @@ import { z } from 'zod'
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { eamGet, type PageResult } from '../eam-api.js'
 import { resolveEquipment, resolveProductionLine, resolveDepartment, getEquipmentIdsByProductionLine, getEquipmentIdsByDepartment } from '../resolvers.js'
+import { textResult } from '../shared.js'
 
 export function registerTrend(server: McpServer) {
   server.tool(
@@ -123,8 +124,4 @@ function formatPeriod(timestamp: number, groupBy: string): string {
     return `${monday.getFullYear()}-${String(monday.getMonth() + 1).padStart(2, '0')}-${String(monday.getDate()).padStart(2, '0')}`
   }
   return `${yyyy}-${mm}-${dd}`
-}
-
-function textResult(data: unknown) {
-  return { content: [{ type: 'text' as const, text: JSON.stringify(data, null, 2) }] }
 }

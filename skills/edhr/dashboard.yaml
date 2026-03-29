@@ -18,6 +18,12 @@ domains:
   - product
 
 operation: dashboard
+supports_filters: []
+returns: [order_status_distribution, exception_count, product_list]
+feeds_into: [edhr.order.search, edhr.exception.search]
+depends_on: []
+quality: 90
+cost: medium
 
 input_schema:
   type: object

@@ -1,7 +1,8 @@
 // edhr.item.search — 检测项搜索
 import { z } from 'zod'
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
-import { jmixSearch, jmixCount, textResult, jmixDate, type JmixCondition } from '../../jmix-api.js'
+import { jmixSearch, jmixCount, jmixDate, type JmixCondition } from '../../jmix-api.js'
+import { textResult } from '../../shared.js'
 
 export function registerEdhrItemSearch(server: McpServer) {
   server.tool(

@@ -3,6 +3,7 @@
 import { z } from 'zod'
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { eamGet, eamParallel } from '../eam-api.js'
+import { textResult } from '../shared.js'
 
 export function registerDashboard(server: McpServer) {
   server.tool(
@@ -66,8 +67,4 @@ export function registerDashboard(server: McpServer) {
       })
     }
   )
-}
-
-function textResult(data: unknown) {
-  return { content: [{ type: 'text' as const, text: JSON.stringify(data, null, 2) }] }
 }

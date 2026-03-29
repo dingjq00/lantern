@@ -5,6 +5,7 @@ import { z } from 'zod'
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { eamGet, type PageResult } from '../eam-api.js'
 import { resolveEquipment, resolveScope, enrichGroupNames } from '../resolvers.js'
+import { textResult } from '../shared.js'
 
 interface PatrolTask {
   id: number; taskCode: string; planId: number; assigneeId: number | null
@@ -98,8 +99,4 @@ export function registerPatrolSearch(server: McpServer) {
       return textResult({ total: page.total, count: items.length, items })
     }
   )
-}
-
-function textResult(data: unknown) {
-  return { content: [{ type: 'text' as const, text: JSON.stringify(data, null, 2) }] }
 }

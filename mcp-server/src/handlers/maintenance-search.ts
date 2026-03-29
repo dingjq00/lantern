@@ -3,6 +3,7 @@ import { z } from 'zod'
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { eamSearch } from '../eam-api.js'
 import { resolveEquipment, resolveScope, enrichGroupNames } from '../resolvers.js'
+import { textResult } from '../shared.js'
 
 interface MaintenanceTask {
   id: number; taskCode: string; planId: number; equipmentId: number
@@ -104,8 +105,4 @@ export function registerMaintenanceSearch(server: McpServer) {
 
 const MAINT_STATUS: Record<number, string> = {
   0: '待执行', 1: '执行中', 2: '已完成', 3: '已逾期', 4: '已跳过',
-}
-
-function textResult(data: unknown) {
-  return { content: [{ type: 'text' as const, text: JSON.stringify(data, null, 2) }] }
 }

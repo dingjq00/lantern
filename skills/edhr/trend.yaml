@@ -18,6 +18,12 @@ domains:
   - exception
 
 operation: trend
+supports_filters: [domain, dateRange, groupBy]
+returns: [time_series]
+feeds_into: []
+depends_on: []
+quality: 85
+cost: medium
 
 input_schema:
   type: object

@@ -3,6 +3,7 @@ import { z } from 'zod'
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { eamSearch } from '../eam-api.js'
 import { resolveEquipment, resolveScope, enrichGroupNames } from '../resolvers.js'
+import { textResult } from '../shared.js'
 
 interface AnomalyRecord {
   id: number; equipmentId: number; source: string; severity: number
@@ -81,7 +82,3 @@ export function registerAnomalySearch(server: McpServer) {
 }
 
 const SEVERITY_MAP: Record<number, string> = { 1: '低', 2: '中', 3: '高', 4: '紧急' }
-
-function textResult(data: unknown) {
-  return { content: [{ type: 'text' as const, text: JSON.stringify(data, null, 2) }] }
-}

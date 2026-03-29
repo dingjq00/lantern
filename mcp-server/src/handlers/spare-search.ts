@@ -4,6 +4,7 @@ import { z } from 'zod'
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { eamGet, eamParallel, type PageResult } from '../eam-api.js'
 import { resolveEquipment } from '../resolvers.js'
+import { textResult } from '../shared.js'
 
 interface SparePart {
   id: number; spareCode: string; spareName: string; specModel: string | null
@@ -125,8 +126,4 @@ export function registerSpareSearch(server: McpServer) {
       return textResult({ total: page.total, count: items.length, items })
     }
   )
-}
-
-function textResult(data: unknown) {
-  return { content: [{ type: 'text' as const, text: JSON.stringify(data, null, 2) }] }
 }

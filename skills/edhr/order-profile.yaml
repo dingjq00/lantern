@@ -19,6 +19,12 @@ domains:
   - exception
 
 operation: detail
+supports_filters: [identifier]
+returns: [order_detail, procedure_progress, item_statistics, exception_list]
+feeds_into: []
+depends_on: []
+quality: 95
+cost: medium
 
 input_schema:
   type: object

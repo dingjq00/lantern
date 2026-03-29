@@ -1,6 +1,7 @@
 // edhr.dashboard — EDHR 全局概览快照
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
-import { jmixList, jmixCount, textResult } from '../../jmix-api.js'
+import { jmixList, jmixCount } from '../../jmix-api.js'
+import { textResult } from '../../shared.js'
 
 export function registerEdhrDashboard(server: McpServer) {
   server.tool(

@@ -1,7 +1,8 @@
 // edhr.product.search — 产品+配方查询
 import { z } from 'zod'
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
-import { jmixList, jmixSearch, textResult, type JmixCondition } from '../../jmix-api.js'
+import { jmixList, jmixSearch, type JmixCondition } from '../../jmix-api.js'
+import { textResult } from '../../shared.js'
 
 export function registerEdhrProductSearch(server: McpServer) {
   server.tool(

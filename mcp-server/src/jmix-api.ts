@@ -254,7 +254,5 @@ export function jmixDate(dateStr: string, endOfDay = false): string {
   return endOfDay ? `${dateStr}T23:59:59Z` : `${dateStr}T00:00:00Z`
 }
 
-/** 构建 MCP 文本响应 */
-export function textResult(data: unknown) {
-  return { content: [{ type: 'text' as const, text: JSON.stringify(data, null, 2) }] }
-}
+// textResult 已迁移到 shared.ts，此处 re-export 保持向后兼容
+export { textResult } from './shared.js'

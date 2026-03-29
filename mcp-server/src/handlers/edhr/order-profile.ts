@@ -2,7 +2,8 @@
 // 从工单→工序→阶段→检测项，逐层聚合展示
 import { z } from 'zod'
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
-import { jmixSearch, textResult, type JmixEntity } from '../../jmix-api.js'
+import { jmixSearch, type JmixEntity } from '../../jmix-api.js'
+import { textResult } from '../../shared.js'
 
 /** 通过工单号（code）查找工单 */
 async function resolveOrder(identifier: string) {

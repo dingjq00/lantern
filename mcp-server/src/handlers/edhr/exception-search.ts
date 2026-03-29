@@ -1,7 +1,8 @@
 // edhr.exception.search — 质量异常搜索
 import { z } from 'zod'
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
-import { jmixSearch, jmixCount, textResult, type JmixCondition } from '../../jmix-api.js'
+import { jmixSearch, jmixCount, type JmixCondition } from '../../jmix-api.js'
+import { textResult } from '../../shared.js'
 
 export function registerEdhrExceptionSearch(server: McpServer) {
   server.tool(

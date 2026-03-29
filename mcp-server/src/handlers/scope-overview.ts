@@ -4,6 +4,7 @@ import { z } from 'zod'
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { eamGetAll, eamParallel, type Equipment, type FaultReport, type RepairOrder } from '../eam-api.js'
 import { resolveProductionLine, resolveDepartment, getEquipmentIdsByProductionLine } from '../resolvers.js'
+import { textResult } from '../shared.js'
 
 export function registerScopeOverview(server: McpServer) {
   server.tool(
@@ -139,8 +140,4 @@ export function registerScopeOverview(server: McpServer) {
 
 const STATUS_MAP: Record<number, string> = {
   0: '待验收', 1: '运行中', 2: '维修中', 3: '停机', 4: '封存', 5: '待整改', 6: '闲置', 7: '报废',
-}
-
-function textResult(data: unknown) {
-  return { content: [{ type: 'text' as const, text: JSON.stringify(data, null, 2) }] }
 }

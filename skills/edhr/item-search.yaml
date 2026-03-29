@@ -16,6 +16,12 @@ domains:
   - item
 
 operation: search
+supports_filters: [status, orderCode, dateRange, groupBy]
+returns: [item_list, item_count, group_statistics]
+feeds_into: [edhr.order.profile]
+depends_on: []
+quality: 85
+cost: low
 
 input_schema:
   type: object

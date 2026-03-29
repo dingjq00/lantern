@@ -1,7 +1,8 @@
 // edhr.trend — 趋势分析（工单完成/检测合格率/异常率 时间序列）
 import { z } from 'zod'
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
-import { jmixGetAll, textResult, jmixDate, type JmixEntity } from '../../jmix-api.js'
+import { jmixGetAll, jmixDate, type JmixEntity } from '../../jmix-api.js'
+import { textResult } from '../../shared.js'
 
 export function registerEdhrTrend(server: McpServer) {
   server.tool(

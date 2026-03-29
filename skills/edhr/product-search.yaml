@@ -15,6 +15,12 @@ domains:
   - product
 
 operation: search
+supports_filters: [keyword, categoryCode]
+returns: [product_list, category_list, recipe_list]
+feeds_into: [edhr.order.search]
+depends_on: []
+quality: 90
+cost: low
 
 input_schema:
   type: object

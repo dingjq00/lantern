@@ -114,9 +114,9 @@ export default function Home() {
         {messages.length === 0 && (
           <div className="flex flex-col items-center justify-center h-full text-gray-400 select-none">
             <div className="text-4xl mb-3">💬</div>
-            <p className="text-sm">输入问题，开始查询 EAM 系统数据</p>
+            <p className="text-sm">输入问题，查询企业系统数据</p>
             <div className="mt-4 flex flex-wrap gap-2 justify-center max-w-md">
-              {['系统里有多少台设备？', '上月故障趋势', '库存预警有哪些？', '我的待办'].map(q => (
+              {['系统里有多少台设备？', '生产情况怎么样？', '当前有哪些质量异常？', '上月故障趋势'].map(q => (
                 <button
                   key={q}
                   onClick={() => handleSend(q)}

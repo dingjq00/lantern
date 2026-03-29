@@ -3,6 +3,7 @@ import { z } from 'zod'
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { eamSearch, eamGet, eamParallel, type RepairOrder } from '../eam-api.js'
 import { resolveEquipment, resolveScope, enrichGroupNames } from '../resolvers.js'
+import { textResult } from '../shared.js'
 
 export function registerRepairSearch(server: McpServer) {
   server.tool(
@@ -102,8 +103,4 @@ export function registerRepairSearch(server: McpServer) {
 
 const REPAIR_STATUS: Record<number, string> = {
   0: '待分配', 1: '待接单', 2: '维修中', 3: '挂起', 4: '待验收', 5: '已完成', 6: '已关闭',
-}
-
-function textResult(data: unknown) {
-  return { content: [{ type: 'text' as const, text: JSON.stringify(data, null, 2) }] }
 }

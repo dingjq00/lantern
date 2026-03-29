@@ -16,6 +16,12 @@ domains:
   - exception
 
 operation: search
+supports_filters: [exceptionStatus, decisionType, orderCode, groupBy]
+returns: [exception_list, exception_count, group_statistics]
+feeds_into: [edhr.order.profile]
+depends_on: []
+quality: 85
+cost: low
 
 input_schema:
   type: object
