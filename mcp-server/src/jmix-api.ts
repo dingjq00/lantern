@@ -147,19 +147,17 @@ export async function jmixSearch<T extends JmixEntity = JmixEntity>(
 // ============ 条件计数 ============
 
 /**
- * 条件计数 — search 端点不支持 returnCount，
- * 用大 limit + offset 翻到末尾的方式估算总数
- * 注意: Jmix search 没有 X-Total-Count，这里拉全量 ID 计数
+ * 条件计数 — search 端点不支持 returnCount
+ * 策略: 先试 limit=10000，如果刚好 10000 再翻页累加
  */
 export async function jmixCount(
   entityName: string,
   filter: JmixFilter,
 ): Promise<number> {
   const token = await getToken()
-  // 只取 id 字段，减少传输量
   const url = new URL(`${JMIX_BASE_URL}/rest/entities/${entityName}/search`)
   url.searchParams.set('fetchPlan', '_instance_name')
-  url.searchParams.set('limit', '10000')
+  url.searchParams.set('limit', '50000')  // Jmix 默认上限，尽量一次拿完
 
   const res = await fetch(url.toString(), {
     method: 'POST',
@@ -241,14 +239,19 @@ export async function jmixMetadata(entityName?: string): Promise<JmixEntityMeta 
 // ============ 工具函数 ============
 
 /**
- * Jmix 日期格式化 — OffsetDateTime 字段不接受纯日期，必须含时间部分
- * "2024-07-01" → "2024-07-01T00:00:00"
- * "2024-07-01T00:00:00" → 不变
+ * Jmix 日期格式化 — OffsetDateTime 字段必须含时间+时区
+ * "2024-07-01" → "2024-07-01T00:00:00Z"
+ * "2024-07-01T00:00:00" → "2024-07-01T00:00:00Z"（补 Z）
+ * "2024-07-01T00:00:00+08:00" → 不变
  */
 export function jmixDate(dateStr: string, endOfDay = false): string {
   if (!dateStr) return dateStr
-  if (dateStr.includes('T')) return dateStr  // 已含时间部分
-  return endOfDay ? `${dateStr}T23:59:59` : `${dateStr}T00:00:00`
+  // 已有时区后缀
+  if (/[Z+]\d{0,2}:?\d{0,2}$/.test(dateStr)) return dateStr
+  // 已有 T 时间部分，补 Z
+  if (dateStr.includes('T')) return dateStr + 'Z'
+  // 纯日期，补时间+Z
+  return endOfDay ? `${dateStr}T23:59:59Z` : `${dateStr}T00:00:00Z`
 }
 
 /** 构建 MCP 文本响应 */
