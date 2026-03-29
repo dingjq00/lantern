@@ -36,6 +36,13 @@ input_schema:
       type: string
       description: >
         关联工单编号。查看某个工单的质量异常。
+    groupBy:
+      type: string
+      description: >
+        按维度聚合统计。exceptionDecisionType=按决策类型统计(重新操作/返修/重新测试的比例)，
+        exceptionStatus=按状态统计(打开/已确认/已决策/已关闭的分布)。
+        用户说"各决策类型比例""返修占多少"时使用。
+      enum: [exceptionDecisionType, exceptionStatus]
     limit:
       type: integer
       default: 20
