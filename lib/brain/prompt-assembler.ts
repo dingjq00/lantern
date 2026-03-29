@@ -117,7 +117,7 @@ export function assemblePrompt(
   const toolDescriptions = [...toolsBySystem.entries()].map(([sys, sysTools]) => {
     const meta = SYSTEM_REGISTRY[sys]
     const header = meta
-      ? `### ${meta.label}\n**涉及**: ${meta.scope}`
+      ? `### ${meta.label}\n**涉及**: ${meta.scope}${meta.domainModel ? `\n${meta.domainModel}` : ''}`
       : `### ${sys.toUpperCase()}`
     const toolsText = sysTools.map(formatTool).join('\n\n')
     return `${header}\n\n${toolsText}`

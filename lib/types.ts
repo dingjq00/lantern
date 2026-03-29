@@ -130,7 +130,7 @@ export interface ToolResult {
 export interface LLMProvider {
   route(prompt: string, tools: ToolDefinition[]): Promise<RouteResult>
   evaluate(question: string, toolChain: string[], resultSummary: string): Promise<EvaluateResult>
-  summarize(data: unknown, question: string, formatHint: DisplayFormat): Promise<SummarizeResult>
+  summarize(data: unknown, question: string, formatHint: DisplayFormat, relatedContext?: string): Promise<SummarizeResult>
   think(messages: Array<{ role: string; content: string }>, modelOverride?: string): Promise<ThinkResult>
 }
 

@@ -112,7 +112,7 @@ ${toolDescriptions}
     }
   }
 
-  async summarize(data: unknown, question: string, formatHint: DisplayFormat): Promise<SummarizeResult> {
+  async summarize(data: unknown, question: string, formatHint: DisplayFormat, relatedContext?: string): Promise<SummarizeResult> {
     const response = await this.client.chat.completions.create({
       model: this.model,
       ...(!this.isReasoningModel && { temperature: 0.3 }),
@@ -141,13 +141,15 @@ ${toolDescriptions}
 禁用词（绝对不能出现）：数据不足、无法回答、数据不完整、暂无数据
 替代说法：目前没有XX记录、XX信息尚未录入、近期没有XX
 
-followUp（3-5 个后续探索方向）：
+followUp（3-5 个后续探索方向，像 Perplexity 的 Related 那样"懂用户下一步想知道什么"）：
 - 祈使句，可直接执行（不要问句）
-- 从当前结果向深处挖掘
+- 优先用数据中的具体数字做诱饵，如"查看该设备的2次故障记录"而不是"查看故障记录"
+- 至少1条深挖当前主题，至少1条跨域关联（如：设备→备件，故障→保养）
+- 最值得点的排第一位
 
 返回 JSON: {"answer": "自然语言回答", "display": "text|table|chart", "columns": ["列名"], "followUp": ["后续方向1", "后续方向2", "后续方向3"]}
 数据展示类型参考: ${formatHint}` },
-        { role: 'user', content: `问题: ${question}\n数据: ${JSON.stringify(data)}` },
+        { role: 'user', content: `问题: ${question}\n数据: ${JSON.stringify(data)}${relatedContext ? `\n\n可深挖方向: ${relatedContext}` : ''}` },
       ],
       ...(!this.isReasoningModel && { response_format: { type: 'json_object' as const } }),
     })

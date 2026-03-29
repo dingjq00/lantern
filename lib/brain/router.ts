@@ -257,13 +257,41 @@ export async function processQuery(
   const finalConfidence = computeConfidence(signals)
   trace.setConfidence(signals, finalConfidence)
 
+  // 构建 relatedContext — 从 feeds_into 生成可深挖方向
+  const relatedHints: string[] = []
+  const calledTools = new Set(allResults.map(r => r.tool))
+  for (const r of allResults) {
+    const toolDef = registry.getTool(r.tool)
+    if (toolDef?.feedsInto?.length) {
+      const uncalled = toolDef.feedsInto.filter(t => !calledTools.has(t))
+      if (uncalled.length > 0) {
+        const toolNames = uncalled.map(t => {
+          const def = registry.getTool(t)
+          return def ? `${t}(${def.description.slice(0, 30)})` : t
+        })
+        relatedHints.push(`${r.tool} 可深挖→ ${toolNames.join(', ')}`)
+      }
+    }
+    // 从数据中提取数字摘要作为诱饵
+    const d = r.data as Record<string, unknown>
+    if (d && typeof d === 'object') {
+      const nums: string[] = []
+      if ('total' in d && typeof d.total === 'number' && d.total > 0) nums.push(`共${d.total}条`)
+      if ('bom' in d && Array.isArray(d.bom)) nums.push(`BOM${d.bom.length}种备件`)
+      if ('recentFaults' in d && Array.isArray(d.recentFaults)) nums.push(`近期${d.recentFaults.length}次故障`)
+      if ('activeRepairs' in d && Array.isArray(d.activeRepairs)) nums.push(`${d.activeRepairs.length}个进行中维修`)
+      if (nums.length) relatedHints.push(`${r.tool}: ${nums.join(', ')}`)
+    }
+  }
+  const relatedContext = relatedHints.length > 0 ? relatedHints.join('\n') : undefined
+
   // LLM 总结（容错）
   const mergedData = allResults.map(r => r.data)
   const firstData = mergedData.length === 1 ? mergedData[0] : mergedData
   const formatHint = detectDisplayFormat(firstData)
   let summary: Awaited<ReturnType<LLMProvider['summarize']>>
   try {
-    summary = await llm.summarize(firstData, query, formatHint)
+    summary = await llm.summarize(firstData, query, formatHint, relatedContext)
   } catch (err) {
     console.warn('[Router] LLM summarize 失败:', (err as Error).message)
     summary = { answer: '查询已完成，请查看下方数据详情。', display: 'text' }
