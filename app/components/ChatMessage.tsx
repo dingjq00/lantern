@@ -14,6 +14,7 @@ export interface Message {
   followUp?: string[]
   sources?: Array<{ tool: string; description: string }>
   trace?: ExecutionTrace
+  latencyMs?: number
 }
 
 interface ChatMessageProps {
@@ -64,10 +65,15 @@ export function ChatMessage({ message, onFollowUp, onFeedback }: ChatMessageProp
           </div>
         )}
 
-        {/* 数据来源 */}
-        {!isUser && message.sources && message.sources.length > 0 && (
-          <div className="mt-1.5 text-xs text-gray-400">
-            数据来源：{message.sources.map(s => s.description).join('、')}
+        {/* 数据来源 + 响应时间 */}
+        {!isUser && (message.sources?.length || message.latencyMs) && (
+          <div className="mt-1.5 text-xs text-gray-400 flex items-center gap-2">
+            {message.sources && message.sources.length > 0 && (
+              <span>数据来源：{message.sources.map(s => s.description).join('、')}</span>
+            )}
+            {message.latencyMs && (
+              <span>{(message.latencyMs / 1000).toFixed(1)}s</span>
+            )}
           </div>
         )}
 
