@@ -55,8 +55,8 @@ input_schema:
         按维度聚合统计。
         equipment=按设备统计维修次数（找维修高频设备），
         orderType=按维修类型分布（内修vs外协比例），
-        status=按状态分布。
-      enum: [equipment, orderType, status]
+        status=按状态分布，productionLine=按产线统计。
+      enum: [equipment, orderType, status, productionLine]
     format:
       type: string
       description: >
@@ -109,6 +109,7 @@ when_to_use: |
   - 用户想了解维修费用概况，如"这个月维修花了多少钱"（search 返回每单的费用汇总）
   - 用户按设备/产线查维修情况，如"压片线的维修工单""EQ-A301-001修了几次"
   - 用户想找维修高频设备，如"哪台设备维修最多"（groupBy=equipment）
+  - 用户按产线统计维修分布，如"各产线的维修工单分布"（groupBy=productionLine）
 
 when_not_to_use: |
   - 用户要看某个具体工单的完整详情（备件清单、工时明细、出库记录） → 用 eam.repair.profile
@@ -130,3 +131,6 @@ examples:
   - query: "按设备统计维修次数，找出维修最多的设备"
     arguments:
       groupBy: equipment
+  - query: "各产线的维修工单分布"
+    arguments:
+      groupBy: productionLine

@@ -58,9 +58,9 @@ input_schema:
       type: string
       description: >
         按维度聚合统计，返回每组的故障数量而非故障列表。
-        equipment=按设备统计（找高频故障设备），status=按状态分布，urgency=按紧急度分布。
-        用户说"哪台设备故障最多"传equipment，"故障紧急度分布"传urgency。
-      enum: [equipment, status, urgency]
+        equipment=按设备统计（找高频故障设备），status=按状态分布，urgency=按紧急度分布，productionLine=按产线统计。
+        用户说"哪台设备故障最多"传equipment，"故障紧急度分布"传urgency，"各产线故障数量"传productionLine。
+      enum: [equipment, status, urgency, productionLine]
     format:
       type: string
       description: "返回格式。detailed=完整字段（含故障描述、上报时间），concise=仅编号+状态+紧急度"
@@ -107,7 +107,7 @@ when_to_use: |
   - 用户查看故障列表或故障数量，如"上月有多少故障""最近一周的故障记录"
   - 用户按设备/产线查故障，如"EQ-A301-001的故障记录""压片线故障情况"
   - 用户关注紧急故障，如"有哪些特急故障""紧急故障有多少"
-  - 用户想统计故障分布，如"哪台设备故障最多""各状态故障数量"
+  - 用户想统计故障分布，如"哪台设备故障最多""各状态故障数量""各产线的故障数量分布"
   - 用户排查故障趋势的当期数据，如"这个月待处理的故障"
 
 when_not_to_use: |
@@ -130,3 +130,6 @@ examples:
   - query: "哪台设备故障最多？按设备统计一下"
     arguments:
       groupBy: equipment
+  - query: "各产线的故障数量分布"
+    arguments:
+      groupBy: productionLine

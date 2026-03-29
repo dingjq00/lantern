@@ -53,9 +53,9 @@ input_schema:
       type: string
       description: >
         按维度聚合统计，返回每组的任务总数 + 已完成数 + 完成率。
-        equipment=按设备统计保养完成率，status=按状态统计分布。
-        用户说"各设备保养完成率"传equipment，"保养各状态数量"传status。
-      enum: [equipment, status]
+        equipment=按设备统计保养完成率，status=按状态统计分布，productionLine=按产线统计。
+        用户说"各设备保养完成率"传equipment，"保养各状态数量"传status，"各产线保养完成率"传productionLine。
+      enum: [equipment, status, productionLine]
     format:
       type: string
       description: "返回格式。detailed=完整字段（含计划时间、执行时间、跳过原因），concise=仅编号+状态+设备+计划时间"
@@ -102,6 +102,7 @@ when_to_use: |
   - 用户想看保养完成率/执行率/排名，如"压片线保养完成率多少""各产线保养完成率排名""保养执行率是多少"
   - 用户按设备查保养记录，如"EQ-A301-001的保养情况""这台设备保养做了吗"
   - 用户统计保养状态分布，如"保养任务各状态数量"
+  - 用户按产线统计保养完成率，如"各产线的保养完成率"
 
 when_not_to_use: |
   - 用户想看某台设备的全貌（保养只是其中一部分） → 用 eam.equipment.profile
@@ -123,3 +124,6 @@ examples:
       dateRange:
         from: "2026-02-01"
         to: "2026-02-28"
+  - query: "各产线的保养完成率"
+    arguments:
+      groupBy: productionLine

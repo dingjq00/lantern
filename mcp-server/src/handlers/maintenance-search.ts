@@ -2,7 +2,7 @@
 import { z } from 'zod'
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { eamSearch } from '../eam-api.js'
-import { resolveEquipment, resolveScope, enrichGroupNames } from '../resolvers.js'
+import { resolveEquipment, resolveScope, enrichGroupNames, getEquipmentToLineMap } from '../resolvers.js'
 import { textResult } from '../shared.js'
 
 interface MaintenanceTask {
@@ -24,7 +24,7 @@ export function registerMaintenanceSearch(server: McpServer) {
       status: z.number().int().optional().describe('0=待执行 1=执行中 2=已完成 3=已逾期 4=已跳过'),
       overdue: z.boolean().optional().describe('仅逾期任务'),
       dateRange: z.object({ from: z.string(), to: z.string() }).optional(),
-      groupBy: z.enum(['equipment', 'status']).optional(),
+      groupBy: z.enum(['equipment', 'status', 'productionLine']).optional().describe('按维度聚合: equipment=按设备, status=按状态, productionLine=按产线'),
       format: z.enum(['detailed', 'concise']).optional().default('detailed'),
       limit: z.number().int().optional().default(20),
     },
@@ -45,9 +45,13 @@ export function registerMaintenanceSearch(server: McpServer) {
       if (scope.type === 'error') return textResult(scope.response)
       const scopeEquipmentIds = scope.type === 'ids' ? scope.ids : null
 
+      // productionLine groupBy 需要 eq→line 映射
+      const eqToLine = args.groupBy === 'productionLine' ? await getEquipmentToLineMap() : null
+
       const result = await eamSearch<MaintenanceTask>('/eam/maintenance/task/page', params, {
         groupBy: args.groupBy,
         groupKeyFn: (t, gb) => gb === 'equipment' ? String(t.equipmentId)
+          : gb === 'productionLine' ? (eqToLine?.get(t.equipmentId) ?? '未分配产线')
           : MAINT_STATUS[t.status] ?? String(t.status),
         limit: args.limit,
       })
@@ -73,7 +77,9 @@ export function registerMaintenanceSearch(server: McpServer) {
       if (result.groups) {
         const groups = new Map<string, { total: number; completed: number }>()
         for (const t of list) {
-          const key = args.groupBy === 'equipment' ? String(t.equipmentId) : MAINT_STATUS[t.status] ?? String(t.status)
+          const key = args.groupBy === 'equipment' ? String(t.equipmentId)
+            : args.groupBy === 'productionLine' ? (eqToLine?.get(t.equipmentId) ?? '未分配产线')
+            : MAINT_STATUS[t.status] ?? String(t.status)
           const g = groups.get(key) ?? { total: 0, completed: 0 }
           g.total++
           if (t.status === 2) g.completed++
@@ -83,8 +89,8 @@ export function registerMaintenanceSearch(server: McpServer) {
           group, total: g.total, completed: g.completed,
           completionRate: g.total > 0 ? `${Math.round(g.completed / g.total * 100)}%` : 'N/A',
         }))
-        // enrichGroupNames 只替换 group 字段（设备 ID→名称），spread 保留其余字段
-        const enrichedGroups = await enrichGroupNames(rawGroups as any, args.groupBy!)
+        // enrichGroupNames 只替换 group 字段（设备 ID→名称），productionLine 已是名称无需解析
+        const enrichedGroups = args.groupBy === 'productionLine' ? rawGroups : await enrichGroupNames(rawGroups as any, args.groupBy!)
         return textResult({ total, groupBy: args.groupBy, groups: enrichedGroups })
       }
 

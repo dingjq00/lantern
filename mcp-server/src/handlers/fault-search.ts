@@ -2,7 +2,7 @@
 import { z } from 'zod'
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { eamSearch, type FaultReport } from '../eam-api.js'
-import { resolveEquipment, resolveScope, enrichGroupNames } from '../resolvers.js'
+import { resolveEquipment, resolveScope, enrichGroupNames, getEquipmentToLineMap } from '../resolvers.js'
 import { textResult } from '../shared.js'
 
 export function registerFaultSearch(server: McpServer) {
@@ -16,7 +16,7 @@ export function registerFaultSearch(server: McpServer) {
       status: z.number().int().optional().describe('0=待审核 1=待接单 2=维修中 3=挂起 4=待验收 5=已完成 6=已关闭 7=已拒绝 8=已撤回'),
       urgency: z.number().int().optional().describe('0=一般 1=紧急 2=特急'),
       dateRange: z.object({ from: z.string(), to: z.string() }).optional().describe('时间范围 {from, to} ISO日期'),
-      groupBy: z.enum(['equipment', 'status', 'urgency']).optional().describe('按维度聚合统计'),
+      groupBy: z.enum(['equipment', 'status', 'urgency', 'productionLine']).optional().describe('按维度聚合: equipment/status/urgency/productionLine'),
       format: z.enum(['detailed', 'concise']).optional().default('detailed'),
       limit: z.number().int().optional().default(20),
     },
@@ -47,9 +47,13 @@ export function registerFaultSearch(server: McpServer) {
 
       // 如果有产线/部门过滤但无设备参数，按设备ID列表逐个查
       // 优化: 如果设备少于 20 台，分别查；否则拉全量后内存过滤
+      // productionLine groupBy 需要 eq→line 映射
+      const eqToLine = args.groupBy === 'productionLine' ? await getEquipmentToLineMap() : null
+
       const result = await eamSearch<FaultReport>('/eam/fault-report/page', params, {
         groupBy: args.groupBy,
         groupKeyFn: (f, gb) => gb === 'equipment' ? String(f.equipmentId)
+          : gb === 'productionLine' ? (eqToLine?.get(f.equipmentId) ?? '未分配产线')
           : gb === 'status' ? FAULT_STATUS[f.status] ?? String(f.status)
           : URGENCY_MAP[f.urgency] ?? String(f.urgency),
         limit: args.limit,
@@ -62,7 +66,7 @@ export function registerFaultSearch(server: McpServer) {
       }
 
       if (result.groups) {
-        const enrichedGroups = await enrichGroupNames(result.groups, args.groupBy!)
+        const enrichedGroups = args.groupBy === 'productionLine' ? result.groups : await enrichGroupNames(result.groups, args.groupBy!)
         return textResult({ total, groupBy: args.groupBy, groups: enrichedGroups })
       }
 

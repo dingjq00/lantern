@@ -164,8 +164,24 @@ export async function resolveScope(args: { productionLine?: string; department?:
 }
 
 /**
+ * 构建 equipmentId → 产线名称 的映射表
+ * 用于 groupBy=productionLine 时将 equipmentId 映射到产线
+ */
+export async function getEquipmentToLineMap(): Promise<Map<number, string>> {
+  const lines = await eamGet<PageResult<{ id: number; lineName: string }>>('/eam/production-line/page', { pageNo: 1, pageSize: 50 })
+  const map = new Map<number, string>()
+  await Promise.all(lines.list.map(async (line) => {
+    const eqList = await eamGet<Array<{ equipmentId: number }>>('/eam/production-line/equipment/list', { lineId: line.id }).catch(() => [])
+    for (const e of eqList) {
+      map.set(e.equipmentId, line.lineName)
+    }
+  }))
+  return map
+}
+
+/**
  * groupBy 结果名称解析 — 把数字 ID 替换为人类可读名称
- * 当 groupBy=equipment 时，ID→设备编号+名称
+ * equipment → 设备编号+名称，productionLine 已经是名称无需解析
  */
 export async function enrichGroupNames(
   groups: Array<{ group: string; count: number }>,
