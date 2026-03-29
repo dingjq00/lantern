@@ -210,11 +210,21 @@ export async function processQuery(
       const obsMessage = `观察结果: ${JSON.stringify(obsData)}\n\n事实对比:\n- 用户问: "${query}"\n- 已获得字段: ${[...new Set(dataFields)].join(', ')}${domainCoverageHint}\n\n检查：数据是否已回答用户问题？有无未覆盖的域？够了就 finish，不够就补充。`
       messages.push({ role: 'user', content: obsMessage })
 
-      // 快速完成: 单域 + 全成功 + 无覆盖缺口 + clarity=clear → 跳过审查轮
-      // 省掉一次 LLM think 调用（~5-10s），简单题从 3 轮降为 2 轮
+      // 快速完成: 单域 + 全成功 + 无覆盖缺口 + clarity=clear + 有实际数据 → 跳过审查轮
+      // 结果为空时不跳过 — 需要审查轮做洋葱式泛化（放宽条件重试）
+      const hasActualData = allResults.some(r => {
+        if (!r.data || typeof r.data !== 'object') return false
+        const d = r.data as Record<string, unknown>
+        // 检查常见的数据存在标志
+        if ('total' in d && (d.total as number) > 0) return true
+        if ('items' in d && Array.isArray(d.items) && d.items.length > 0) return true
+        if ('groups' in d && Array.isArray(d.groups) && d.groups.length > 0) return true
+        if ('context' in d) return false  // 有 context 说明空结果需要审查
+        return true  // 其他格式默认有数据
+      })
       if (round === 0 && uncoveredDomains.length === 0 && clarity === 'high'
           && allResults.length === totalCallsAttempted && allResults.length > 0
-          && intentDomains.length <= 1) {
+          && intentDomains.length <= 1 && hasActualData) {
         trace.startRound(round + 1, '[快速完成] 单域查询，数据充足，跳过审查轮')
         trace.endRound('快速完成')
         finished = true
