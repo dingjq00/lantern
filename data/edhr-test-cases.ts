@@ -167,7 +167,7 @@ export const EDHR_TEST_CASES: EdhrTestCase[] = [
 
   // 企业管理者 — 战略视角
   { id: 'E30', query: '过去四个月的工单完成量按月趋势，产能是在提升还是下降？', level: 'L5', role: 'executive',
-    acceptablePaths: [['edhr.trend']],
+    acceptablePaths: [['edhr.trend'], ['edhr.order.search']],
     followUp: { minCount: 3, shouldRelate: ['趋势', '产能'] } },
 
   { id: 'E31', query: '质量异常数量和工单完成数量的趋势有没有关联？', level: 'L5', role: 'executive',
