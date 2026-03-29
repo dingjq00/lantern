@@ -21,13 +21,13 @@ input_schema:
     equipment:
       type: string
       description: >
-        设备名称、设备编号或设备ID。支持智能解析：传"CNC-001"或"数控车床1号"均可。
+        设备名称、设备编号或设备ID。支持智能解析：传"EQ-A301-001"或"薄膜包衣机 #1"均可。
         匹配到多个设备时返回候选列表供用户确认。
     productionLine:
       type: string
       description: >
         产线名称或ID。通过产线→设备→故障的关联链过滤。
-        用户说"A线的故障"就传"A线"。
+        用户说"压片线的故障"就传"压片线"。
     department:
       type: string
       description: >
@@ -105,7 +105,7 @@ cost: low
 
 when_to_use: |
   - 用户查看故障列表或故障数量，如"上月有多少故障""最近一周的故障记录"
-  - 用户按设备/产线查故障，如"CNC-001的故障记录""A线故障情况"
+  - 用户按设备/产线查故障，如"EQ-A301-001的故障记录""压片线故障情况"
   - 用户关注紧急故障，如"有哪些特急故障""紧急故障有多少"
   - 用户想统计故障分布，如"哪台设备故障最多""各状态故障数量"
   - 用户排查故障趋势的当期数据，如"这个月待处理的故障"
@@ -116,9 +116,9 @@ when_not_to_use: |
   - 用户要看故障数量的时间趋势（按天/周/月） → 用 eam.trend
 
 examples:
-  - query: "上个月A线有多少故障？"
+  - query: "上个月压片线有多少故障？"
     arguments:
-      productionLine: "A线"
+      productionLine: "压片线"
       dateRange:
         from: "2026-02-01"
         to: "2026-02-28"

@@ -45,8 +45,8 @@ when_to_use:
   - 作为分析链的起点——先全局快照再深入某个域，如"先看看整体，再看故障明细"
 
 when_not_to_use:
-  - 用户询问某个车间/产线/部门的概况 → 使用 eam.scope.overview（如"一车间怎么样""A线概览""研发部设备情况"）
-  - 用户询问特定设备的详情 → 使用 eam.equipment.profile（如"CNC-001 什么情况"）
+  - 用户询问某个车间/产线/部门的概况 → 使用 eam.scope.overview（如"一车间怎么样""压片线概览""研发部设备情况"）
+  - 用户询问特定设备的详情 → 使用 eam.equipment.profile（如"EQ-A301-001 什么情况"）
   - 用户需要时间趋势或变化分析 → 使用 eam.trend（如"上月故障趋势""保养完成率变化"）
 
 examples:

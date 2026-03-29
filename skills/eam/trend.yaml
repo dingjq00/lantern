@@ -98,7 +98,7 @@ when_to_use:
   - 用户询问某个域随时间的变化趋势，如"最近三个月故障趋势""保养完成率变化""备件消耗趋势"
   - 用户需要同比环比或周期性分析，如"本月故障比上月多了吗""每周维修工单量有什么规律"
   - 用户需要按维度拆分对比趋势，如"各产线故障趋势对比""哪台设备故障在增长"
-  - 用户需要特定范围的趋势数据，如"A线上个季度的维修趋势""CNC-001 最近半年的异常变化"
+  - 用户需要特定范围的趋势数据，如"压片线上个季度的维修趋势""EQ-A301-001 最近半年的异常变化"
   - 用户需要数据支撑决策，如"故障是在好转还是恶化""备件消耗有没有季节性"
 
 when_not_to_use:
@@ -126,12 +126,12 @@ examples:
       splitBy: productionLine
     notes: splitBy=productionLine 拆分出每条产线的独立时间序列
 
-  - query: "CNC-001 最近半年的异常记录变化"
+  - query: "EQ-A301-001 最近半年的异常记录变化"
     arguments:
       domain: anomaly
       dateRange:
         from: "2025-09-28T00:00:00"
         to: "2026-03-28T23:59:59"
       groupBy: month
-      equipment: "CNC-001"
+      equipment: "EQ-A301-001"
     notes: 指定 equipment 范围过滤，半年用 month 粒度

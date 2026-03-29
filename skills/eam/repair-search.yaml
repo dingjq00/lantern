@@ -22,7 +22,7 @@ input_schema:
       type: string
       description: >
         设备名称、设备编号或设备ID。支持智能解析。
-        用户说"CNC-001的维修记录"就传"CNC-001"。
+        用户说"EQ-A301-001的维修记录"就传"EQ-A301-001"。
     productionLine:
       type: string
       description: >
@@ -107,7 +107,7 @@ when_to_use: |
   - 用户查看维修工单列表，如"上月维修工单有哪些""最近的维修记录"
   - 用户按维修类型筛选，如"外协维修有多少""内修和外协的比例"
   - 用户想了解维修费用概况，如"这个月维修花了多少钱"（search 返回每单的费用汇总）
-  - 用户按设备/产线查维修情况，如"A线的维修工单""CNC-001修了几次"
+  - 用户按设备/产线查维修情况，如"压片线的维修工单""EQ-A301-001修了几次"
   - 用户想找维修高频设备，如"哪台设备维修最多"（groupBy=equipment）
 
 when_not_to_use: |
@@ -123,9 +123,9 @@ examples:
         from: "2026-02-01"
         to: "2026-02-28"
       format: concise
-  - query: "A线外协维修有多少？"
+  - query: "压片线外协维修有多少？"
     arguments:
-      productionLine: "A线"
+      productionLine: "压片线"
       orderType: EXTERNAL
   - query: "按设备统计维修次数，找出维修最多的设备"
     arguments:

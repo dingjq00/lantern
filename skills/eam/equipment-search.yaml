@@ -21,9 +21,9 @@ input_schema:
     status:
       type: integer
       description: >
-        设备状态码。0=待验收 1=运行中 2=维修中 3=停机 4=封存 5=待整改 6=闲置 7=报废。
+        设备状态码。0=待验收 1=运行中 2=维修中 3=停机 4=封存 5=待整改 6=闲置 7=报废 8=其他。
         用户说"运行中的设备"传1，"报废设备"传7，"停机的"传3。
-      enum: [0, 1, 2, 3, 4, 5, 6, 7]
+      enum: [0, 1, 2, 3, 4, 5, 6, 7, 8]
     category:
       type: string
       description: >
@@ -32,7 +32,7 @@ input_schema:
     productionLine:
       type: string
       description: >
-        产线名称或ID。支持智能解析：传产线名称（如"A线""1号线"）或产线ID均可。
+        产线名称或ID。支持智能解析：传产线名称（如"压片线""1号线"）或产线ID均可。
         匹配到多个产线时返回候选列表供确认。
     department:
       type: string
@@ -103,7 +103,7 @@ quality: 85
 cost: low
 
 when_to_use: |
-  - 用户想查看符合条件的设备列表，如"维修中的设备有哪些""A线有多少设备"
+  - 用户想查看符合条件的设备列表，如"维修中的设备有哪些""压片线有多少设备"
   - 用户按设备运行状态筛选，如"正在维修的设备""停机的设备""运行中的设备"→ 用 status 参数
   - 用户想要设备的统计分布，如"各状态设备数量""按部门统计设备"
   - 用户想筛选重点设备，如"重点设备清单""关键设备有哪些"
@@ -120,9 +120,9 @@ examples:
     arguments:
       status: 2
       format: concise
-  - query: "A线各状态设备数量统计"
+  - query: "压片线各状态设备数量统计"
     arguments:
-      productionLine: "A线"
+      productionLine: "压片线"
       groupBy: status
   - query: "一车间的重点设备清单"
     arguments:

@@ -8,9 +8,9 @@ import { textResult } from '../shared.js'
 export function registerRepairProfile(server: McpServer) {
   server.tool(
     'eam.repair.profile',
-    '获取维修工单全景画像。输入工单号、故障报修号或ID，返回完整维修信息（工单+故障报修+设备+备件使用+工时+知识引用+出库单+操作日志）。当用户问"WO-001 什么情况""这个报修单的维修进展"时使用。',
+    '获取维修工单全景画像。输入工单号、故障报修号或ID，返回完整维修信息（工单+故障报修+设备+备件使用+工时+知识引用+出库单+操作日志）。当用户问"RO-20260312-0157 什么情况""这个报修单的维修进展"时使用。',
     {
-      identifier: z.string().describe('维修工单号（如 RO202603110001）、故障报修号（如 FR202603260105）或数字ID'),
+      identifier: z.string().describe('维修工单号（如 RO-20260312-0157）、故障报修号（如 FR-20260325-0200）或数字ID'),
       format: z.enum(['detailed', 'concise']).optional().default('detailed').describe('concise=省略操作日志和出库明细'),
     },
     async (args) => {

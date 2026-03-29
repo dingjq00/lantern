@@ -11,7 +11,7 @@ export function registerEquipmentProfile(server: McpServer) {
     'eam.equipment.profile',
     '获取设备全景画像。输入设备名称、编号或ID，返回该设备的完整信息（基础信息+KPI+故障+维修+保养+巡检+BOM+生命周期）。当用户问"某设备怎么样""设备详情""设备状况"时使用。不要用于批量查询设备列表（用 eam.equipment.search）。',
     {
-      identifier: z.string().describe('设备名称、设备编号或ID，如 "CNC-001"、"数控车床" 或 "101"'),
+      identifier: z.string().describe('设备名称、设备编号或ID，如 "EQ-A301-001"、"薄膜包衣机" 或 "10101"'),
       format: z.enum(['detailed', 'concise']).optional().default('detailed').describe('detailed=全景信息, concise=只返回基础+KPI'),
     },
     async (args) => {
@@ -109,5 +109,5 @@ function formatEquipmentBasic(eq: Equipment) {
 
 const STATUS_MAP: Record<number, string> = {
   0: '待验收', 1: '运行中', 2: '维修中', 3: '停机',
-  4: '封存', 5: '待整改', 6: '闲置', 7: '报废',
+  4: '封存', 5: '待整改', 6: '闲置', 7: '报废', 8: '其他',
 }

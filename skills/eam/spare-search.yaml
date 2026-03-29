@@ -30,7 +30,7 @@ input_schema:
       description: >
         设备名称、设备编号或设备ID。传此参数进入 BOM 模式：
         查询该设备的备件清单（BOM），返回每个备件的需求数量和当前库存。
-        用户说"这台设备需要什么备件""CNC-001的备件清单"时传入。
+        用户说"这台设备需要什么备件""EQ-A301-001的备件清单"时传入。
         注意：equipment 参数优先级最高，传了 equipment 则忽略 identifier/category/lowStock。
     category:
       type: string
@@ -85,7 +85,7 @@ quality: 85
 cost: medium
 
 when_to_use: |
-  - 用户查某台设备的备件清单，如"CNC-001需要哪些备件""这台设备的BOM"
+  - 用户查某台设备的备件清单，如"EQ-A301-001需要哪些备件""这台设备的BOM"
   - 用户查库存预警/不足，如"哪些备件库存不足""备件预警清单""需要补货的备件"
   - 跨域分析中需要备件库存数据时：如"故障趋势上升且备件不足""预警备件涉及哪些设备"
   - 用户按名称/编号搜备件，如"轴承的库存是多少""BJ-001还有多少"
@@ -97,9 +97,9 @@ when_not_to_use: |
   - 用户想看全局备件预警数字（不看列表） → 用 eam.dashboard
 
 examples:
-  - query: "CNC-001需要哪些备件？"
+  - query: "EQ-A301-001需要哪些备件？"
     arguments:
-      equipment: "CNC-001"
+      equipment: "EQ-A301-001"
   - query: "哪些备件库存不足需要补货？"
     arguments:
       lowStock: true

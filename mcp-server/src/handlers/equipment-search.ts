@@ -11,7 +11,7 @@ export function registerEquipmentSearch(server: McpServer) {
     'eam.equipment.search',
     '按条件搜索设备列表。支持按状态、分类、产线、部门、位置、重点设备过滤，可按维度聚合统计。当用户问"维修中的设备""A线有哪些设备""重点设备列表""设备分类统计"时使用。不要用于查看单台设备详情（用 eam.equipment.profile）。',
     {
-      status: z.number().int().optional().describe('设备状态: 0=待验收 1=运行中 2=维修中 3=停机 4=封存 5=待整改 6=闲置 7=报废'),
+      status: z.number().int().optional().describe('设备状态: 0=待验收 1=运行中 2=维修中 3=停机 4=封存 5=待整改 6=闲置 7=报废 8=其他'),
       category: z.string().optional().describe('设备分类名称或ID'),
       productionLine: z.string().optional().describe('产线名称或ID'),
       department: z.string().optional().describe('部门/车间名称或ID'),
@@ -95,5 +95,5 @@ export function registerEquipmentSearch(server: McpServer) {
 }
 
 const STATUS_MAP: Record<number, string> = {
-  0: '待验收', 1: '运行中', 2: '维修中', 3: '停机', 4: '封存', 5: '待整改', 6: '闲置', 7: '报废',
+  0: '待验收', 1: '运行中', 2: '维修中', 3: '停机', 4: '封存', 5: '待整改', 6: '闲置', 7: '报废', 8: '其他',
 }

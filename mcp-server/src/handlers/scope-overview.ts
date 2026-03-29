@@ -139,5 +139,5 @@ export function registerScopeOverview(server: McpServer) {
 }
 
 const STATUS_MAP: Record<number, string> = {
-  0: '待验收', 1: '运行中', 2: '维修中', 3: '停机', 4: '封存', 5: '待整改', 6: '闲置', 7: '报废',
+  0: '待验收', 1: '运行中', 2: '维修中', 3: '停机', 4: '封存', 5: '待整改', 6: '闲置', 7: '报废', 8: '其他',
 }

@@ -23,7 +23,7 @@ input_schema:
       type: string
       description: >
         设备名称、设备编号或设备ID。支持智能解析。
-        用户说"CNC-001的异常记录"就传"CNC-001"。
+        用户说"EQ-A301-001的异常记录"就传"EQ-A301-001"。
     productionLine:
       type: string
       description: >
@@ -122,9 +122,9 @@ examples:
   - query: "按严重度统计异常分布"
     arguments:
       groupBy: severity
-  - query: "A线上个月有多少异常已经转为故障单？"
+  - query: "压片线上个月有多少异常已经转为故障单？"
     arguments:
-      productionLine: "A线"
+      productionLine: "压片线"
       dateRange:
         from: "2026-02-01"
         to: "2026-02-28"
