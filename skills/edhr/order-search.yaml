@@ -49,9 +49,9 @@ input_schema:
     groupBy:
       type: string
       description: >
-        按维度聚合统计。progressStatus=按进度状态分布，validatedStatus=按验证状态分布。
-        用户说"各状态工单数量"传progressStatus。
-      enum: [progressStatus, validatedStatus]
+        按维度聚合统计。progressStatus=按进度状态分布，validatedStatus=按验证状态分布，
+        createdMonth=按创建月份统计（如"每月工单数量""哪个月最多"）。
+      enum: [progressStatus, validatedStatus, createdMonth]
     limit:
       type: integer
       default: 20

@@ -13,7 +13,7 @@ export function registerEdhrOrderSearch(server: McpServer) {
       productCode: z.string().optional().describe('产品编号（模糊匹配）'),
       lotCode: z.string().optional().describe('批号（模糊匹配）'),
       dateRange: z.object({ from: z.string(), to: z.string() }).optional().describe('创建日期范围'),
-      groupBy: z.enum(['progressStatus', 'validatedStatus']).optional().describe('按维度聚合'),
+      groupBy: z.enum(['progressStatus', 'validatedStatus', 'createdMonth']).optional().describe('按维度聚合。progressStatus=按状态，validatedStatus=按验证状态，createdMonth=按创建月份'),
       limit: z.number().int().optional().default(20),
     },
     async (args) => {
@@ -33,10 +33,17 @@ export function registerEdhrOrderSearch(server: McpServer) {
         const all = await jmixGetAll('Order_', { filter, fetchPlan: '_local' })
         const groups = new Map<string, number>()
         for (const o of all) {
-          const key = String(o[args.groupBy] ?? '未知')
+          let key: string
+          if (args.groupBy === 'createdMonth') {
+            // 按创建月份分组: "2024-06", "2024-07" 等
+            const dateStr = String(o.createdDate ?? o.productionDate ?? '')
+            key = dateStr.slice(0, 7) || '未知'
+          } else {
+            key = String(o[args.groupBy] ?? '未知')
+          }
           groups.set(key, (groups.get(key) ?? 0) + 1)
         }
-        const sorted = [...groups.entries()].sort((a, b) => b[1] - a[1]).map(([group, count]) => ({ group, count }))
+        const sorted = [...groups.entries()].sort((a, b) => a[0].localeCompare(b[0])).map(([group, count]) => ({ group, count }))
         return textResult({ total: all.length, groupBy: args.groupBy, groups: sorted })
       }
 
