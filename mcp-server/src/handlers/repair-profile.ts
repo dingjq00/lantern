@@ -51,7 +51,14 @@ export function registerRepairProfile(server: McpServer) {
       }
 
       if (!repairOrder) {
-        return textResult({ error: '未找到匹配的维修工单', identifier: args.identifier })
+        // 识别到设备编号时给更精准的提示，避免 Summarize 误解为"设备不存在"
+        const isEquipmentCode = /^EQ-/i.test(args.identifier)
+        return textResult({
+          error: isEquipmentCode
+            ? `"${args.identifier}"是设备编号，不是维修工单号。请先用 eam.equipment.profile 或 eam.fault.search 查该设备的故障/维修记录，再用工单号查详情`
+            : '未找到匹配的维修工单',
+          identifier: args.identifier,
+        })
       }
 
       const orderId = repairOrder.id

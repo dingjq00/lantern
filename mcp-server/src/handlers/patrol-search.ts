@@ -3,7 +3,7 @@
 // 使用 /patrol/task/equipment-records 端点作为设备过滤的替代方案
 import { z } from 'zod'
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
-import { eamGet, type PageResult } from '../eam-api.js'
+import { eamGet, eamGetAll, type PageResult } from '../eam-api.js'
 import { resolveEquipment, resolveScope, enrichGroupNames } from '../resolvers.js'
 import { textResult } from '../shared.js'
 
@@ -50,11 +50,28 @@ export function registerPatrolSearch(server: McpServer) {
       }
 
       // 通用搜索: /patrol/task/page
+      // 注意: 巡检 API 不支持日期范围参数，有 dateRange 时拉全量后内存过滤
       const params: Record<string, unknown> = { pageNo: 1, pageSize: args.limit }
       if (args.status !== undefined) params.status = args.status
 
-      const page = await eamGet<PageResult<PatrolTask>>('/eam/patrol/task/page', params)
-      let list = page.list
+      let list: PatrolTask[]
+      let total: number
+
+      if (args.dateRange) {
+        // dateRange — 需全量拉取+内存过滤（API 不支持日期参数）
+        const all = await eamGetAll<PatrolTask>('/eam/patrol/task/page', args.status !== undefined ? { status: args.status } : {})
+        const from = new Date(args.dateRange.from).getTime()
+        const to = new Date(args.dateRange.to).getTime()
+        list = all.filter(t => {
+          const time = t.plannedTime ?? t.completeTime ?? 0
+          return time >= from && time <= to
+        })
+        total = list.length
+      } else {
+        const page = await eamGet<PageResult<PatrolTask>>('/eam/patrol/task/page', params)
+        list = page.list
+        total = page.total
+      }
 
       // 产线/部门过滤 — 通用 resolveScope（巡检任务无直接 equipmentId，回退到 analytics）
       if (args.productionLine || args.department) {
@@ -96,7 +113,7 @@ export function registerPatrolSearch(server: McpServer) {
           }
       )
 
-      return textResult({ total: page.total, count: items.length, items })
+      return textResult({ total, count: items.length, items })
     }
   )
 }
