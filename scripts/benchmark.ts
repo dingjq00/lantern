@@ -97,6 +97,12 @@ const TEST_CASES: TestCase[] = [
   ...EDHR_TEST_CASES,
 ]
 
+// 运行模式: --eam / --edhr / 默认全部
+const runMode = process.argv.find(a => a.startsWith('--'))?.slice(2) || 'all'
+const ACTIVE_CASES = runMode === 'eam' ? TEST_CASES.filter(t => t.id.startsWith('T'))
+  : runMode === 'edhr' ? TEST_CASES.filter(t => t.id.startsWith('E'))
+  : TEST_CASES
+
 interface BenchmarkResult {
   id: string; query: string; level: string; success: boolean
   actualTools: string[]; expectedTools: string[]; recall: number; precision: number
@@ -212,10 +218,10 @@ const BENCHMARK_MODELS: ModelConfig[] = [
     model: 'deepseek-chat',
   },
   {
-    name: 'GPT-5-mini',
+    name: 'GPT-4.1',
     baseURL: 'https://models.github.ai/inference',
     apiKey: process.env.GITHUB_MODELS_TOKEN || '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',
-    model: 'openai/gpt-5-mini',
+    model: 'openai/gpt-4.1',
   },
 ]
 
@@ -234,7 +240,7 @@ async function runBenchmarkForModel(
   const results: BenchmarkResult[] = []
   let done = 0
 
-  async function runOne(tc: typeof TEST_CASES[0]) {
+  async function runOne(tc: typeof ACTIVE_CASES[0]) {
     const start = Date.now()
     try {
       const result = await processQuery(tc.query, { registry, llm, storage, callTool })
@@ -263,7 +269,7 @@ async function runBenchmarkForModel(
       const recallStr = recall === 1 ? '✅' : `⚠️${(recall * 100).toFixed(0)}%`
       const factStr = factCheck.mustTotal > 0 ? ` F:${factCheck.mustHit}/${factCheck.mustTotal}` : ''
       const forbidStr = factCheck.forbiddenHit.length > 0 ? ` ⛔${factCheck.forbiddenHit.length}` : ''
-      console.log(`[${done}/${TEST_CASES.length}] ${tc.id} ${tc.level} ${recallStr}${factStr}${forbidStr} ${latencyMs}ms ${tc.query.slice(0, 25)}...`)
+      console.log(`[${done}/${ACTIVE_CASES.length}] ${tc.id} ${tc.level} ${recallStr}${factStr}${forbidStr} ${latencyMs}ms ${tc.query.slice(0, 25)}...`)
     } catch (err) {
       done++
       results.push({
@@ -272,13 +278,13 @@ async function runBenchmarkForModel(
         rounds: 0, latencyMs: Date.now() - start, confidence: 'low', hasSources: false,
         answer: '', error: (err as Error).message.slice(0, 100),
       })
-      console.log(`[${done}/${TEST_CASES.length}] ${tc.id} ${tc.level} ❌ ${(err as Error).message.slice(0, 50)}`)
+      console.log(`[${done}/${ACTIVE_CASES.length}] ${tc.id} ${tc.level} ❌ ${(err as Error).message.slice(0, 50)}`)
     }
   }
 
   // 并发批跑
-  for (let i = 0; i < TEST_CASES.length; i += CONCURRENCY) {
-    const batch = TEST_CASES.slice(i, i + CONCURRENCY)
+  for (let i = 0; i < ACTIVE_CASES.length; i += CONCURRENCY) {
+    const batch = ACTIVE_CASES.slice(i, i + CONCURRENCY)
     await Promise.all(batch.map(tc => runOne(tc)))
   }
 
@@ -388,10 +394,8 @@ async function runBenchmarkForModel(
 
 async function main() {
   const notes = process.argv[2] || 'multi-model benchmark'
-  const eamCount = 40
-  const edhrCount = EDHR_TEST_CASES.length
   console.log(`=== Insight68 Benchmark v3 — 多模型 × 多系统 ===`)
-  console.log(`测试集: ${TEST_CASES.length} 题 (EAM ${eamCount} + EDHR ${edhrCount}), 模型: ${BENCHMARK_MODELS.map(m => m.name).join(' + ')}\n`)
+  console.log(`运行模式: ${runMode} | 测试集: ${ACTIVE_CASES.length} 题, 模型: ${BENCHMARK_MODELS.map(m => m.name).join(' + ')}\n`)
 
   // 共享资源初始化
   const skillsDir = path.join(__dirname, '../skills')
