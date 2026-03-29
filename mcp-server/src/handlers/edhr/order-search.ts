@@ -50,7 +50,17 @@ export function registerEdhrOrderSearch(server: McpServer) {
         actualStartTime: o.actualStartTime, actualEndTime: o.actualEndTime,
       }))
 
-      return textResult({ total: result.count ?? items.length, count: items.length, items })
+      const total = result.count ?? items.length
+      // 空结果+有日期限定时，提示可能是时间范围问题
+      if (total === 0 && args.dateRange) {
+        const allOrders = await jmixList('Order_', { limit: 1, returnCount: true })
+        return textResult({
+          total: 0, count: 0, items: [],
+          context: `在指定时间范围(${args.dateRange.from}~${args.dateRange.to})内没有找到符合条件的工单。系统中共有 ${allOrders.count} 个工单，数据时间范围可能不在查询范围内。`,
+        })
+      }
+
+      return textResult({ total, count: items.length, items })
     }
   )
 }

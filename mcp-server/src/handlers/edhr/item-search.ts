@@ -51,7 +51,21 @@ export function registerEdhrItemSearch(server: McpServer) {
         changeNote: i.changeNote,
       }))
 
-      return textResult({ total: result.count ?? items.length, count: items.length, items })
+      // 空结果时提供上下文：是"没有符合条件的"还是"整个工单就没有检测项"
+      const total = result.count ?? items.length
+      if (total === 0 && args.orderCode) {
+        const allForOrder = await jmixCount('OrderItem', {
+          conditions: [{ property: 'order.code', operator: '=', value: args.orderCode }]
+        })
+        return textResult({
+          total: 0, count: 0, items: [],
+          context: allForOrder > 0
+            ? `该工单共有 ${allForOrder} 个检测项，其中符合筛选条件"${args.status || '全部'}"的为 0 个`
+            : `该工单没有检测项记录`,
+        })
+      }
+
+      return textResult({ total, count: items.length, items })
     }
   )
 }
