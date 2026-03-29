@@ -105,7 +105,6 @@ when_not_to_use:
   - 用户只需要当前时间点的全局统计数字（不需要时间序列） → 使用 eam.dashboard（如"现在总共多少故障"）
   - 用户需要具体记录明细而非聚合数字 → 使用对应的 search 工具（如"上周有哪些故障"用 eam.fault.search）
   - 用户询问某个范围的综合概况（非趋势） → 使用 eam.scope.overview（如"一车间怎么样"）
-  - 用户问的是生产工单/检测项/质量异常的趋势（EDHR 系统数据） → 使用 edhr.trend
 
 examples:
   - query: "最近三个月的故障趋势"

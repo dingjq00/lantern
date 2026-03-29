@@ -93,10 +93,12 @@ export function assemblePrompt(
   const systems = [...new Set(tools.map(t => t.system))]
   const domains = [...new Set(tools.flatMap(t => t.domains))]
 
-  // 工具描述（按系统分组）— 帮助 AI 区分同名工具属于哪个系统
-  const SYSTEM_LABELS: Record<string, string> = {
-    eam: 'EAM（设备资产管理）',
-    edhr: 'EDHR（医疗器械检测流程管理）',
+  // 工具描述（按系统分组 + scope 路由）
+  // scope: 系统覆盖的业务关键词，AI 据此判断用户问题属于哪个系统
+  // 新接系统只需加一行，不改已有 Skill YAML
+  const SYSTEM_META: Record<string, { label: string; scope: string }> = {
+    eam: { label: 'EAM（设备资产管理）', scope: '设备、故障报修、维修工单、保养、巡检、备件、产线、车间' },
+    edhr: { label: 'EDHR（医疗器械检测流程管理）', scope: '生产工单、批次、检测项、合格率、质量异常、产品配方' },
   }
 
   function formatTool(t: ToolDefinition): string {
@@ -117,9 +119,12 @@ export function assemblePrompt(
   }
 
   const toolDescriptions = [...toolsBySystem.entries()].map(([sys, sysTools]) => {
-    const label = SYSTEM_LABELS[sys] || sys.toUpperCase()
+    const meta = SYSTEM_META[sys]
+    const header = meta
+      ? `### ${meta.label}\n**涉及**: ${meta.scope}`
+      : `### ${sys.toUpperCase()}`
     const toolsText = sysTools.map(formatTool).join('\n\n')
-    return `### ${label}\n\n${toolsText}`
+    return `${header}\n\n${toolsText}`
   }).join('\n\n')
 
   // ============ 组装：六层顺序 ============
