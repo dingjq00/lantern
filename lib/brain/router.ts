@@ -209,6 +209,16 @@ export async function processQuery(
         : ''
       const obsMessage = `观察结果: ${JSON.stringify(obsData)}\n\n事实对比:\n- 用户问: "${query}"\n- 已获得字段: ${[...new Set(dataFields)].join(', ')}${domainCoverageHint}\n\n检查：数据是否已回答用户问题？有无未覆盖的域？够了就 finish，不够就补充。`
       messages.push({ role: 'user', content: obsMessage })
+
+      // 快速完成: 单域 + 全成功 + 无覆盖缺口 + clarity=clear → 跳过审查轮
+      // 省掉一次 LLM think 调用（~5-10s），简单题从 3 轮降为 2 轮
+      if (round === 0 && uncoveredDomains.length === 0 && clarity === 'high'
+          && allResults.length === totalCallsAttempted && allResults.length > 0
+          && intentDomains.length <= 1) {
+        trace.startRound(round + 1, '[快速完成] 单域查询，数据充足，跳过审查轮')
+        trace.endRound('快速完成')
+        finished = true
+      }
     }
 
     // finish 在同一轮（首轮 calls + finish）
