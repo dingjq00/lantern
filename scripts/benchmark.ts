@@ -210,7 +210,7 @@ const BENCHMARK_MODELS: ModelConfig[] = [
   {
     name: 'GPT-5-mini',
     baseURL: 'https://models.github.ai/inference',
-    apiKey: process.env.GITHUB_MODELS_TOKEN || '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',
+    apiKey: process.env.GITHUB_MODELS_TOKEN || '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',
     model: 'openai/gpt-5-mini',
   },
 ]
