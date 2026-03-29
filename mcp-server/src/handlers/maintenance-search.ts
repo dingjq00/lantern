@@ -1,7 +1,7 @@
 // eam.maintenance.search — 保养任务搜索
 import { z } from 'zod'
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
-import { eamGet, type PageResult } from '../eam-api.js'
+import { eamSearch } from '../eam-api.js'
 import { resolveEquipment, resolveProductionLine, resolveDepartment, getEquipmentIdsByProductionLine, getEquipmentIdsByDepartment } from '../resolvers.js'
 
 interface MaintenanceTask {
@@ -52,10 +52,18 @@ export function registerMaintenanceSearch(server: McpServer) {
         else if (dept.match === 'candidates') return textResult({ message: '找到多个匹配部门，请确认', candidates: dept.candidates })
       }
 
-      const page = await eamGet<PageResult<MaintenanceTask>>('/eam/maintenance/task/page', params)
-      let list = page.list
+      const result = await eamSearch<MaintenanceTask>('/eam/maintenance/task/page', params, {
+        groupBy: args.groupBy,
+        groupKeyFn: (t, gb) => gb === 'equipment' ? String(t.equipmentId)
+          : MAINT_STATUS[t.status] ?? String(t.status),
+        limit: args.limit,
+      })
 
-      if (scopeEquipmentIds) list = list.filter(t => scopeEquipmentIds!.includes(t.equipmentId))
+      let { list, total } = result
+      if (scopeEquipmentIds) {
+        list = list.filter(t => scopeEquipmentIds!.includes(t.equipmentId))
+        total = list.length
+      }
 
       // dateRange 内存过滤
       if (args.dateRange) {
@@ -65,10 +73,11 @@ export function registerMaintenanceSearch(server: McpServer) {
           const pt = t.plannedTime ?? t.startTime ?? 0
           return pt >= from && pt <= to
         })
+        total = list.length
       }
 
-      // groupBy
-      if (args.groupBy) {
+      // groupBy: eamSearch 给出 count，但保养需要完成率，从 list 重算
+      if (result.groups) {
         const groups = new Map<string, { total: number; completed: number }>()
         for (const t of list) {
           const key = args.groupBy === 'equipment' ? String(t.equipmentId) : MAINT_STATUS[t.status] ?? String(t.status)
@@ -78,7 +87,7 @@ export function registerMaintenanceSearch(server: McpServer) {
           groups.set(key, g)
         }
         return textResult({
-          total: list.length,
+          total,
           groupBy: args.groupBy,
           groups: [...groups.entries()].sort((a, b) => b[1].total - a[1].total).map(([group, g]) => ({
             group, total: g.total, completed: g.completed,
@@ -97,7 +106,7 @@ export function registerMaintenanceSearch(server: McpServer) {
           }
       )
 
-      return textResult({ total: page.total, count: items.length, items })
+      return textResult({ total, count: items.length, items })
     }
   )
 }

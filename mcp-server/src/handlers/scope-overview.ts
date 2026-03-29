@@ -2,7 +2,7 @@
 // 输入任意层级标识符 → 三棵树匹配 → 查设备列表 → 各域汇总
 import { z } from 'zod'
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
-import { eamGet, eamParallel, type PageResult, type Equipment, type FaultReport, type RepairOrder } from '../eam-api.js'
+import { eamGetAll, eamParallel, type Equipment, type FaultReport, type RepairOrder } from '../eam-api.js'
 import { resolveProductionLine, resolveDepartment, getEquipmentIdsByProductionLine } from '../resolvers.js'
 
 export function registerScopeOverview(server: McpServer) {
@@ -49,12 +49,11 @@ export function registerScopeOverview(server: McpServer) {
       // Step 2: 获取设备列表
       let equipmentList: Equipment[] = []
       if (scopeType === 'productionLine' && equipmentIds.length > 0) {
-        // 产线: 已有设备ID列表，分批查详情
-        const page = await eamGet<PageResult<Equipment>>('/eam/equipment/page', { pageNo: 1, pageSize: 200 })
-        equipmentList = page.list.filter(e => equipmentIds.includes(e.id))
+        // 产线: 已有设备ID列表，拉全量后过滤
+        const all = await eamGetAll<Equipment>('/eam/equipment/page')
+        equipmentList = all.filter(e => equipmentIds.includes(e.id))
       } else if (scopeType === 'department') {
-        const page = await eamGet<PageResult<Equipment>>('/eam/equipment/page', { deptId: scopeId, pageNo: 1, pageSize: 200 })
-        equipmentList = page.list
+        equipmentList = await eamGetAll<Equipment>('/eam/equipment/page', { deptId: scopeId })
       }
 
       // Step 3: 各域汇总（基于设备列表并行查）
@@ -68,33 +67,32 @@ export function registerScopeOverview(server: McpServer) {
       }
 
       // 并行查各域数据
-      const [faults, repairs, maintenance, anomalies] = await eamParallel<[
-        PageResult<FaultReport> | null, PageResult<RepairOrder> | null,
-        PageResult<any> | null, PageResult<any> | null
+      const [faultAll, repairAll, maintAll, anomalyAll] = await eamParallel<[
+        FaultReport[] | null, RepairOrder[] | null, any[] | null, any[] | null
       ]>(
         () => eqIds.length > 0
-          ? eamGet<PageResult<FaultReport>>('/eam/fault-report/page', { pageNo: 1, pageSize: 200 })
-            .then(p => ({ ...p, list: p.list.filter(f => eqIds.includes(f.equipmentId)) }))
+          ? eamGetAll<FaultReport>('/eam/fault-report/page')
+            .then(all => all.filter(f => eqIds.includes(f.equipmentId)))
           : Promise.resolve(null),
         () => eqIds.length > 0
-          ? eamGet<PageResult<RepairOrder>>('/eam/repair-order/page', { pageNo: 1, pageSize: 200 })
-            .then(p => ({ ...p, list: p.list.filter(r => eqIds.includes(r.equipmentId)) }))
+          ? eamGetAll<RepairOrder>('/eam/repair-order/page')
+            .then(all => all.filter(r => eqIds.includes(r.equipmentId)))
           : Promise.resolve(null),
         () => eqIds.length > 0
-          ? eamGet<PageResult<any>>('/eam/maintenance/task/page', { pageNo: 1, pageSize: 200 })
-            .then(p => ({ ...p, list: p.list.filter((t: any) => eqIds.includes(t.equipmentId)) }))
+          ? eamGetAll<any>('/eam/maintenance/task/page')
+            .then(all => all.filter((t: any) => eqIds.includes(t.equipmentId)))
           : Promise.resolve(null),
         () => eqIds.length > 0
-          ? eamGet<PageResult<any>>('/eam/anomaly/page', { pageNo: 1, pageSize: 200 })
-            .then(p => ({ ...p, list: p.list.filter((a: any) => eqIds.includes(a.equipmentId)) }))
+          ? eamGetAll<any>('/eam/anomaly/page')
+            .then(all => all.filter((a: any) => eqIds.includes(a.equipmentId)))
           : Promise.resolve(null),
       )
 
       // 计算汇总指标
-      const faultList = faults?.list ?? []
-      const repairList = repairs?.list ?? []
-      const maintList = maintenance?.list ?? []
-      const anomalyList = anomalies?.list ?? []
+      const faultList = faultAll ?? []
+      const repairList = repairAll ?? []
+      const maintList = maintAll ?? []
+      const anomalyList = anomalyAll ?? []
 
       const maintCompleted = maintList.filter((t: any) => t.status === 2).length
       const maintTotal = maintList.length

@@ -1,7 +1,7 @@
 // eam.anomaly.search — 异常记录搜索
 import { z } from 'zod'
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
-import { eamGet, type PageResult } from '../eam-api.js'
+import { eamSearch } from '../eam-api.js'
 import { resolveEquipment, resolveProductionLine, resolveDepartment, getEquipmentIdsByProductionLine, getEquipmentIdsByDepartment } from '../resolvers.js'
 
 interface AnomalyRecord {
@@ -54,27 +54,22 @@ export function registerAnomalySearch(server: McpServer) {
         else if (dept.match === 'candidates') return textResult({ message: '找到多个匹配部门，请确认', candidates: dept.candidates })
       }
 
-      const page = await eamGet<PageResult<AnomalyRecord>>('/eam/anomaly/page', params)
-      let list = page.list
+      const result = await eamSearch<AnomalyRecord>('/eam/anomaly/page', params, {
+        groupBy: args.groupBy,
+        groupKeyFn: (a, gb) => gb === 'equipment' ? String(a.equipmentId)
+          : gb === 'severity' ? SEVERITY_MAP[a.severity] ?? String(a.severity)
+          : a.source ?? 'unknown',
+        limit: args.limit,
+      })
 
+      let { list, total } = result
       if (scopeEquipmentIds) {
         list = list.filter(a => scopeEquipmentIds!.includes(a.equipmentId))
+        total = list.length
       }
 
-      // groupBy
-      if (args.groupBy) {
-        const groups = new Map<string, number>()
-        for (const a of list) {
-          const key = args.groupBy === 'equipment' ? String(a.equipmentId)
-            : args.groupBy === 'severity' ? SEVERITY_MAP[a.severity] ?? String(a.severity)
-            : a.source ?? 'unknown'
-          groups.set(key, (groups.get(key) ?? 0) + 1)
-        }
-        return textResult({
-          total: list.length,
-          groupBy: args.groupBy,
-          groups: [...groups.entries()].sort((a, b) => b[1] - a[1]).map(([group, count]) => ({ group, count })),
-        })
+      if (result.groups) {
+        return textResult({ total, groupBy: args.groupBy, groups: result.groups })
       }
 
       const items = list.map(a => args.format === 'concise'
@@ -87,7 +82,7 @@ export function registerAnomalySearch(server: McpServer) {
           }
       )
 
-      return textResult({ total: page.total, count: items.length, items })
+      return textResult({ total, count: items.length, items })
     }
   )
 }

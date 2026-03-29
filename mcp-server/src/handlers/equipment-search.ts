@@ -2,7 +2,7 @@
 // 支持按状态/分类/产线/部门/位置/重点设备过滤 + groupBy 聚合
 import { z } from 'zod'
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
-import { eamGet, type PageResult, type Equipment } from '../eam-api.js'
+import { eamSearch, type Equipment } from '../eam-api.js'
 import { resolveProductionLine, resolveDepartment, getEquipmentIdsByProductionLine } from '../resolvers.js'
 
 export function registerEquipmentSearch(server: McpServer) {
@@ -55,29 +55,26 @@ export function registerEquipmentSearch(server: McpServer) {
         }
       }
 
-      const page = await eamGet<PageResult<Equipment>>('/eam/equipment/page', params)
-      let list = page.list
+      // 通用搜索（自动处理 groupBy 全量拉取 + 普通分页）
+      const result = await eamSearch<Equipment>('/eam/equipment/page', params, {
+        groupBy: args.groupBy,
+        groupKeyFn: (eq, gb) => gb === 'status' ? STATUS_MAP[eq.status] ?? String(eq.status)
+          : gb === 'category' ? String(eq.categoryId ?? '未分类')
+          : String(eq.deptId ?? '未分配'),
+        limit: args.limit,
+      })
+
+      let { list, total } = result
 
       // 产线二次过滤
       if (productionLineFilter) {
         list = list.filter(e => productionLineFilter!.includes(e.id))
+        total = list.length
       }
 
-      // groupBy 聚合
-      if (args.groupBy) {
-        const groups = new Map<string, number>()
-        for (const eq of list) {
-          const key = args.groupBy === 'status' ? STATUS_MAP[eq.status] ?? String(eq.status)
-            : args.groupBy === 'category' ? String(eq.categoryId ?? '未分类')
-            : String(eq.deptId ?? '未分配')
-          groups.set(key, (groups.get(key) ?? 0) + 1)
-        }
-        const sorted = [...groups.entries()].sort((a, b) => b[1] - a[1])
-        return textResult({
-          total: page.total,
-          groupBy: args.groupBy,
-          groups: sorted.map(([group, count]) => ({ group, count })),
-        })
+      // groupBy 返回
+      if (result.groups) {
+        return textResult({ total, groupBy: args.groupBy, groups: result.groups })
       }
 
       // 列表返回
@@ -91,7 +88,7 @@ export function registerEquipmentSearch(server: McpServer) {
           }
       )
 
-      return textResult({ total: page.total, count: items.length, items })
+      return textResult({ total, count: items.length, items })
     }
   )
 }

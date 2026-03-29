@@ -1,7 +1,7 @@
 // eam.repair.search — 维修工单搜索（中等丰富度）
 import { z } from 'zod'
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
-import { eamGet, eamParallel, type PageResult, type RepairOrder } from '../eam-api.js'
+import { eamSearch, eamGet, eamParallel, type RepairOrder } from '../eam-api.js'
 import { resolveEquipment, resolveProductionLine, resolveDepartment, getEquipmentIdsByProductionLine, getEquipmentIdsByDepartment } from '../resolvers.js'
 
 export function registerRepairSearch(server: McpServer) {
@@ -42,9 +42,15 @@ export function registerRepairSearch(server: McpServer) {
         else if (dept.match === 'candidates') return textResult({ message: '找到多个匹配部门，请确认', candidates: dept.candidates })
       }
 
-      const page = await eamGet<PageResult<RepairOrder>>('/eam/repair-order/page', params)
-      let list = page.list
+      const result = await eamSearch<RepairOrder>('/eam/repair-order/page', params, {
+        groupBy: args.groupBy,
+        groupKeyFn: (r, gb) => gb === 'equipment' ? String(r.equipmentId)
+          : gb === 'orderType' ? (r.orderType ?? '未知')
+          : REPAIR_STATUS[r.status] ?? String(r.status),
+        limit: args.limit,
+      })
 
+      let { list, total } = result
       // 内存过滤: 产线/部门、orderType、dateRange（API 不原生支持）
       if (scopeEquipmentIds) list = list.filter(r => scopeEquipmentIds!.includes(r.equipmentId))
       if (args.orderType) list = list.filter(r => r.orderType === args.orderType)
@@ -56,27 +62,16 @@ export function registerRepairSearch(server: McpServer) {
           return t >= from && t <= to
         })
       }
+      if (scopeEquipmentIds || args.orderType || args.dateRange) total = list.length
 
-      // groupBy
-      if (args.groupBy) {
-        const groups = new Map<string, number>()
-        for (const r of list) {
-          const key = args.groupBy === 'equipment' ? String(r.equipmentId)
-            : args.groupBy === 'orderType' ? (r.orderType ?? '未知')
-            : REPAIR_STATUS[r.status] ?? String(r.status)
-          groups.set(key, (groups.get(key) ?? 0) + 1)
-        }
-        return textResult({
-          total: list.length,
-          groupBy: args.groupBy,
-          groups: [...groups.entries()].sort((a, b) => b[1] - a[1]).map(([group, count]) => ({ group, count })),
-        })
+      if (result.groups) {
+        return textResult({ total, groupBy: args.groupBy, groups: result.groups })
       }
 
       // concise: 不做丰富化
       if (args.format === 'concise') {
         return textResult({
-          total: page.total,
+          total,
           count: list.length,
           items: list.map(r => ({
             code: r.orderCode, status: REPAIR_STATUS[r.status], type: r.orderType,
@@ -107,7 +102,7 @@ export function registerRepairSearch(server: McpServer) {
         }
       }))
 
-      return textResult({ total: page.total, count: enriched.length, items: enriched })
+      return textResult({ total, count: enriched.length, items: enriched })
     }
   )
 }

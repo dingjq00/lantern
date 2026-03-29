@@ -1,7 +1,7 @@
 // eam.fault.search — 故障报修搜索
 import { z } from 'zod'
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
-import { eamGet, type PageResult, type FaultReport } from '../eam-api.js'
+import { eamSearch, type FaultReport } from '../eam-api.js'
 import { resolveEquipment, resolveProductionLine, resolveDepartment, getEquipmentIdsByProductionLine, getEquipmentIdsByDepartment } from '../resolvers.js'
 
 export function registerFaultSearch(server: McpServer) {
@@ -51,27 +51,22 @@ export function registerFaultSearch(server: McpServer) {
 
       // 如果有产线/部门过滤但无设备参数，按设备ID列表逐个查
       // 优化: 如果设备少于 20 台，分别查；否则拉全量后内存过滤
-      const page = await eamGet<PageResult<FaultReport>>('/eam/fault-report/page', params)
-      let list = page.list
+      const result = await eamSearch<FaultReport>('/eam/fault-report/page', params, {
+        groupBy: args.groupBy,
+        groupKeyFn: (f, gb) => gb === 'equipment' ? String(f.equipmentId)
+          : gb === 'status' ? FAULT_STATUS[f.status] ?? String(f.status)
+          : URGENCY_MAP[f.urgency] ?? String(f.urgency),
+        limit: args.limit,
+      })
 
+      let { list, total } = result
       if (scopeEquipmentIds) {
         list = list.filter(f => scopeEquipmentIds!.includes(f.equipmentId))
+        total = list.length
       }
 
-      // groupBy 聚合
-      if (args.groupBy) {
-        const groups = new Map<string, number>()
-        for (const f of list) {
-          const key = args.groupBy === 'equipment' ? String(f.equipmentId)
-            : args.groupBy === 'status' ? FAULT_STATUS[f.status] ?? String(f.status)
-            : URGENCY_MAP[f.urgency] ?? String(f.urgency)
-          groups.set(key, (groups.get(key) ?? 0) + 1)
-        }
-        return textResult({
-          total: list.length,
-          groupBy: args.groupBy,
-          groups: [...groups.entries()].sort((a, b) => b[1] - a[1]).map(([group, count]) => ({ group, count })),
-        })
+      if (result.groups) {
+        return textResult({ total, groupBy: args.groupBy, groups: result.groups })
       }
 
       const items = list.map(f => args.format === 'concise'
@@ -84,7 +79,7 @@ export function registerFaultSearch(server: McpServer) {
           }
       )
 
-      return textResult({ total: page.total, count: items.length, items })
+      return textResult({ total, count: items.length, items })
     }
   )
 }

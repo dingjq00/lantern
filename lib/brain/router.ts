@@ -199,7 +199,15 @@ export async function processQuery(
         if (d.result && typeof d.result === 'object' && Array.isArray((d.result as any)?.items)) return ['items[...]']
         return ['(数据)']
       })
-      const obsMessage = `观察结果: ${JSON.stringify(obsData)}\n\n事实对比:\n- 用户问: "${query}"\n- 已获得字段: ${[...new Set(dataFields)].join(', ')}\n\n按 5 步模板继续推理。如果已覆盖用户问题则 finish。`
+      // 域覆盖检查（通用跨域提示，不预定义组合）
+      const calledTools = allResults.map(r => r.tool)
+      const coveredDomains = [...new Set(calledTools.flatMap(t => registry.getTool(t)?.domains ?? []))]
+      const intentDomains = intent?.domains ?? []
+      const uncoveredDomains = intentDomains.filter(d => !coveredDomains.includes(d))
+      const domainCoverageHint = uncoveredDomains.length > 0
+        ? `\n⚠️ 域覆盖检查: 用户问题涉及 [${intentDomains.join(', ')}]，已覆盖 [${coveredDomains.join(', ')}]，未覆盖 [${uncoveredDomains.join(', ')}]。如有必要，补充未覆盖域的工具。`
+        : ''
+      const obsMessage = `观察结果: ${JSON.stringify(obsData)}\n\n事实对比:\n- 用户问: "${query}"\n- 已获得字段: ${[...new Set(dataFields)].join(', ')}${domainCoverageHint}\n\n检查：数据是否已回答用户问题？有无未覆盖的域？够了就 finish，不够就补充。`
       messages.push({ role: 'user', content: obsMessage })
     }
 

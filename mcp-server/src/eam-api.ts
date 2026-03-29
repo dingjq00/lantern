@@ -84,6 +84,55 @@ export async function eamPost<T = unknown>(path: string, body: unknown): Promise
   return json.data
 }
 
+/** 自动分页拉取全量数据 — groupBy 等需要全量聚合时使用 */
+export async function eamGetAll<T = unknown>(path: string, params?: Record<string, unknown>): Promise<T[]> {
+  const PAGE_SIZE = 200  // EAM 后端最大值
+  let all: T[] = []
+  let pageNo = 1
+  while (true) {
+    const page = await eamGet<PageResult<T>>(path, { ...params, pageNo, pageSize: PAGE_SIZE })
+    all.push(...page.list)
+    if (all.length >= page.total) break
+    pageNo++
+    if (pageNo > 50) break  // 安全阀：最多 10000 条
+  }
+  return all
+}
+
+/**
+ * 通用搜索 — 自动处理 groupBy（全量拉取+聚合）和普通分页
+ * 所有 search handler 共用，不重复写 groupBy 逻辑
+ */
+export async function eamSearch<T extends Record<string, unknown>>(
+  path: string,
+  params: Record<string, unknown>,
+  options: {
+    groupBy?: string
+    groupKeyFn: (item: T, groupBy: string) => string  // 从记录中提取分组 key
+    limit?: number
+  },
+): Promise<{ total: number; list: T[]; groups?: Array<{ group: string; count: number }> }> {
+  if (options.groupBy) {
+    // groupBy 模式：拉全量 → 内存聚合
+    const all = await eamGetAll<T>(path, params)
+    const groups = new Map<string, number>()
+    for (const item of all) {
+      const key = options.groupKeyFn(item, options.groupBy)
+      groups.set(key, (groups.get(key) ?? 0) + 1)
+    }
+    const sorted = [...groups.entries()].sort((a, b) => b[1] - a[1])
+    return {
+      total: all.length,
+      list: all,
+      groups: sorted.map(([group, count]) => ({ group, count })),
+    }
+  } else {
+    // 普通分页
+    const page = await eamGet<PageResult<T>>(path, { ...params, pageSize: options.limit ?? 20 })
+    return { total: page.total, list: page.list }
+  }
+}
+
 /** 并行调用多个 API，返回 [result1, result2, ...] */
 export async function eamParallel<T extends unknown[]>(
   ...calls: { (): Promise<unknown> }[]
