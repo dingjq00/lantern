@@ -220,7 +220,9 @@ export async function processQuery(
         if ('items' in d && Array.isArray(d.items) && d.items.length > 0) return true
         if ('groups' in d && Array.isArray(d.groups) && d.groups.length > 0) return true
         if ('context' in d) return false  // 有 context 说明空结果需要审查
-        return true  // 其他格式默认有数据
+        // 没有 total/items/groups 字段的数据（如 dashboard 嵌套对象）默认有数据
+        if (!('total' in d) && !('items' in d) && !('groups' in d)) return true
+        return false  // 有这些字段但都为空 → 确实没数据
       })
       if (round === 0 && uncoveredDomains.length === 0 && clarity === 'high'
           && allResults.length === totalCallsAttempted && allResults.length > 0
