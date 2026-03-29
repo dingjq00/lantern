@@ -35,11 +35,13 @@ export default function BenchmarkDashboard() {
   const [runs, setRuns] = useState<RunSummary[]>([])
   const [selectedRun, setSelectedRun] = useState<RunDetail | null>(null)
   const [compareRun, setCompareRun] = useState<RunDetail | null>(null)
-  const [tab, setTab] = useState<'benchmark' | 'lessons'>('benchmark')
+  const [tab, setTab] = useState<'benchmark' | 'lessons' | 'quality'>('benchmark')
   const [filter, setFilter] = useState<string>('all')
   const [loading, setLoading] = useState(true)
   const [lessons, setLessons] = useState<LessonItem[]>([])
   const [lessonsLoading, setLessonsLoading] = useState(false)
+  const [qualityData, setQualityData] = useState<any>(null)
+  const [qualityLoading, setQualityLoading] = useState(false)
 
   useEffect(() => {
     fetch('/api/benchmark/runs').then(r => r.json()).then(data => { setRuns(data); setLoading(false) })
@@ -52,6 +54,16 @@ export default function BenchmarkDashboard() {
     const data = await res.json()
     setLessons(data)
     setLessonsLoading(false)
+  }
+
+  const loadQuality = async () => {
+    if (qualityData) return
+    setQualityLoading(true)
+    try {
+      const res = await fetch('/api/benchmark/quality')
+      if (res.ok) setQualityData(await res.json())
+    } catch {}
+    setQualityLoading(false)
   }
 
   const loadRun = async (runId: string, isCompare = false) => {
@@ -87,6 +99,10 @@ export default function BenchmarkDashboard() {
                 className={`text-sm pb-1 border-b-2 transition-colors ${tab === 'lessons' ? 'text-blue-700 border-blue-700 font-semibold' : 'text-gray-500 border-transparent hover:text-gray-700'}`}>
                 Lessons ({lessons.length || '...'})
               </button>
+              <button onClick={() => { setTab('quality'); loadQuality() }}
+                className={`text-sm pb-1 border-b-2 transition-colors ${tab === 'quality' ? 'text-blue-700 border-blue-700 font-semibold' : 'text-gray-500 border-transparent hover:text-gray-700'}`}>
+                输出质量
+              </button>
             </div>
           </div>
           {tab === 'benchmark' && selectedRun && (
@@ -116,6 +132,9 @@ export default function BenchmarkDashboard() {
 
         {/* Lessons Tab */}
         {tab === 'lessons' && <LessonsPanel lessons={lessons} loading={lessonsLoading} />}
+
+        {/* Quality Tab */}
+        {tab === 'quality' && <QualityPanel data={qualityData} loading={qualityLoading} />}
 
         {/* 运行列表 */}
         {tab === 'benchmark' && !selectedRun && (
@@ -595,6 +614,90 @@ function LessonsPanel({ lessons, loading }: { lessons: LessonItem[]; loading: bo
                 <td className="px-3 py-2 text-xs text-gray-400">{l.source}</td>
               </tr>
             ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  )
+}
+
+function QualityPanel({ data, loading }: { data: any; loading: boolean }) {
+  if (loading) return <div className="p-8 text-center text-gray-400">加载中...</div>
+  if (!data) return (
+    <div className="p-8 text-center text-gray-400">
+      暂无质量评估数据。运行: <code className="bg-gray-100 px-2 py-1 rounded text-sm">LLM_BASE_URL=xxx npx tsx scripts/quality-eval.ts</code>
+    </div>
+  )
+
+  const { stats, scores, runId, model, timestamp } = data
+
+  return (
+    <div className="space-y-4">
+      <p className="text-sm text-gray-500">Run: {runId} | 模型: {model} | {new Date(timestamp).toLocaleString('zh-CN')}</p>
+
+      {/* 汇总卡片 */}
+      <div className="grid grid-cols-6 gap-3">
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 text-center">
+          <div className="text-2xl font-bold text-blue-700">{stats.avgOverall.toFixed(1)}</div>
+          <div className="text-xs text-gray-500">综合平均</div>
+        </div>
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 text-center">
+          <div className="text-2xl font-bold">{stats.avgComplete.toFixed(1)}</div>
+          <div className="text-xs text-gray-500">完整性</div>
+        </div>
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 text-center">
+          <div className="text-2xl font-bold">{stats.avgAccuracy.toFixed(1)}</div>
+          <div className="text-xs text-gray-500">准确性</div>
+        </div>
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 text-center">
+          <div className="text-2xl font-bold">{stats.avgUsability.toFixed(1)}</div>
+          <div className="text-xs text-gray-500">可用性</div>
+        </div>
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 text-center">
+          <div className="text-2xl font-bold text-green-500">{scores.filter((s: any) => s.qualityAvg >= 4).length}</div>
+          <div className="text-xs text-gray-500">优秀(≥4)</div>
+        </div>
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 text-center">
+          <div className="text-2xl font-bold text-red-500">{scores.filter((s: any) => s.qualityAvg < 3).length}</div>
+          <div className="text-xs text-gray-500">差(&lt;3)</div>
+        </div>
+      </div>
+
+      {/* 详细表格 */}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+        <table className="w-full text-sm text-gray-900">
+          <thead>
+            <tr className="bg-blue-800 text-white">
+              <th className="px-3 py-2 text-left w-16">ID</th>
+              <th className="px-3 py-2 text-left w-12">级</th>
+              <th className="px-3 py-2 text-left">查询</th>
+              <th className="px-3 py-2 text-center w-16">Recall</th>
+              <th className="px-3 py-2 text-center w-14">完整</th>
+              <th className="px-3 py-2 text-center w-14">准确</th>
+              <th className="px-3 py-2 text-center w-14">可用</th>
+              <th className="px-3 py-2 text-center w-14">均分</th>
+              <th className="px-3 py-2 text-left">问题</th>
+              <th className="px-3 py-2 text-left">建议</th>
+            </tr>
+          </thead>
+          <tbody>
+            {scores.map((s: any, i: number) => {
+              const color = s.qualityAvg >= 4 ? 'text-green-700' : s.qualityAvg >= 3 ? 'text-amber-600' : 'text-red-600'
+              return (
+                <tr key={i} className={`${i % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-blue-50`}>
+                  <td className="px-3 py-2 font-mono text-xs">{s.id}</td>
+                  <td className="px-3 py-2 text-xs">{s.level}</td>
+                  <td className="px-3 py-2 max-w-[200px] truncate" title={s.query}>{s.query}</td>
+                  <td className="px-3 py-2 text-center text-xs">{(s.recall * 100).toFixed(0)}%</td>
+                  <td className="px-3 py-2 text-center">{s.completeness}</td>
+                  <td className="px-3 py-2 text-center">{s.accuracy}</td>
+                  <td className="px-3 py-2 text-center">{s.usability}</td>
+                  <td className={`px-3 py-2 text-center font-bold ${color}`}>{s.qualityAvg}</td>
+                  <td className="px-3 py-2 text-xs text-gray-600 max-w-[200px]">{s.issues}</td>
+                  <td className="px-3 py-2 text-xs text-gray-600 max-w-[200px]">{s.suggestion}</td>
+                </tr>
+              )
+            })}
           </tbody>
         </table>
       </div>
