@@ -290,8 +290,8 @@ async function runBenchmarkForModel(
       }
       results.push(r)
       const recallStr = recall === 1 ? '✅' : `⚠️${(recall * 100).toFixed(0)}%`
-      const factStr = factCheck.mustTotal > 0 ? ` F:${factCheck.mustHit}/${factCheck.mustTotal}` : ''
-      const forbidStr = factCheck.forbiddenHit.length > 0 ? ` ⛔${factCheck.forbiddenHit.length}` : ''
+      const factStr = factCheck?.mustTotal ? ` F:${factCheck.mustHit}/${factCheck.mustTotal}` : ''
+      const forbidStr = factCheck?.forbiddenHit?.length ? ` ⛔${factCheck.forbiddenHit.length}` : ''
       console.log(`[${done}/${ACTIVE_CASES.length}] ${tc.id} ${tc.level} ${recallStr}${factStr}${forbidStr} ${latencyMs}ms ${tc.query.slice(0, 25)}...`)
     } catch (err) {
       done++

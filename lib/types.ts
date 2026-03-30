@@ -1,4 +1,4 @@
-// Insight68 NL-API Platform — 全局类型定义
+// Lantern NL-API Platform — 全局类型定义
 // 来源：docs/specs/platform-design.md Section 2.3 / 4.1 / 5.2
 
 // ============================================================
