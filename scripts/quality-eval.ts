@@ -77,11 +77,31 @@ function summarizeSingleResult(d: unknown): string {
           parts.push(`  ${field} 分布: ${JSON.stringify(dist)}`)
         }
       }
-      // 前 3 条样本（完整 JSON）
-      const sampleCount = Math.min(3, items.length)
-      parts.push(`  前${sampleCount}条样本:`)
-      for (let i = 0; i < sampleCount; i++) {
-        parts.push(`    ${JSON.stringify(items[i])}`)
+      // 数值字段汇总（sum/min/max）
+      const numFields = Object.keys(items[0]).filter(k => typeof items[0][k] === 'number')
+      for (const field of numFields) {
+        const vals = items.map(item => (item[field] as number) ?? 0)
+        const sum = vals.reduce((a, b) => a + b, 0)
+        const min = Math.min(...vals)
+        const max = Math.max(...vals)
+        parts.push(`  ${field}: sum=${sum} min=${min} max=${max}`)
+      }
+      // 小数据集（≤20条）列出全部，大数据集列前5+后2
+      if (items.length <= 20) {
+        parts.push(`  全部${items.length}条:`)
+        for (let i = 0; i < items.length; i++) {
+          parts.push(`    ${JSON.stringify(items[i])}`)
+        }
+      } else {
+        parts.push(`  前5条样本:`)
+        for (let i = 0; i < 5; i++) {
+          parts.push(`    ${JSON.stringify(items[i])}`)
+        }
+        parts.push(`  ... (省略 ${items.length - 7} 条)`)
+        parts.push(`  后2条:`)
+        for (let i = items.length - 2; i < items.length; i++) {
+          parts.push(`    ${JSON.stringify(items[i])}`)
+        }
       }
     }
   }
