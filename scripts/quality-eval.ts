@@ -13,6 +13,7 @@ if (fs.existsSync(envPath)) {
 
 import OpenAI from 'openai'
 import { SQLiteStorage } from '../lib/storage/sqlite'
+import { buildDigestForSummarize } from '../lib/brain/data-digest'
 
 const LLM_BASE_URL = process.env.LLM_BASE_URL || 'http://38.55.108.188:8317/v1'
 const LLM_API_KEY = process.env.LLM_API_KEY || 'sk-mes-ai-explorer-2026'
@@ -34,105 +35,17 @@ interface QualityScore {
   suggestion: string    // 改进建议
 }
 
-/** 生成数据摘要 — 让评估 AI 看到完整的统计信息，而不是截断的 JSON */
-function summarizeData(data: unknown): string {
-  if (!data || typeof data !== 'object') return JSON.stringify(data)
+// 数据摘要已复用 lib/brain/data-digest.ts 的 buildDigestForSummarize
 
-  // 多工具返回：data 是数组
-  if (Array.isArray(data)) {
-    return data.map((d, i) => `[工具${i}] ${summarizeSingleResult(d)}`).join('\n\n')
-  }
-
-  return summarizeSingleResult(data)
-}
-
-function summarizeSingleResult(d: unknown): string {
-  if (!d || typeof d !== 'object') return String(d)
-  const obj = d as Record<string, unknown>
-  const parts: string[] = []
-
-  // total / count
-  if ('total' in obj) parts.push(`total: ${obj.total}`)
-  if ('count' in obj) parts.push(`count: ${obj.count}`)
-  if ('context' in obj) parts.push(`context: ${obj.context}`)
-
-  // items 数组 — 统计分布而非截断
-  if ('items' in obj && Array.isArray(obj.items)) {
-    const items = obj.items as Record<string, unknown>[]
-    parts.push(`items: ${items.length} 条`)
-    if (items.length > 0) {
-      // 提取所有字段名
-      parts.push(`  字段: ${Object.keys(items[0]).join(', ')}`)
-      // 对常见分类字段做分布统计
-      const distFields = ['status', 'orderStatus', 'progressStatus', 'validatedStatus',
-        'type', 'category', 'priority', 'severity', 'department', 'productionLine',
-        'decisionType', 'resultStatus']
-      for (const field of distFields) {
-        if (field in items[0]) {
-          const dist: Record<string, number> = {}
-          for (const item of items) {
-            const v = String(item[field] ?? 'null')
-            dist[v] = (dist[v] || 0) + 1
-          }
-          parts.push(`  ${field} 分布: ${JSON.stringify(dist)}`)
-        }
-      }
-      // 数值字段汇总（sum/min/max）
-      const numFields = Object.keys(items[0]).filter(k => typeof items[0][k] === 'number')
-      for (const field of numFields) {
-        const vals = items.map(item => (item[field] as number) ?? 0)
-        const sum = vals.reduce((a, b) => a + b, 0)
-        const min = Math.min(...vals)
-        const max = Math.max(...vals)
-        parts.push(`  ${field}: sum=${sum} min=${min} max=${max}`)
-      }
-      // 小数据集（≤20条）列出全部，大数据集列前5+后2
-      if (items.length <= 20) {
-        parts.push(`  全部${items.length}条:`)
-        for (let i = 0; i < items.length; i++) {
-          parts.push(`    ${JSON.stringify(items[i])}`)
-        }
-      } else {
-        parts.push(`  前5条样本:`)
-        for (let i = 0; i < 5; i++) {
-          parts.push(`    ${JSON.stringify(items[i])}`)
-        }
-        parts.push(`  ... (省略 ${items.length - 7} 条)`)
-        parts.push(`  后2条:`)
-        for (let i = items.length - 2; i < items.length; i++) {
-          parts.push(`    ${JSON.stringify(items[i])}`)
-        }
-      }
-    }
-  }
-
-  // groups 数组
-  if ('groups' in obj && Array.isArray(obj.groups)) {
-    const groups = obj.groups as Record<string, unknown>[]
-    parts.push(`groups: ${groups.length} 组`)
-    if (groups.length > 0) {
-      for (const g of groups.slice(0, 10)) {
-        parts.push(`  ${JSON.stringify(g)}`)
-      }
-      if (groups.length > 10) parts.push(`  ... (共${groups.length}组)`)
-    }
-  }
-
-  // 其他顶层字段（非 items/groups/total/count/context）
-  const skip = new Set(['items', 'groups', 'total', 'count', 'context'])
-  for (const [k, v] of Object.entries(obj)) {
-    if (skip.has(k)) continue
-    const vs = JSON.stringify(v)
-    parts.push(`${k}: ${vs.length > 300 ? vs.slice(0, 300) + '...' : vs}`)
-  }
-
-  return parts.join('\n')
-}
-
-async function evaluateAnswer(query: string, answer: string, data: unknown): Promise<{
+async function evaluateAnswer(query: string, answer: string, data: unknown, actualTools?: string[]): Promise<{
   completeness: number; accuracy: number; usability: number; issues: string; suggestion: string
 }> {
-  const dataSummary = summarizeData(data)
+  // 复用 data-digest 通用引擎 + 领域公式，不再用独立的 summarizeData
+  const systemId = actualTools?.[0]?.split('.')[0]  // eam.xxx → eam, edhr.xxx → edhr
+  const toolResults = Array.isArray(data)
+    ? data.map((d, i) => ({ tool: actualTools?.[i] || `tool${i}`, data: d }))
+    : [{ tool: actualTools?.[0] || 'unknown', data }]
+  const dataSummary = buildDigestForSummarize(toolResults, systemId)
 
   const response = await client.chat.completions.create({
     model: LLM_MODEL,
@@ -216,7 +129,7 @@ async function main() {
     }
 
     try {
-      const score = await evaluateAnswer(r.query, r.answer, r.data)
+      const score = await evaluateAnswer(r.query, r.answer, r.data, r.actualTools)
       const avg = Math.round((score.completeness + score.accuracy + score.usability) / 3 * 10) / 10
       scores.push({
         id: r.id, query: r.query, level: r.level, recall: r.recall,
