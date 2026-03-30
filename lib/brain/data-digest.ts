@@ -174,9 +174,21 @@ function digestGroupsToObj(obj: Record<string, unknown>): Record<string, unknown
     distribution[label] = entry
   }
 
+  // 对 count 做二次聚合（如"count=2 的有 40 组，count=1 的有 80 组"）
+  const countDist: Record<number, number> = {}
+  for (const g of groups) {
+    const c = Number(g.count ?? g.total ?? g.value ?? 0)
+    countDist[c] = (countDist[c] || 0) + 1
+  }
+  const countSummary = Object.entries(countDist)
+    .sort((a, b) => Number(b[0]) - Number(a[0]))
+    .reduce((acc, [k, v]) => { acc[`count=${k}`] = `${v}组`; return acc }, {} as Record<string, string>)
+
   return {
     total,
+    groupCount: groups.length,
     ...(groupBy ? { groupBy } : {}),
+    countDistribution: countSummary,
     distribution,
   }
 }
