@@ -197,8 +197,9 @@ export async function processQuery(
       const obsData = thinkResult.calls.map((c, ci) => {
         const raw = roundResults[ci] ?? 'error'
         const json = JSON.stringify(raw)
-        // 超过 2000 字符的结果截断，保留结构信息（total/context/keys）
-        if (json.length > 2000) {
+        // 超过 4000 字符的结果截断，保留结构信息（total/context/keys）
+        // 2000 太紧，repair.search detailed 模式 10 条 enriched items 常超 2000 导致 AI 误判数据缺失
+        if (json.length > 4000) {
           const obj = raw as Record<string, unknown>
           const summary: Record<string, unknown> = { _truncated: true }
           if (obj && typeof obj === 'object') {

@@ -85,6 +85,34 @@ export function registerRepairSearch(server: McpServer) {
 
         if (result.groups) {
           const enrichedGroups = args.groupBy === 'productionLine' ? result.groups : await enrichGroupNames(result.groups, args.groupBy!)
+          // groupBy=equipment 时补充成本汇总（让 AI 能找到"维修成本最高的设备"）
+          if (args.groupBy === 'equipment' || args.groupBy === 'productionLine') {
+            const costByGroup = new Map<string, { laborCost: number; materialCost: number; totalCost: number; avgMinutes: number; minutesSum: number }>()
+            for (const r of list) {
+              const key = args.groupBy === 'equipment' ? String(r.equipmentId)
+                : (eqToLine?.get(r.equipmentId) ?? '未分配产线')
+              const cur = costByGroup.get(key) ?? { laborCost: 0, materialCost: 0, totalCost: 0, avgMinutes: 0, minutesSum: 0 }
+              cur.laborCost += r.laborCost ?? 0
+              cur.materialCost += r.materialCost ?? 0
+              cur.totalCost += (r.laborCost ?? 0) + (r.materialCost ?? 0)
+              cur.minutesSum += r.repairMinutes ?? 0
+              costByGroup.set(key, cur)
+            }
+            for (const g of enrichedGroups) {
+              // costByGroup 的 key 是 equipmentId 数字或产线名，g.group 是 "EQ-xxx 设备名" 或产线名
+              for (const [k, v] of costByGroup.entries()) {
+                if (g.group.includes(k) || k === g.group) {
+                  Object.assign(g, {
+                    laborCost: Math.round(v.laborCost * 100) / 100,
+                    materialCost: Math.round(v.materialCost * 100) / 100,
+                    totalCost: Math.round(v.totalCost * 100) / 100,
+                    avgRepairMinutes: g.count > 0 ? Math.round(v.minutesSum / g.count) : 0,
+                  })
+                  break
+                }
+              }
+            }
+          }
           return textResult({ total, groupBy: args.groupBy, groups: enrichedGroups })
         }
       }
