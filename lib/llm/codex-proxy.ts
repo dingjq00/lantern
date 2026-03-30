@@ -1,7 +1,20 @@
 // codex-proxy LLM Provider — 基于 OpenAI SDK
+import fs from 'fs'
+import path from 'path'
 import OpenAI from 'openai'
 import { z } from 'zod'
 import type { LLMProvider, RouteResult, EvaluateResult, SummarizeResult, ThinkResult, ToolDefinition, ToolCall, DisplayFormat, ConfidenceLevel } from '@/lib/types'
+
+/** 懒加载 summarize prompt — 首次调用时从文件读取，后续复用缓存 */
+let summarizePromptText: string | null = null
+function getSummarizePrompt(): string {
+  if (!summarizePromptText) {
+    summarizePromptText = fs.readFileSync(
+      path.join(process.cwd(), 'prompts', 'summarize.md'), 'utf-8'
+    )
+  }
+  return summarizePromptText
+}
 
 /** 从 LLM 返回中提取纯 JSON — 兼容所有模型格式（纯JSON / ```json包裹 / 前后有文字） */
 function extractJSON(content: string): string {
@@ -118,37 +131,7 @@ ${toolDescriptions}
       ...(!this.isReasoningModel && { temperature: 0.3 }),
       max_completion_tokens: 4096,
       messages: [
-        { role: 'system', content: `你是工厂管理系统的数据解读助手。用管理者听得懂的业务语言回答问题。
-
-核心原则：
-1. 不编造 — 只基于数据回答，数字直接引用，不模糊化
-2. "没有"也是答案，但不能只说"没有"就停 — 说完"没有"后，挖掘数据中的相关上下文（如：虽然没有保养记录，但有故障记录，建议关注）
-3. 业务语言 — 说人话，不说技术术语
-
-回答模式：
-- total=0 或 items=[] → "目前没有XX记录" + 从其他数据中挖掘相关信息（如库存状态、关联设备、历史记录等），给出有价值的补充
-- 有数据但某字段为空 → "共N条记录，但XX信息尚未录入"
-- unsupported 标记 → 基于 aiAnalysis 友好说明为什么暂不支持 + 建议替代方案
-- 正常数据 → 先给核心数字，再说关键发现，一两句话
-- 多域数据 → 按域分段概括，每域一句
-
-多工具数据融合规则（重要！）：
-- 数据来自多个工具时，综合所有工具的结果回答，不要只看其中一个
-- 某个工具返回 error 但其他工具有数据 → 以有数据的工具为准，忽略错误的
-- 某个工具返回 error 且错误信息含重定向提示 → 说明查询路径调整，基于其他数据回答
-- 所有工具都是 error → 才说"未找到"
-
-禁用词（绝对不能出现）：数据不足、无法回答、数据不完整、暂无数据
-替代说法：目前没有XX记录、XX信息尚未录入、近期没有XX
-
-followUp（3-5 个后续探索方向，像 Perplexity 的 Related 那样"懂用户下一步想知道什么"）：
-- 祈使句，可直接执行（不要问句）
-- 优先用数据中的具体数字做诱饵，如"查看该设备的2次故障记录"而不是"查看故障记录"
-- 至少1条深挖当前主题，至少1条跨域关联（如：设备→备件，故障→保养）
-- 最值得点的排第一位
-
-返回 JSON: {"answer": "自然语言回答", "display": "text|table|chart", "columns": ["列名"], "followUp": ["后续方向1", "后续方向2", "后续方向3"]}
-数据展示类型参考: ${formatHint}` },
+        { role: 'system', content: `${getSummarizePrompt()}\n数据展示类型参考: ${formatHint}` },
         { role: 'user', content: `问题: ${question}\n数据: ${JSON.stringify(data)}${relatedContext ? `\n\n可深挖方向: ${relatedContext}` : ''}` },
       ],
       ...(!this.isReasoningModel && { response_format: { type: 'json_object' as const } }),
