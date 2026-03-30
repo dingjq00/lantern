@@ -3,6 +3,7 @@ import { assemblePrompt } from './prompt-assembler'
 import { computeConfidence } from './confidence'
 import { detectDisplayFormat, buildStructuredResult } from './result-presenter'
 import { extractIntentFromThinkResult } from './intent'
+import { validateResult } from './validator'
 import { TraceCollector } from './trace'
 import type { ToolRegistry } from '@/lib/tools/registry'
 import type { StorageInterface } from '@/lib/storage/types'
@@ -173,6 +174,14 @@ export async function processQuery(
         }
       }
 
+      // 校验每个工具返回的数据（数值异常、空结果检测）
+      for (const r of allResults) {
+        const validations = validateResult(r.data)
+        for (const v of validations) {
+          trace.addValidation(v)
+        }
+      }
+
       // 观察总结
       const observation = allResults.length > 0
         ? `已获得 ${allResults.length} 个工具的结果`
@@ -207,7 +216,13 @@ export async function processQuery(
         .map(c => `⚠️ ${c}`)
         .join('\n')
       const contextSection = contextHints ? `\n\n${contextHints}\n如果结果为空且有时间限定，尝试去掉时间条件重新查询。` : ''
-      const obsMessage = `观察结果: ${JSON.stringify(obsData)}\n\n事实对比:\n- 用户问: "${query}"\n- 已获得字段: ${[...new Set(dataFields)].join(', ')}${domainCoverageHint}${contextSection}\n\n检查：数据是否已回答用户问题？有无未覆盖的域？够了就 finish，不够就补充。`
+      // 校验警告注入（让 AI 在审查轮感知数值异常）
+      const validationWarnings = trace.build().validation
+        .filter(v => v.severity === 'warning')
+        .map(v => `⚠️ 校验: ${v.message}`)
+        .join('\n')
+      const validationSection = validationWarnings ? `\n\n${validationWarnings}` : ''
+      const obsMessage = `观察结果: ${JSON.stringify(obsData)}\n\n事实对比:\n- 用户问: "${query}"\n- 已获得字段: ${[...new Set(dataFields)].join(', ')}${domainCoverageHint}${contextSection}${validationSection}\n\n检查：数据是否已回答用户问题？有无未覆盖的域？够了就 finish，不够就补充。`
       messages.push({ role: 'user', content: obsMessage })
 
       // 快速完成: 单域 + 全成功 + 无覆盖缺口 + clarity=clear + 有实际数据 → 跳过审查轮
