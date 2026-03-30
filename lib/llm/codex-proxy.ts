@@ -126,18 +126,22 @@ ${toolDescriptions}
     }
   }
 
-  async summarize(data: unknown, question: string, formatHint: DisplayFormat, relatedContext?: string): Promise<SummarizeResult> {
+  async summarize(data: unknown, question: string, formatHint: DisplayFormat, relatedContext?: string, dataDigest?: string): Promise<SummarizeResult> {
     const useModel = SUMMARIZE_MODEL || this.model
     const isReasoning = SUMMARIZE_MODEL
       ? /deepseek-reasoner|gpt-5-mini|gpt-5\.0-mini|\/o[13]/i.test(SUMMARIZE_MODEL)
       : this.isReasoningModel
+    // 优先用预计算摘要（省 token + 数字准确），无摘要时降级为原始 JSON
+    const dataContent = dataDigest
+      ? `数据摘要（已预计算，直接引用数字即可）:\n${dataDigest}`
+      : `数据: ${JSON.stringify(data)}`
     const response = await this.client.chat.completions.create({
       model: useModel,
       ...(!isReasoning && { temperature: 0.3 }),
-      max_completion_tokens: isReasoning ? 8192 : 4096,  // reasoner 需要更多 token（含 reasoning）
+      max_completion_tokens: isReasoning ? 8192 : 4096,
       messages: [
         { role: 'system', content: `${getSummarizePrompt()}\n数据展示类型参考: ${formatHint}` },
-        { role: 'user', content: `问题: ${question}\n数据: ${JSON.stringify(data)}${relatedContext ? `\n\n可深挖方向: ${relatedContext}` : ''}` },
+        { role: 'user', content: `问题: ${question}\n${dataContent}${relatedContext ? `\n\n可深挖方向: ${relatedContext}` : ''}` },
       ],
       ...(!isReasoning && { response_format: { type: 'json_object' as const } }),
     })

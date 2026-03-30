@@ -4,6 +4,7 @@ import { computeConfidence } from './confidence'
 import { detectDisplayFormat, buildStructuredResult } from './result-presenter'
 import { extractIntentFromThinkResult } from './intent'
 import { validateResult } from './validator'
+import { buildDigestForSummarize } from './data-digest'
 import { TraceCollector } from './trace'
 import type { ToolRegistry } from '@/lib/tools/registry'
 import type { StorageInterface } from '@/lib/storage/types'
@@ -292,13 +293,21 @@ export async function processQuery(
   }
   const relatedContext = relatedHints.length > 0 ? relatedHints.join('\n') : undefined
 
+  // 数据处理层 — 将原始 JSON 转为结构化摘要（省 token + 预计算统计值）
+  const toolResultsForDigest = allResults.map(r => ({ tool: r.tool, data: r.data }))
+  const firstToolDef = allResults.length > 0 ? registry.getTool(allResults[0].tool) : undefined
+  const systemId = firstToolDef?.system
+  const dataDigest = toolResultsForDigest.length > 0
+    ? buildDigestForSummarize(toolResultsForDigest, systemId)
+    : undefined
+
   // LLM 总结（容错）
   const mergedData = allResults.map(r => r.data)
   const firstData = mergedData.length === 1 ? mergedData[0] : mergedData
   const formatHint = detectDisplayFormat(firstData)
   let summary: Awaited<ReturnType<LLMProvider['summarize']>>
   try {
-    summary = await llm.summarize(firstData, query, formatHint, relatedContext)
+    summary = await llm.summarize(firstData, query, formatHint, relatedContext, dataDigest)
   } catch (err) {
     console.warn('[Router] LLM summarize 失败:', (err as Error).message)
     summary = { answer: '查询已完成，请查看下方数据详情。', display: 'text' }

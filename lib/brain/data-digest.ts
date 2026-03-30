@@ -528,3 +528,44 @@ function isNumericField(key: string, values: unknown[]): boolean {
 
   return true
 }
+
+// ============================================================
+// 集成入口 — 通用引擎 + 领域公式
+// ============================================================
+
+import { SYSTEM_REGISTRY } from '@/lib/systems'
+import { applyDomainFormulas } from './domain-formulas'
+
+/**
+ * 为 summarize 构建完整数据摘要（通用统计 + 领域 KPI）
+ * 替代 JSON.stringify(data) 传给 LLM
+ */
+export function buildDigestForSummarize(
+  results: Array<{ tool: string; data: unknown }>,
+  systemId?: string,
+): string {
+  // 1. 通用引擎输出
+  const genericDigest = digestToolResults(results)
+
+  // 2. 领域公式（如果有配置）
+  const metrics = systemId ? SYSTEM_REGISTRY[systemId]?.computedMetrics : undefined
+  if (!metrics) return genericDigest
+
+  // 对每个工具的 items 数据应用领域公式
+  const formulaLines: string[] = []
+  for (const r of results) {
+    if (!r.data || typeof r.data !== 'object') continue
+    const obj = r.data as Record<string, unknown>
+    if ('items' in obj && Array.isArray(obj.items) && obj.items.length > 0) {
+      const result = applyDomainFormulas(
+        obj.items as Record<string, unknown>[],
+        (obj.total as number) || obj.items.length,
+        metrics,
+      )
+      if (result) formulaLines.push(result)
+    }
+  }
+
+  if (formulaLines.length === 0) return genericDigest
+  return genericDigest + '\n\n' + formulaLines.join('\n')
+}
