@@ -58,7 +58,7 @@ export function TracePanel({ trace }: TracePanelProps) {
             {trace.intent && (
               <div>意图: {trace.intent.domains.join('/')} / {trace.intent.operation} / [{trace.intent.filters.join(', ')}]</div>
             )}
-            <div>Verdict: {trace.verdict ? `${trace.verdict.toolChain.join('→')} (score ${trace.verdict.avgScore})` : '无历史记录'}</div>
+            <div>Verdict: 已停用（P1.5 清理）</div>
             <div>
               置信度: toolMatch={trace.confidence.toolMatch} verdict={trace.confidence.verdictConfidence} clarity={trace.confidence.queryClarity}
               → 最终={trace.finalConfidence}

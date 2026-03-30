@@ -1,9 +1,8 @@
 // 路由主编排器 — P1: ReAct 循环（批量调用 + 按需追查）
 import { assemblePrompt } from './prompt-assembler'
-import { computeConfidence, computeVerdictConfidence } from './confidence'
+import { computeConfidence } from './confidence'
 import { detectDisplayFormat, buildStructuredResult } from './result-presenter'
 import { extractIntentFromThinkResult } from './intent'
-import { maybeUpdateVerdict } from './verdict'
 import { TraceCollector } from './trace'
 import type { ToolRegistry } from '@/lib/tools/registry'
 import type { StorageInterface } from '@/lib/storage/types'
@@ -48,13 +47,11 @@ export async function processQuery(
     ? history.slice(0, -1).map(m => `${m.role === 'user' ? '用户' : '系统'}: ${m.content}`).join('\n')
     : undefined
 
-  // 查 verdict（先用空 hash，首轮 think 后更新）
   let intent: IntentTags | undefined
   let clarity: ConfidenceLevel = 'medium'
-  let verdict = null as ReturnType<StorageInterface['getVerdict']>
 
   // 组装 Prompt
-  const { systemPrompt } = assemblePrompt(query, allTools, { memoryContext: historyContext, verdict })
+  const { systemPrompt } = assemblePrompt(query, allTools, { memoryContext: historyContext })
   const messages: Array<{ role: string; content: string }> = [
     { role: 'system', content: systemPrompt },
     { role: 'user', content: query },
@@ -84,8 +81,6 @@ export async function processQuery(
       if (extracted.intent) {
         intent = extracted.intent
         trace.setIntent(intent)
-        verdict = storage.getVerdict(tenantId, intent.intentHash)
-        trace.setVerdict(verdict)
       }
     }
 
@@ -101,7 +96,7 @@ export async function processQuery(
       if (escalated.unsupported || !escalated.calls?.length) {
         // 强模型也搞不定——用 AI 推理生成上下文相关的回复，不用写死文本
         trace.endRound('强模型也无法处理，确认超纲')
-        const signals: ConfidenceSignals = { toolMatch: 'low', verdictConfidence: 'low', queryClarity: clarity }
+        const signals: ConfidenceSignals = { toolMatch: 'low', verdictConfidence: 'medium', queryClarity: clarity }
         trace.setConfidence(signals, 'low')
         const unsupportedSummary = await llm.summarize(
           { unsupported: true, aiAnalysis: escalated.thought },
@@ -250,8 +245,7 @@ export async function processQuery(
   const toolMatch: ConfidenceLevel = totalCallsAttempted === 0 ? 'low'
     : allResults.length === totalCallsAttempted ? 'high'
     : allResults.length > 0 ? 'medium' : 'low'
-  const verdictConfidence = computeVerdictConfidence(verdict)
-  const signals: ConfidenceSignals = { toolMatch, verdictConfidence, queryClarity: clarity }
+  const signals: ConfidenceSignals = { toolMatch, verdictConfidence: 'medium', queryClarity: clarity }
   const finalConfidence = computeConfidence(signals)
   trace.setConfidence(signals, finalConfidence)
 
@@ -312,12 +306,6 @@ export async function processQuery(
     }
     storage.insertSession(session)
     storage.insertTrace(tenantId, trace.build(), session.sessionId)
-    // 触发 verdict 更新（异步，冷启动阈值 3）
-    if (intent?.intentHash) {
-      maybeUpdateVerdict(storage, tenantId, intent.intentHash, 3).catch(err =>
-        console.warn('[Router] Verdict 更新失败:', err)
-      )
-    }
   } catch (err) { console.warn('[Router] Session/trace 写入失败:', err) }
 
   const result = buildStructuredResult(

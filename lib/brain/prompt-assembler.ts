@@ -1,7 +1,7 @@
-// Prompt 动态组装器 — P1: 支持 ReAct 格式 + verdict 注入
+// Prompt 动态组装器 — P1: 支持 ReAct 格式
 import fs from 'fs'
 import path from 'path'
-import type { ToolDefinition, MemoryVerdict } from '@/lib/types'
+import type { ToolDefinition } from '@/lib/types'
 import { SYSTEM_REGISTRY } from '@/lib/systems'
 
 const PROMPTS_DIR = path.join(process.cwd(), 'prompts')
@@ -50,7 +50,6 @@ function getFewShotExamples(): unknown[] {
 
 export interface AssembleOptions {
   memoryContext?: string
-  verdict?: MemoryVerdict | null
 }
 
 /**
@@ -141,11 +140,7 @@ export function assemblePrompt(
   ]
   // Layer 6: User Input → 在 userMessage 里，不在 system prompt 里
 
-  // 动态注入（verdict、用户上下文）
-  if (options.verdict && options.verdict.toolChain.length > 0) {
-    sections.push(`\n\n## 历史推荐路径\n${options.verdict.toolChain.join(' → ')}（评分 ${options.verdict.avgScore.toFixed(1)}，${options.verdict.sampleCount} 次样本）`)
-  }
-
+  // 动态注入（用户上下文）
   if (options.memoryContext) {
     sections.push(`\n\n## 用户上下文\n${options.memoryContext}`)
   }

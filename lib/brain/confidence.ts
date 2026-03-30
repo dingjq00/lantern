@@ -16,11 +16,9 @@ export function computeConfidence(signals: ConfidenceSignals): ConfidenceLevel {
 }
 
 /**
- * P1: 从 verdict 计算 verdictConfidence 信号
- * sample≥10 → high, 3-9 → medium, <3 或无 → low
+ * P1.5: verdict 已停用，固定返回 medium（不拖后腿也不加分）
+ * 未来自学习复活时改回动态计算
  */
-export function computeVerdictConfidence(verdict: MemoryVerdict | null): ConfidenceLevel {
-  if (!verdict || verdict.sampleCount < 3) return 'low'
-  if (verdict.sampleCount >= 10) return 'high'
+export function computeVerdictConfidence(_verdict: MemoryVerdict | null): ConfidenceLevel {
   return 'medium'
 }
