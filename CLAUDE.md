@@ -1,4 +1,4 @@
-# CLAUDE.md — Insight68 NL-API Platform
+# CLAUDE.md — Lantern NL-API Platform（原 Insight68）
 
 ## 项目概述
 

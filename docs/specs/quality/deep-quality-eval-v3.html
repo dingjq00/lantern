@@ -1,0 +1,799 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"><title>Insight68 深度质量评测 v3</title>
+<style>
+  body { font-family: -apple-system, sans-serif; max-width: 1200px; margin: 0 auto; padding: 20px; background: #f5f5f5; }
+  .header { background: linear-gradient(135deg, #667eea, #764ba2); color: white; padding: 30px; border-radius: 12px; margin-bottom: 20px; }
+  .header h1 { margin: 0; font-size: 24px; } .header p { margin: 5px 0 0; opacity: 0.9; }
+  .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 20px; }
+  .stat { background: white; padding: 16px; border-radius: 8px; text-align: center; }
+  .stat .num { font-size: 28px; font-weight: bold; color: #333; } .stat .label { color: #666; font-size: 13px; }
+  .card { background: white; border-radius: 8px; padding: 16px; margin-bottom: 8px; border-left: 4px solid #ddd; }
+  .card.score5 { border-left-color: #4caf50; } .card.score4 { border-left-color: #8bc34a; }
+  .card.score3 { border-left-color: #ff9800; } .card.score2 { border-left-color: #f44336; } .card.score1 { border-left-color: #9c27b0; }
+  .card .header-row { display: flex; justify-content: space-between; align-items: center; }
+  .card .id { font-weight: bold; color: #333; } .card .level { color: #666; font-size: 12px; }
+  .card .score-badge { padding: 2px 8px; border-radius: 4px; font-size: 12px; font-weight: bold; color: white; }
+  .s5 { background: #4caf50; } .s4 { background: #8bc34a; } .s3 { background: #ff9800; } .s2 { background: #f44336; } .s1 { background: #9c27b0; }
+  .card .query { color: #1a1a2e; margin: 8px 0 4px; font-size: 14px; }
+  .card .answer { color: #555; font-size: 13px; line-height: 1.5; background: #f8f8f8; padding: 8px; border-radius: 4px; }
+  .card .gt { color: #888; font-size: 12px; margin-top: 4px; } .card .issues { color: #e65100; font-size: 12px; }
+  .section-title { font-size: 18px; font-weight: bold; margin: 20px 0 10px; padding: 8px 0; border-bottom: 2px solid #ddd; }
+  .system-badge { display: inline-block; padding: 2px 6px; border-radius: 3px; font-size: 11px; margin-left: 4px; }
+  .sys-eam { background: #e3f2fd; color: #1565c0; } .sys-edhr { background: #f3e5f5; color: #7b1fa2; }
+</style></head><body>
+<div class="header">
+  <h1>Insight68 深度质量评测</h1>
+  <p>75 题双系统 × DeepSeek Chat | 2026-03-29T17:38 | 逐题 API 验证</p>
+</div>
+<div class="stats">
+  <div class="stat"><div class="num">4.1</div><div class="label">平均质量分 /5</div></div>
+  <div class="stat"><div class="num">69</div><div class="label">ACCURATE</div></div>
+  <div class="stat"><div class="num">6</div><div class="label">MINOR</div></div>
+  <div class="stat"><div class="num">0</div><div class="label">MAJOR</div></div>
+</div>
+<div class="stats">
+  <div class="stat"><div class="num">4.3</div><div class="label">EAM 质量分</div></div>
+  <div class="stat"><div class="num">4.0</div><div class="label">EDHR 质量分</div></div>
+  <div class="stat"><div class="num">4.3</div><div class="label">L1-L2 质量分</div></div>
+  <div class="stat"><div class="num">4.0</div><div class="label">L3-L5 质量分</div></div>
+</div>
+
+<div class="section-title">EAM (40题, 平均4.3/5)</div>
+<div class="card score5">
+  <div class="header-row">
+    <span><span class="id">T01</span> <span class="level">L1</span> <span class="system-badge sys-eam">EAM</span></span>
+    <span class="score-badge s5">5/5</span>
+  </div>
+  <div class="query">现在系统里一共有多少台设备？</div>
+  <div class="answer">系统里一共有150台设备，其中120台正在运行，8台处于故障状态。</div>
+  <div class="gt">GT: 设备150台, 运行中120</div>
+  
+</div>
+<div class="card score5">
+  <div class="header-row">
+    <span><span class="id">T02</span> <span class="level">L1</span> <span class="system-badge sys-eam">EAM</span></span>
+    <span class="score-badge s5">5/5</span>
+  </div>
+  <div class="query">当前有几个待审核的故障报修？</div>
+  <div class="answer">目前有10个待审核的故障报修，其中紧急级别7个、特急级别2个，还有1个紧急级别信息尚未录入。</div>
+  <div class="gt">GT: 待审核故障=10</div>
+  
+</div>
+<div class="card score5">
+  <div class="header-row">
+    <span><span class="id">T03</span> <span class="level">L1</span> <span class="system-badge sys-eam">EAM</span></span>
+    <span class="score-badge s5">5/5</span>
+  </div>
+  <div class="query">设备 EQ-A301-001 的详细信息是什么？</div>
+  <div class="answer">设备 EQ-A301-001 是薄膜包衣机 #1，当前运行中，位于固体车间公用工程区，制造商 IMA，型号 Perfima 250，是关键设备，负责人 ID 为 201 和 208。近一年健康评分 84 分，OEE 93.4%，维修成本 2847.43 元，平均维修时间 5.6 小时，无故障记录但有一次维修记录。近30天没有故障或维修记录，有1条巡检记录但无具体检查数据，备件清单有4项且库存充足，生命周期记录显示从待验收转为运行中。</div>
+  <div class="gt">GT: EQ-A301-001=薄膜包衣机#1, 运行中, isKey=1</div>
+  
+</div>
+<div class="card score5">
+  <div class="header-row">
+    <span><span class="id">T04</span> <span class="level">L1</span> <span class="system-badge sys-eam">EAM</span></span>
+    <span class="score-badge s5">5/5</span>
+  </div>
+  <div class="query">各状态的设备数量分布是怎样的？</div>
+  <div class="answer">目前共有150台设备，其中120台运行中，8台维修中，5台闲置，5台待验收，3台报废，3台停机，2台封存，2台待整改，2台其他。</div>
+  <div class="gt">GT: 运行中=120, 维修中=8, 待验收=5, 停机=3, 封存=2, 待整改=2, 闲置=5, 报废=3, 其他=2</div>
+  
+</div>
+<div class="card score4">
+  <div class="header-row">
+    <span><span class="id">T05</span> <span class="level">L1</span> <span class="system-badge sys-eam">EAM</span></span>
+    <span class="score-badge s4">4/5</span>
+  </div>
+  <div class="query">最近 30 天的故障趋势怎么样？</div>
+  <div class="answer">近30天共发生37次故障，平均每天约1.2次。故障次数在1到2次之间波动，没有出现明显上升或下降趋势，整体比较平稳。</div>
+  <div class="gt">GT: 最近30天故障36条</div>
+  <div class="issues">⚠ 故障数应为36</div>
+</div>
+<div class="card score4">
+  <div class="header-row">
+    <span><span class="id">T06</span> <span class="level">L1</span> <span class="system-badge sys-eam">EAM</span></span>
+    <span class="score-badge s4">4/5</span>
+  </div>
+  <div class="query">巡检异常的整体统计指标是什么？</div>
+  <div class="answer">巡检异常的整体统计指标显示：近30天共有183次巡检，其中171次超期未完成，占比高达93%，只有12次完成。异常按严重程度分布：低风险23个、中风险8个、高风险9个。设备方面，150台设备中有8台故障、3台报废，故障报修有10个待处理，维修工单有30个待接单，保养有18个待执行，备件有3个低库存预警。</div>
+  
+  
+</div>
+<div class="card score4">
+  <div class="header-row">
+    <span><span class="id">T07</span> <span class="level">L1</span> <span class="system-badge sys-eam">EAM</span></span>
+    <span class="score-badge s4">4/5</span>
+  </div>
+  <div class="query">当前有哪些库存预警？</div>
+  <div class="answer">目前有8个库存预警，都是低库存预警。具体包括：标准湿度发生器、标准电阻箱、标准压力源、标准数字温度计、标准水银温度计、标准砝码组、标准砝码和UV氘灯。其中UV氘灯库存为0，低于下限1，其他物品库存都等于下限。</div>
+  
+  
+</div>
+<div class="card score4">
+  <div class="header-row">
+    <span><span class="id">T08</span> <span class="level">L1</span> <span class="system-badge sys-eam">EAM</span></span>
+    <span class="score-badge s4">4/5</span>
+  </div>
+  <div class="query">我有哪些待办事项？</div>
+  <div class="answer">您有18项待办事项，分布在报修、维修、保养和备件预警四个领域。具体包括：5项待审核报修、5项待接单维修工单、5项待执行保养，以及3项备件库存预警（UV氘灯已耗尽、搅拌桨叶库存等于安全线、机械密封已耗尽）。</div>
+  
+  
+</div>
+<div class="card score5">
+  <div class="header-row">
+    <span><span class="id">T09</span> <span class="level">L1</span> <span class="system-badge sys-eam">EAM</span></span>
+    <span class="score-badge s5">5/5</span>
+  </div>
+  <div class="query">维修工单目前各状态有多少个？</div>
+  <div class="answer">维修工单目前共160个，按状态分布：已完成80个、待验收30个、挂起20个、维修中12个、待分配10个、待接单8个。</div>
+  <div class="gt">GT: 维修总数160, 已完成=80</div>
+  
+</div>
+<div class="card score4">
+  <div class="header-row">
+    <span><span class="id">T10</span> <span class="level">L1</span> <span class="system-badge sys-eam">EAM</span></span>
+    <span class="score-badge s4">4/5</span>
+  </div>
+  <div class="query">设备分类中哪类设备最多？</div>
+  <div class="answer">设备分类中，类别10025的设备最多，共有34台，占总数150台的22.7%。</div>
+  
+  
+</div>
+<div class="card score4">
+  <div class="header-row">
+    <span><span class="id">T11</span> <span class="level">L2</span> <span class="system-badge sys-eam">EAM</span></span>
+    <span class="score-badge s4">4/5</span>
+  </div>
+  <div class="query">上月故障最多的设备是哪台？</div>
+  <div class="answer">上月共39台设备发生故障，每台设备故障次数均为1次，没有故障最多的设备。</div>
+  
+  
+</div>
+<div class="card score5">
+  <div class="header-row">
+    <span><span class="id">T12</span> <span class="level">L2</span> <span class="system-badge sys-eam">EAM</span></span>
+    <span class="score-badge s5">5/5</span>
+  </div>
+  <div class="query">维修工单 RO-20260312-0157 用了哪些备件？</div>
+  <div class="answer">维修工单 RO-20260312-0157 共使用了2种备件，总成本1080.32元。具体为：保险丝2个，单价428.08元，总价856.16元；滤芯3个，单价74.72元，总价224.16元。</div>
+  <div class="gt">GT: RO-20260312-0157 有2个备件, 总成本约1080</div>
+  
+</div>
+<div class="card score4">
+  <div class="header-row">
+    <span><span class="id">T13</span> <span class="level">L2</span> <span class="system-badge sys-eam">EAM</span></span>
+    <span class="score-badge s4">4/5</span>
+  </div>
+  <div class="query">设备 EQ-A202-002 的保养任务执行情况怎样？</div>
+  <div class="answer">设备 EQ-A202-002 共有 5 条保养任务记录，其中 4 条已完成，1 条待执行。最近一次任务在 2026 年 7 月 1 日完成，下一次任务计划于 2026 年 11 月 1 日开始。</div>
+  
+  
+</div>
+<div class="card score5">
+  <div class="header-row">
+    <span><span class="id">T14</span> <span class="level">L2</span> <span class="system-badge sys-eam">EAM</span></span>
+    <span class="score-badge s5">5/5</span>
+  </div>
+  <div class="query">近 7 天完成了几个巡检任务？</div>
+  <div class="answer">近7天没有完成任何巡检任务。</div>
+  <div class="gt">GT: 近7天完成巡检: 0个（数据集中巡检在2025-11~2026-01）</div>
+  
+</div>
+<div class="card score5">
+  <div class="header-row">
+    <span><span class="id">T15</span> <span class="level">L2</span> <span class="system-badge sys-eam">EAM</span></span>
+    <span class="score-badge s5">5/5</span>
+  </div>
+  <div class="query">当前维修中的设备都是哪些？</div>
+  <div class="answer">当前有8台设备处于维修中状态。包括条码扫描枪、卡氏水分仪、片剂硬度计、铝塑包装机、薄膜包衣机、旋转压片机、高速压片机和湿法制粒机各一台。</div>
+  <div class="gt">GT: 维修中设备8台</div>
+  
+</div>
+<div class="card score3">
+  <div class="header-row">
+    <span><span class="id">T16</span> <span class="level">L2</span> <span class="system-badge sys-eam">EAM</span></span>
+    <span class="score-badge s3">3/5</span>
+  </div>
+  <div class="query">备件 SP-GY-005 都用在哪些设备上？</div>
+  <div class="answer">目前没有备件 SP-GY-005 的使用记录。</div>
+  
+  <div class="issues">⚠ 回答过短</div>
+</div>
+<div class="card score3">
+  <div class="header-row">
+    <span><span class="id">T17</span> <span class="level">L2</span> <span class="system-badge sys-eam">EAM</span></span>
+    <span class="score-badge s3">3/5</span>
+  </div>
+  <div class="query">设备 EQ-A301-001 最近一次保养是什么时候？</div>
+  <div class="answer">目前没有设备 EQ-A301-001 的保养记录。</div>
+  
+  <div class="issues">⚠ 回答过短</div>
+</div>
+<div class="card score5">
+  <div class="header-row">
+    <span><span class="id">T18</span> <span class="level">L2</span> <span class="system-badge sys-eam">EAM</span></span>
+    <span class="score-badge s5">5/5</span>
+  </div>
+  <div class="query">本月新增了多少故障报修？</div>
+  <div class="answer">本月新增了34条故障报修记录，其中20条已撤回。所有已撤回的报修中，紧急级别占多数，特急级别有3条。</div>
+  <div class="gt">GT: 本月(3月)新增故障34个</div>
+  
+</div>
+<div class="card score4">
+  <div class="header-row">
+    <span><span class="id">T19</span> <span class="level">L2</span> <span class="system-badge sys-eam">EAM</span></span>
+    <span class="score-badge s4">4/5</span>
+  </div>
+  <div class="query">设备 EQ-A301-003 的全生命周期事件有哪些？</div>
+  <div class="answer">设备 EQ-A301-003（薄膜包衣机 #3）的全生命周期事件共4条记录，覆盖从购入到运行状态变更。关键事件包括：2024年6月购入，原值190万元；2024年11月验收合格投入运行；2025年1月因季度预防性维保暂停运行；2025年2月维保完成恢复运行。</div>
+  
+  
+</div>
+<div class="card score4">
+  <div class="header-row">
+    <span><span class="id">T20</span> <span class="level">L2</span> <span class="system-badge sys-eam">EAM</span></span>
+    <span class="score-badge s4">4/5</span>
+  </div>
+  <div class="query">近 30 天巡检发现最多异常的设备是哪台？</div>
+  <div class="answer">近30天巡检发现最多异常的设备是EQ-D102-002 红外测温仪，共1条异常记录。</div>
+  
+  
+</div>
+<div class="card score5">
+  <div class="header-row">
+    <span><span class="id">T21</span> <span class="level">L3</span> <span class="system-badge sys-eam">EAM</span></span>
+    <span class="score-badge s5">5/5</span>
+  </div>
+  <div class="query">压片线上月维修用了哪些备件？</div>
+  <div class="answer">压片线上月维修共使用了8种备件，涉及7个维修工单。具体备件包括：垫片（3个，单价45.43元）、冷却液（3个，单价199.68元）、保险丝（3个，单价261.79元）、滤芯（1个，单价80.41元）、O型圈（2个，单价312.87元）、润滑油（2个，单价280.49元）、磨损轴承（1个，单价99.51元）、变频器风扇（3个，单价161.61元）和传感器探头（2个，单价127.41元）。其中，保险丝和滤芯用于同一工单，变频器风扇和传感器探头用于同一工单。</div>
+  <div class="gt">GT: 压片线上月维修=38个（估算）</div>
+  
+</div>
+<div class="card score4">
+  <div class="header-row">
+    <span><span class="id">T22</span> <span class="level">L3</span> <span class="system-badge sys-eam">EAM</span></span>
+    <span class="score-badge s4">4/5</span>
+  </div>
+  <div class="query">设备 EQ-A301-003 的 BOM 里哪些备件库存不足？</div>
+  <div class="answer">设备 EQ-A301-003（薄膜包衣机 #3）的 BOM 中共有 4 个备件，目前没有库存不足的记录。所有备件当前库存均满足需求。</div>
+  
+  
+</div>
+<div class="card score4">
+  <div class="header-row">
+    <span><span class="id">T23</span> <span class="level">L3</span> <span class="system-badge sys-eam">EAM</span></span>
+    <span class="score-badge s4">4/5</span>
+  </div>
+  <div class="query">上月维修时参考了哪些知识文档？</div>
+  <div class="answer">上月维修工单共37条，查看了最近10条已完成记录，所有工单的'知识文档参考'字段都是空的，说明维修时没有关联任何知识文档。</div>
+  
+  
+</div>
+<div class="card score4">
+  <div class="header-row">
+    <span><span class="id">T24</span> <span class="level">L3</span> <span class="system-badge sys-eam">EAM</span></span>
+    <span class="score-badge s4">4/5</span>
+  </div>
+  <div class="query">包衣线上个月巡检发现了几次异常？</div>
+  <div class="answer">上个月包衣线巡检没有发现异常。根据数据分析，包衣线设备共6台，巡检记录总计36次，全部正常，异常次数为0。</div>
+  
+  
+</div>
+<div class="card score4">
+  <div class="header-row">
+    <span><span class="id">T25</span> <span class="level">L3</span> <span class="system-badge sys-eam">EAM</span></span>
+    <span class="score-badge s4">4/5</span>
+  </div>
+  <div class="query">最近维修用量最大的备件，关联了哪些设备？</div>
+  <div class="answer">目前没有维修用量最大的备件记录，因为近30天所有维修工单的备件用量信息尚未汇总或缺失。从提供的10条维修记录看，只有5条工单使用了备件，但无法确定哪个备件用量最大。</div>
+  
+  
+</div>
+<div class="card score5">
+  <div class="header-row">
+    <span><span class="id">T26</span> <span class="level">L3</span> <span class="system-badge sys-eam">EAM</span></span>
+    <span class="score-badge s5">5/5</span>
+  </div>
+  <div class="query">压片线设备的保养计划执行率是多少？</div>
+  <div class="answer">压片线设备的保养计划执行率是88%，共42项保养计划，已完成37项，没有逾期。</div>
+  <div class="gt">GT: 压片线保养执行率~88%</div>
+  
+</div>
+<div class="card score4">
+  <div class="header-row">
+    <span><span class="id">T27</span> <span class="level">L3</span> <span class="system-badge sys-eam">EAM</span></span>
+    <span class="score-badge s4">4/5</span>
+  </div>
+  <div class="query">维修工单 RO-20260313-0158 的出库单涉及了哪些仓库？</div>
+  <div class="answer">维修工单 RO-20260313-0158 的出库单涉及了 1 个仓库：仓库 ID 10001。共 1 条备件使用记录，但出库单信息尚未录入。</div>
+  
+  
+</div>
+<div class="card score5">
+  <div class="header-row">
+    <span><span class="id">T28</span> <span class="level">L3</span> <span class="system-badge sys-eam">EAM</span></span>
+    <span class="score-badge s5">5/5</span>
+  </div>
+  <div class="query">设备 EQ-A301-001 最近一次故障的维修花了多少工时？</div>
+  <div class="answer">设备 EQ-A301-001 最近一次故障维修花了 6.8 工时。这次维修对应工单 RO-20260221-0131，维修人员从开始到完工实际用了 408 分钟，折合 6.8 小时。</div>
+  <div class="gt">GT: EQ-A301-001 最近故障维修工时</div>
+  
+</div>
+<div class="card score4">
+  <div class="header-row">
+    <span><span class="id">T29</span> <span class="level">L4</span> <span class="system-badge sys-eam">EAM</span></span>
+    <span class="score-badge s4">4/5</span>
+  </div>
+  <div class="query">故障率最高的设备，保养是否按计划执行？</div>
+  <div class="answer">故障率最高的设备是EQ-B103-001螺杆空压机#1，近30天有1次故障。保养计划执行情况：共25台设备有保养计划，其中EQ-B103-001螺杆空压机#1没有保养记录，其他设备如EQ-A402-001装盒机#1等保养完成率为0%，而EQ-A401-008自动瓶装线#2等完成率为100%。</div>
+  
+  
+</div>
+<div class="card score4">
+  <div class="header-row">
+    <span><span class="id">T30</span> <span class="level">L4</span> <span class="system-badge sys-eam">EAM</span></span>
+    <span class="score-badge s4">4/5</span>
+  </div>
+  <div class="query">上月维修成本最高的设备，它的巡检有没有发现过异常？</div>
+  <div class="answer">上月维修成本最高的设备是铝塑包装机 #2（EQ-A401-002），维修总成本为2753.86元。近30天该设备的巡检记录中，共发现7条异常，包括高、中、低三种严重程度。</div>
+  
+  
+</div>
+<div class="card score4">
+  <div class="header-row">
+    <span><span class="id">T31</span> <span class="level">L4</span> <span class="system-badge sys-eam">EAM</span></span>
+    <span class="score-badge s4">4/5</span>
+  </div>
+  <div class="query">备件库存预警涉及的设备中，有哪些正在维修？</div>
+  <div class="answer">目前没有备件库存预警涉及的设备正在维修。
+
+- 备件库存预警：共8种备件库存偏低，例如UV氘灯库存为0，涉及34台设备，但维修记录中未匹配到这些设备。
+- 维修记录：近30天有12台设备正在维修，但设备ID（10044-10055）与预警备件涉及的设备ID（如10061）不重合。</div>
+  
+  
+</div>
+<div class="card score5">
+  <div class="header-row">
+    <span><span class="id">T32</span> <span class="level">L4</span> <span class="system-badge sys-eam">EAM</span></span>
+    <span class="score-badge s5">5/5</span>
+  </div>
+  <div class="query">压片线设备的故障、保养、巡检三项指标概览</div>
+  <div class="answer">压片线设备概览：共16台设备，其中15台是关键设备。目前13台运行中，2台维修中，1台其他状态。
+故障方面：累计30次故障，无待处理故障。
+保养方面：累计42次保养任务，已完成37次，完成率88%，无逾期任务。
+巡检方面：累计15次异常记录。从分析数据看，部分设备（如湿法制粒机 #1）有异常记录，异常率12.5%，其他设备巡检正常。</div>
+  <div class="gt">GT: 压片线16台设备, 故障30, 保养42/完成率88%</div>
+  
+</div>
+<div class="card score4">
+  <div class="header-row">
+    <span><span class="id">T33</span> <span class="level">L4</span> <span class="system-badge sys-eam">EAM</span></span>
+    <span class="score-badge s4">4/5</span>
+  </div>
+  <div class="query">近 3 个月有故障但没安排保养的设备有哪些？</div>
+  <div class="answer">近3个月有故障但没安排保养的设备共116台，包括胶囊充填机、高速压片机、冷水机组等。其中，有保养计划的设备96台，但部分设备保养完成率低，例如精密天平 #3、精密天平 #4、脆碎度检查仪 #2、片剂硬度计 #1、旋转压片机 #1、旋转压片机 #3的保养完成率为0%，整粒机 #1、流化床制粒机 #1的保养完成率为50%。</div>
+  
+  
+</div>
+<div class="card score4">
+  <div class="header-row">
+    <span><span class="id">T34</span> <span class="level">L4</span> <span class="system-badge sys-eam">EAM</span></span>
+    <span class="score-badge s4">4/5</span>
+  </div>
+  <div class="query">外协维修的设备中，有没有重点设备？</div>
+  <div class="answer">目前没有外协维修的设备记录。系统中有120台设备，其中20台是重点设备，包括密度计、粉末流动性测试仪等，但这些都是正常设备，没有涉及外协维修。</div>
+  
+  
+</div>
+<div class="card score4">
+  <div class="header-row">
+    <span><span class="id">T35</span> <span class="level">L5</span> <span class="system-badge sys-eam">EAM</span></span>
+    <span class="score-badge s4">4/5</span>
+  </div>
+  <div class="query">哪条产线近 3 个月故障呈上升趋势，且备件库存不足？</div>
+  <div class="answer">近3个月故障呈上升趋势且备件库存不足的产线目前没有记录。故障数据显示，近3个月总故障120次，其中未分配产线故障最多（47次），但故障趋势从2026年1月到3月呈下降（43次→34次），不符合上升趋势。备件库存有8个低库存备件，如UV氘灯库存为0，但未关联到具体产线。</div>
+  
+  
+</div>
+<div class="card score4">
+  <div class="header-row">
+    <span><span class="id">T36</span> <span class="level">L5</span> <span class="system-badge sys-eam">EAM</span></span>
+    <span class="score-badge s4">4/5</span>
+  </div>
+  <div class="query">上季度各产线的保养完成率排名？</div>
+  <div class="answer">上季度各产线保养完成率排名如下：制粒线96%（23/24）、压片线95%（19/20）、包衣线90%（9/10）、包装线86%（12/14），未分配产线和公用工程线均为100%（13/13和3/3）。</div>
+  
+  
+</div>
+<div class="card score4">
+  <div class="header-row">
+    <span><span class="id">T37</span> <span class="level">L5</span> <span class="system-badge sys-eam">EAM</span></span>
+    <span class="score-badge s4">4/5</span>
+  </div>
+  <div class="query">同比去年同期，今年 Q1 的故障报修数是增还是减？</div>
+  <div class="answer">今年Q1（2026年1-3月）故障报修总数为116次，同比去年同期（2025年Q1）没有故障报修记录，因此是增加。</div>
+  
+  
+</div>
+<div class="card score4">
+  <div class="header-row">
+    <span><span class="id">T38</span> <span class="level">L5</span> <span class="system-badge sys-eam">EAM</span></span>
+    <span class="score-badge s4">4/5</span>
+  </div>
+  <div class="query">近半年维修频次最高的 3 台设备，各自的平均维修周期是多少？</div>
+  <div class="answer">近半年维修频次最高的3台设备是EQ-A201-014胶囊充填机#6、EQ-A201-013胶囊充填机#5和EQ-A201-012胶囊充填机#4，各维修了2次。但平均维修周期信息尚未录入，无法计算。</div>
+  
+  
+</div>
+<div class="card score4">
+  <div class="header-row">
+    <span><span class="id">T39</span> <span class="level">L5</span> <span class="system-badge sys-eam">EAM</span></span>
+    <span class="score-badge s4">4/5</span>
+  </div>
+  <div class="query">备件月消耗量环比分析，哪些备件用量在持续上升？</div>
+  <div class="answer">目前无法直接分析备件月消耗量环比趋势，因为趋势分析工具不支持按备件维度拆分。不过，基于其他数据：近3个月（2025年12月29日至2026年3月29日）共有60条备件相关记录，其中3月份有60条。库存方面，共20种备件，其中10种库存偏低，例如标准湿度发生器（SP-JL-003）和UV氘灯（SP-GY-005）库存为0或1。维修工单方面，近30天有10条已完成工单，涉及备件消耗，例如工单RO-20260313-0158使用了1个备件，成本170.74元。</div>
+  
+  
+</div>
+<div class="card score4">
+  <div class="header-row">
+    <span><span class="id">T40</span> <span class="level">L5</span> <span class="system-badge sys-eam">EAM</span></span>
+    <span class="score-badge s4">4/5</span>
+  </div>
+  <div class="query">近 6 个月巡检异常率变化趋势，有没有季节性规律？</div>
+  <div class="answer">近6个月巡检异常率变化趋势显示，整体异常率为2.8%，但近30天没有巡检任务记录，无法分析季节性规律。从异常趋势数据看，只有少数日期有巡检记录，例如1月10日有1次异常，其他日期均为零。</div>
+  
+  
+</div>
+<div class="section-title">EDHR (35题, 平均4.0/5)</div>
+<div class="card score4">
+  <div class="header-row">
+    <span><span class="id">E01</span> <span class="level">L1</span> <span class="system-badge sys-edhr">EDHR</span></span>
+    <span class="score-badge s4">4/5</span>
+  </div>
+  <div class="query">目前有多少个工单在执行中？</div>
+  <div class="answer">目前有108个工单在执行中，占所有工单的17%。</div>
+  <div class="gt">GT: 工单总数=638, 执行中=108</div>
+  <div class="issues">⚠ 工单总数应为638</div>
+</div>
+<div class="card score5">
+  <div class="header-row">
+    <span><span class="id">E02</span> <span class="level">L1</span> <span class="system-badge sys-edhr">EDHR</span></span>
+    <span class="score-badge s5">5/5</span>
+  </div>
+  <div class="query">各状态的工单数量分布是怎样的？</div>
+  <div class="answer">目前共有638个工单，其中已完成483个，运行中108个，等待中47个。</div>
+  <div class="gt">GT: 执行中工单=108</div>
+  
+</div>
+<div class="card score4">
+  <div class="header-row">
+    <span><span class="id">E03</span> <span class="level">L1</span> <span class="system-badge sys-edhr">EDHR</span></span>
+    <span class="score-badge s4">4/5</span>
+  </div>
+  <div class="query">当前有多少个质量异常记录？</div>
+  <div class="answer">当前共有305个质量异常记录。</div>
+  <div class="gt">GT: 产品总数=20</div>
+  <div class="issues">⚠ 产品数应为20</div>
+</div>
+<div class="card score4">
+  <div class="header-row">
+    <span><span class="id">E04</span> <span class="level">L1</span> <span class="system-badge sys-edhr">EDHR</span></span>
+    <span class="score-badge s4">4/5</span>
+  </div>
+  <div class="query">有多少检测项是不合格的？</div>
+  <div class="answer">目前没有不合格的检测项记录。</div>
+  <div class="gt">GT: 质量异常总数=305</div>
+  <div class="issues">⚠ 异常总数应为305</div>
+</div>
+<div class="card score5">
+  <div class="header-row">
+    <span><span class="id">E05</span> <span class="level">L1</span> <span class="system-badge sys-edhr">EDHR</span></span>
+    <span class="score-badge s5">5/5</span>
+  </div>
+  <div class="query">生产情况怎么样？给我一个全局概览</div>
+  <div class="answer">生产全局概览：目前有638个订单，其中108个正在生产中，483个已完成，47个等待中。生产过程中没有失败品，但发生了305次异常。共有20种产品在生产，包括Dialog+7103072、7103005等型号。</div>
+  <div class="gt">GT: 已完成工单=483</div>
+  
+</div>
+<div class="card score4">
+  <div class="header-row">
+    <span><span class="id">E06</span> <span class="level">L1</span> <span class="system-badge sys-edhr">EDHR</span></span>
+    <span class="score-badge s4">4/5</span>
+  </div>
+  <div class="query">系统里有哪些产品？</div>
+  <div class="answer">系统中共有20个产品记录，涉及5种不同的产品型号，都属于Dialog+产品系列。产品系列有4个版本，其中1个是当前有效的版本。同时，系统配置了2种工艺配方，适用于所有产品。</div>
+  
+  
+</div>
+<div class="card score4">
+  <div class="header-row">
+    <span><span class="id">E07</span> <span class="level">L1</span> <span class="system-badge sys-edhr">EDHR</span></span>
+    <span class="score-badge s4">4/5</span>
+  </div>
+  <div class="query">工单 7103005-681895 的状态是什么？</div>
+  <div class="answer">工单 7103005-681895 的状态是：生产进度为运行中，检验状态为待检验。共 2 个工序，其中 1 个在运行中，1 个在等待中。产品检验通过 5 个，通过率 2.9%，无异常记录。</div>
+  
+  
+</div>
+<div class="card score5">
+  <div class="header-row">
+    <span><span class="id">E08</span> <span class="level">L2</span> <span class="system-badge sys-edhr">EDHR</span></span>
+    <span class="score-badge s5">5/5</span>
+  </div>
+  <div class="query">工单 7103005-681895 做到哪个工序了？合格率怎么样？</div>
+  <div class="answer">工单 7103005-681895 目前正在执行第2个工序，已开始加工。该工单共171件产品，已检验5件全部合格，合格率2.9%，其余166件尚未检验。</div>
+  <div class="gt">GT: 未关闭异常: OPEN=0</div>
+  
+</div>
+<div class="card score4">
+  <div class="header-row">
+    <span><span class="id">E09</span> <span class="level">L2</span> <span class="system-badge sys-edhr">EDHR</span></span>
+    <span class="score-badge s4">4/5</span>
+  </div>
+  <div class="query">工单 7103005-681437 的检测完成了吗？有没有不合格项？</div>
+  <div class="answer">工单 7103005-681437 的检测已完成，没有不合格项。工单整体状态为完成且通过，共检测169件产品，全部合格，合格率100%。</div>
+  
+  
+</div>
+<div class="card score4">
+  <div class="header-row">
+    <span><span class="id">E10</span> <span class="level">L2</span> <span class="system-badge sys-edhr">EDHR</span></span>
+    <span class="score-badge s4">4/5</span>
+  </div>
+  <div class="query">重新操作（REOPERATE）处理的异常有多少个？</div>
+  <div class="answer">共有247个异常被处理为重新操作（REOPERATE），这些异常均已关闭。从决策原因看，绝大多数（约99%）标注为“笔误”，仅个别记录有其他原因如“处理异常时操作错误”或“手误，选错”。</div>
+  
+  
+</div>
+<div class="card score4">
+  <div class="header-row">
+    <span><span class="id">E11</span> <span class="level">L2</span> <span class="system-badge sys-edhr">EDHR</span></span>
+    <span class="score-badge s4">4/5</span>
+  </div>
+  <div class="query">返修（REPAIRE）处理的异常有哪些？</div>
+  <div class="answer">返修处理的异常共有33条记录，都是已关闭状态。主要异常包括：电源模块异响或故障（如开机异响、黑屏）、数字板报错（如信号错误、自检报错）、传感器问题（如漏血传感器、温度传感器异常）、泵类故障（如肝素泵推力不足、超滤量超差）、以及SAD定标或数值问题。</div>
+  
+  
+</div>
+<div class="card score4">
+  <div class="header-row">
+    <span><span class="id">E12</span> <span class="level">L2</span> <span class="system-badge sys-edhr">EDHR</span></span>
+    <span class="score-badge s4">4/5</span>
+  </div>
+  <div class="query">各检测状态的数量分布是怎样的？</div>
+  <div class="answer">目前共有20710条检测记录，其中PASSED（通过）和INIT（初始状态）各10000条，ABANDONED（废弃）407条，WRONGRECORDED（错误记录）303条。</div>
+  
+  
+</div>
+<div class="card score4">
+  <div class="header-row">
+    <span><span class="id">E13</span> <span class="level">L2</span> <span class="system-badge sys-edhr">EDHR</span></span>
+    <span class="score-badge s4">4/5</span>
+  </div>
+  <div class="query">工单 7103005-681895 的检测项里有哪些不合格的？</div>
+  <div class="answer">工单 7103005-681895 共有 171 个检测项，目前没有不合格的记录。</div>
+  
+  
+</div>
+<div class="card score4">
+  <div class="header-row">
+    <span><span class="id">E14</span> <span class="level">L2</span> <span class="system-badge sys-edhr">EDHR</span></span>
+    <span class="score-badge s4">4/5</span>
+  </div>
+  <div class="query">七月份完成了多少个工单？</div>
+  <div class="answer">七月份没有完成任何工单。系统中共有638个工单，但查询显示在2025年7月1日至31日期间没有符合条件的记录。当前数据中的工单实际完成时间都在2024年，例如最近的是2024年7月22日。</div>
+  
+  
+</div>
+<div class="card score4">
+  <div class="header-row">
+    <span><span class="id">E15</span> <span class="level">L2</span> <span class="system-badge sys-edhr">EDHR</span></span>
+    <span class="score-badge s4">4/5</span>
+  </div>
+  <div class="query">产品 7103005 有多少个工单？</div>
+  <div class="answer">产品 7103005 共有 344 个工单。其中，已完成且检验合格的工单有 281 个，正在生产的工单有 41 个，等待开始的工单有 22 个。</div>
+  
+  
+</div>
+<div class="card score4">
+  <div class="header-row">
+    <span><span class="id">E16</span> <span class="level">L2</span> <span class="system-badge sys-edhr">EDHR</span></span>
+    <span class="score-badge s4">4/5</span>
+  </div>
+  <div class="query">目前等待中的工单有哪些？</div>
+  <div class="answer">目前有47个等待中的工单，所有工单的验证状态均为初始状态（INIT）。按产品系列分：7103005系列有22个，7103072系列有15个，710300T系列有10个。</div>
+  
+  
+</div>
+<div class="card score4">
+  <div class="header-row">
+    <span><span class="id">E17</span> <span class="level">L2</span> <span class="system-badge sys-edhr">EDHR</span></span>
+    <span class="score-badge s4">4/5</span>
+  </div>
+  <div class="query">产品 7103005 的配方有几道工序？</div>
+  <div class="answer">产品 7103005 的配方共有 8 道工序，但工序信息尚未完全录入，目前只有 2 种工序类型：生产和测试过程记录（序列号 1）和 QA放行报告（序列号 2）。</div>
+  
+  
+</div>
+<div class="card score4">
+  <div class="header-row">
+    <span><span class="id">E18</span> <span class="level">L3</span> <span class="system-badge sys-edhr">EDHR</span></span>
+    <span class="score-badge s4">4/5</span>
+  </div>
+  <div class="query">工单 7103005-681437 有多少道工序？每道工序的进度分别是什么？</div>
+  <div class="answer">工单 7103005-681437 共有 2 道工序，进度均为已完成。第一道工序于 2024-06-25 开始和结束，第二道工序于 2024-06-05 开始，2024-06-12 结束。</div>
+  
+  
+</div>
+<div class="card score4">
+  <div class="header-row">
+    <span><span class="id">E19</span> <span class="level">L3</span> <span class="system-badge sys-edhr">EDHR</span></span>
+    <span class="score-badge s4">4/5</span>
+  </div>
+  <div class="query">工单 7103005-681895 有没有质量异常？是怎么处理的？</div>
+  <div class="answer">工单 7103005-681895 目前没有质量异常记录。共171个产品项，其中5个已通过（通过率2.9%），166个待检，没有失败项。</div>
+  
+  
+</div>
+<div class="card score3">
+  <div class="header-row">
+    <span><span class="id">E20</span> <span class="level">L3</span> <span class="system-badge sys-edhr">EDHR</span></span>
+    <span class="score-badge s3">3/5</span>
+  </div>
+  <div class="query">最近一个月的工单完成趋势怎么样？</div>
+  <div class="answer">近30天没有工单完成记录。</div>
+  
+  <div class="issues">⚠ 回答过短</div>
+</div>
+<div class="card score4">
+  <div class="header-row">
+    <span><span class="id">E21</span> <span class="level">L3</span> <span class="system-badge sys-edhr">EDHR</span></span>
+    <span class="score-badge s4">4/5</span>
+  </div>
+  <div class="query">7103072 这个产品最近的工单有哪些？完成了几个？</div>
+  <div class="answer">产品 7103072 最近的工单情况：系统中共有 149 个工单，其中已完成 105 个，正在运行 29 个，等待中 15 个。近30天（2026-02-28 至 2026-03-29）没有新工单记录。</div>
+  
+  
+</div>
+<div class="card score4">
+  <div class="header-row">
+    <span><span class="id">E22</span> <span class="level">L3</span> <span class="system-badge sys-edhr">EDHR</span></span>
+    <span class="score-badge s4">4/5</span>
+  </div>
+  <div class="query">710300T 这个产品的配方工序是什么？有多少个检测项？</div>
+  <div class="answer">产品710300T（Dialog+710300T）属于Dialog+产品系列，当前有效版本是V004。配方工序有2种：生产和测试过程记录（工序1）和QA放行报告（工序2），共8条记录，但工序信息显示为通用（fitForProducts: ALL），未指定具体产品。检测项方面，目前没有检测项记录。</div>
+  
+  
+</div>
+<div class="card score4">
+  <div class="header-row">
+    <span><span class="id">E23</span> <span class="level">L3</span> <span class="system-badge sys-edhr">EDHR</span></span>
+    <span class="score-badge s4">4/5</span>
+  </div>
+  <div class="query">最近三个月的异常数量趋势是怎样的？</div>
+  <div class="answer">最近三个月共发生27次异常，趋势逐月下降：1月14次，2月11次，3月2次。</div>
+  
+  
+</div>
+<div class="card score4">
+  <div class="header-row">
+    <span><span class="id">E24</span> <span class="level">L4</span> <span class="system-badge sys-edhr">EDHR</span></span>
+    <span class="score-badge s4">4/5</span>
+  </div>
+  <div class="query">正在执行的工单中，有多少存在质量异常？</div>
+  <div class="answer">目前没有正在执行的工单存在质量异常。共108个正在执行的工单，其中107个工单的质量验证状态为“未开始”，1个工单已通过验证。质量异常记录显示有305条已关闭的异常，但查询未找到正在执行的工单关联的异常。</div>
+  
+  
+</div>
+<div class="card score5">
+  <div class="header-row">
+    <span><span class="id">E25</span> <span class="level">L4</span> <span class="system-badge sys-edhr">EDHR</span></span>
+    <span class="score-badge s5">5/5</span>
+  </div>
+  <div class="query">异常决策中，重新操作、返修、重新测试的比例分别是多少？</div>
+  <div class="answer">异常决策中，重新操作占81%（247次），返修占11%（33次），重新测试占8%（25次）。</div>
+  <div class="gt">GT: REOPERATE=247, REPAIRE=33, RETEST=25</div>
+  
+</div>
+<div class="card score4">
+  <div class="header-row">
+    <span><span class="id">E26</span> <span class="level">L4</span> <span class="system-badge sys-edhr">EDHR</span></span>
+    <span class="score-badge s4">4/5</span>
+  </div>
+  <div class="query">已完成的工单里，哪些工单有过异常记录？</div>
+  <div class="answer">目前没有已完成的工单有过异常记录。系统显示共有483个已完成的工单，所有工单的验证状态均为“通过”，且异常记录工具返回了0条异常记录。</div>
+  
+  
+</div>
+<div class="card score4">
+  <div class="header-row">
+    <span><span class="id">E27</span> <span class="level">L4</span> <span class="system-badge sys-edhr">EDHR</span></span>
+    <span class="score-badge s4">4/5</span>
+  </div>
+  <div class="query">各产品的工单完成率对比怎么样？</div>
+  <div class="answer">目前没有各产品的工单完成率对比数据，只有整体工单状态分布：共638个工单，其中已完成483个（完成率约75.7%），运行中108个，等待中47个。</div>
+  
+  
+</div>
+<div class="card score4">
+  <div class="header-row">
+    <span><span class="id">E28</span> <span class="level">L4</span> <span class="system-badge sys-edhr">EDHR</span></span>
+    <span class="score-badge s4">4/5</span>
+  </div>
+  <div class="query">生产效率怎么样？工单从开始到完成平均需要多长时间？</div>
+  <div class="answer">生产效率方面，系统中共有638个工单，其中483个已完成，108个正在运行，47个等待中。工单从开始到完成的平均时间约为6.5天，基于483个已完成工单的实际数据计算得出。此外，有305条异常记录，但近期没有失败工单记录。</div>
+  
+  
+</div>
+<div class="card score4">
+  <div class="header-row">
+    <span><span class="id">E29</span> <span class="level">L4</span> <span class="system-badge sys-edhr">EDHR</span></span>
+    <span class="score-badge s4">4/5</span>
+  </div>
+  <div class="query">不合格检测项主要集中在哪些工单？</div>
+  <div class="answer">目前没有不合格检测项的记录，因为检测失败数为0。系统中有638个工单，其中483个已完成、108个进行中、47个等待中，但所有检测都通过了。</div>
+  
+  
+</div>
+<div class="card score3">
+  <div class="header-row">
+    <span><span class="id">E30</span> <span class="level">L5</span> <span class="system-badge sys-edhr">EDHR</span></span>
+    <span class="score-badge s3">3/5</span>
+  </div>
+  <div class="query">过去四个月的工单完成量按月趋势，产能是在提升还是下降？</div>
+  <div class="answer">目前没有过去四个月的工单完成记录，无法判断产能趋势。</div>
+  
+  <div class="issues">⚠ 回答过短</div>
+</div>
+<div class="card score4">
+  <div class="header-row">
+    <span><span class="id">E31</span> <span class="level">L5</span> <span class="system-badge sys-edhr">EDHR</span></span>
+    <span class="score-badge s4">4/5</span>
+  </div>
+  <div class="query">质量异常数量和工单完成数量的趋势有没有关联？</div>
+  <div class="answer">近30天没有质量异常记录，也没有工单完成记录，因此无法分析两者趋势关联。</div>
+  
+  
+</div>
+<div class="card score4">
+  <div class="header-row">
+    <span><span class="id">E32</span> <span class="level">L5</span> <span class="system-badge sys-edhr">EDHR</span></span>
+    <span class="score-badge s4">4/5</span>
+  </div>
+  <div class="query">最近几个月异常的决策方式有变化吗？返修比例是在增加还是减少？</div>
+  <div class="answer">目前没有异常决策记录，无法分析最近几个月的变化。返修比例信息需要查询其他数据源，当前查询未提供相关数据。</div>
+  
+  
+</div>
+<div class="card score3">
+  <div class="header-row">
+    <span><span class="id">E33</span> <span class="level">L5</span> <span class="system-badge sys-edhr">EDHR</span></span>
+    <span class="score-badge s3">3/5</span>
+  </div>
+  <div class="query">不同产品的检测不合格率对比，哪个产品质量问题最多？</div>
+  <div class="answer">系统暂时繁忙，请稍后再试。</div>
+  
+  <div class="issues">⚠ 回答过短</div>
+</div>
+<div class="card score4">
+  <div class="header-row">
+    <span><span class="id">E34</span> <span class="level">L5</span> <span class="system-badge sys-edhr">EDHR</span></span>
+    <span class="score-badge s4">4/5</span>
+  </div>
+  <div class="query">哪个月的工单积压（等待中+暂停）最多？是什么原因？</div>
+  <div class="answer">目前没有工单积压（等待中+暂停）的记录。查询工单积压时遇到工具错误，但其他数据显示共305条已关闭的异常工单，主要集中在2024年6月（314条异常），其中笔误是主要原因。</div>
+  
+  
+</div>
+<div class="card score3">
+  <div class="header-row">
+    <span><span class="id">E35</span> <span class="level">L5</span> <span class="system-badge sys-edhr">EDHR</span></span>
+    <span class="score-badge s3">3/5</span>
+  </div>
+  <div class="query">从四月到八月，每月新建工单数和完成工单数对比，产出效率的变化趋势</div>
+  <div class="answer">从四月到八月，目前没有新建工单和完成工单的记录。</div>
+  
+  <div class="issues">⚠ 回答过短</div>
+</div>
+</body></html>

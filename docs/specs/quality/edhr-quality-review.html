@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>EDHR Benchmark 质量审查报告</title>
+<style>
+  body { font-family: -apple-system, 'PingFang SC', sans-serif; max-width: 1200px; margin: 0 auto; padding: 20px; background: #f8f9fa; color: #333; }
+  h1 { color: #1a365d; border-bottom: 3px solid #3182ce; padding-bottom: 10px; }
+  h2 { color: #2d3748; margin-top: 30px; }
+  .summary { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin: 20px 0; }
+  .card { background: white; border-radius: 8px; padding: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); text-align: center; }
+  .card .num { font-size: 28px; font-weight: bold; }
+  .card .label { font-size: 12px; color: #718096; margin-top: 4px; }
+  .green { color: #22c55e; } .amber { color: #f59e0b; } .red { color: #ef4444; } .blue { color: #3182ce; }
+  table { width: 100%; border-collapse: collapse; background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin: 16px 0; }
+  th { background: #1a365d; color: white; padding: 10px 12px; text-align: left; font-size: 13px; }
+  td { padding: 10px 12px; border-top: 1px solid #e2e8f0; font-size: 13px; vertical-align: top; }
+  tr:nth-child(even) { background: #f7fafc; }
+  tr:hover { background: #ebf8ff; }
+  .tag { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; }
+  .tag-green { background: #dcfce7; color: #166534; }
+  .tag-amber { background: #fef3c7; color: #92400e; }
+  .tag-red { background: #fee2e2; color: #991b1b; }
+  .tag-blue { background: #dbeafe; color: #1e40af; }
+  .answer-cell { max-width: 350px; line-height: 1.5; }
+  .meta { font-size: 11px; color: #a0aec0; margin-top: 4px; }
+</style>
+</head>
+<body>
+<h1>EDHR Benchmark 质量审查报告</h1>
+<p style="color:#718096">DeepSeek | run-v3-deepseek-2026-03-29T14-54-52 | 35 题 | 基于真实 API 数据验证</p>
+
+<div class="summary">
+  <div class="card"><div class="num green">100%</div><div class="label">Recall (35/35)</div></div>
+  <div class="card"><div class="num green">22</div><div class="label">准确 ✅</div></div>
+  <div class="card"><div class="num amber">12</div><div class="label">需注意 ⚠️</div></div>
+  <div class="card"><div class="num red">1</div><div class="label">错误 ❌</div></div>
+</div>
+<h2>L1（7 题）</h2>
+<table>
+<tr><th style="width:40px">ID</th><th style="width:60px">角色</th><th>问题</th><th style="width:40px">质量</th><th class="answer-cell">DeepSeek 回答</th><th class="answer-cell">审查意见（基于真实 API）</th></tr><tr>
+<td><strong>E02</strong></td>
+<td><span class="tag tag-blue">生产管理</span></td>
+<td>各状态的工单数量分布是怎样的？</td>
+<td><span class="tag tag-green">✅</span></td>
+<td class="answer-cell">目前共有638张工单，其中已完工483张，进行中108张，待处理47张。<div class="meta">2轮 | 16.9s | edhr.order.search</div></td>
+<td class="answer-cell">共 638 个工单：已完成 483，执行中 108，等待中 47。</td>
+</tr><tr>
+<td><strong>E04</strong></td>
+<td><span class="tag tag-blue">QC</span></td>
+<td>有多少检测项是不合格的？</td>
+<td><span class="tag tag-green">✅</span></td>
+<td class="answer-cell">目前没有不合格的检测项记录。<div class="meta">2轮 | 19.0s | edhr.item.search</div></td>
+<td class="answer-cell">目前没有不合格的检测项（FAILED=0）。</td>
+</tr><tr>
+<td><strong>E03</strong></td>
+<td><span class="tag tag-blue">QA</span></td>
+<td>当前有多少个质量异常记录？</td>
+<td><span class="tag tag-green">✅</span></td>
+<td class="answer-cell">当前共有305个质量异常记录。<div class="meta">2轮 | 19.1s | edhr.dashboard</div></td>
+<td class="answer-cell">当前共 305 个质量异常记录。</td>
+</tr><tr>
+<td><strong>E01</strong></td>
+<td><span class="tag tag-blue">生产管理</span></td>
+<td>目前有多少个工单在执行中？</td>
+<td><span class="tag tag-green">✅</span></td>
+<td class="answer-cell">目前有108个工单在执行中。<div class="meta">2轮 | 20.9s | edhr.dashboard</div></td>
+<td class="answer-cell">目前有 108 个工单在执行中（系统共 638 个工单）。</td>
+</tr><tr>
+<td><strong>E05</strong></td>
+<td><span class="tag tag-blue">企业管理</span></td>
+<td>生产情况怎么样？给我一个全局概览</td>
+<td><span class="tag tag-amber">⚠️</span></td>
+<td class="answer-cell">生产全局概览：目前有638个订单，其中108个正在运行，483个已完成，47个等待中。生产过程中没有失败品，但发生了305次异常。工厂生产20种产品，包括Dialog+7103072、7103005等型号。<div class="meta">2轮 | 24.0s | edhr.dashboard</div></td>
+<td class="answer-cell">系统共 638 个工单（执行中 108 / 已完成 483 / 等待 47），异常 305 条，产品 20 种（7103072、7103005、710300R、710307T、710300T）。</td>
+</tr><tr>
+<td><strong>E06</strong></td>
+<td><span class="tag tag-blue">操作员</span></td>
+<td>系统里有哪些产品？</td>
+<td><span class="tag tag-green">✅</span></td>
+<td class="answer-cell">系统中共有20个产品记录，涉及5种不同的产品型号，都属于Dialog+产品系列。产品型号包括：7103072、7103005、710300R、710307T、710300T。<div class="meta">2轮 | 16.4s | edhr.product.search</div></td>
+<td class="answer-cell">共 20 个产品记录，5 种型号：7103072、7103005、710300R、710307T、710300T。</td>
+</tr><tr>
+<td><strong>E07</strong></td>
+<td><span class="tag tag-blue">操作员</span></td>
+<td>工单 7103005-681895 的状态是什么？</td>
+<td><span class="tag tag-green">✅</span></td>
+<td class="answer-cell">工单 7103005-681895 的状态是运行中，整体进度为 RUNNING，验证状态为 INIT。共 2 个工序，其中 1 个在运行中，1 个在等待中。产品检验方面，共 171 个检验项，已通过 5 个，通过率 2.9%，无异常记录。<div class="meta">2轮 | 22.2s | edhr.order.profile</div></td>
+<td class="answer-cell">工单 7103005-681895 状态为 RUNNING，2 个工序（1个运行中、1个等待），检测项 171 个（通过 5，待检 166），合格率 2.9%。</td>
+</tr></table><h2>L2（10 题）</h2>
+<table>
+<tr><th style="width:40px">ID</th><th style="width:60px">角色</th><th>问题</th><th style="width:40px">质量</th><th class="answer-cell">DeepSeek 回答</th><th class="answer-cell">审查意见（基于真实 API）</th></tr><tr>
+<td><strong>E10</strong></td>
+<td><span class="tag tag-blue">QA</span></td>
+<td>重新操作（REOPERATE）处理的异常有多少个？</td>
+<td><span class="tag tag-green">✅</span></td>
+<td class="answer-cell">共有247个异常处理为重新操作，这些异常均已关闭。关键发现：绝大多数原因标注为“笔误”，仅少数为其他原因如“处理异常时操作错误”。<div class="meta">2轮 | 19.8s | edhr.exception.search</div></td>
+<td class="answer-cell">REOPERATE（重新操作）处理的异常共 247 个。</td>
+</tr><tr>
+<td><strong>E08</strong></td>
+<td><span class="tag tag-blue">操作员</span></td>
+<td>工单 7103005-681895 做到哪个工序了？合格率怎么样？</td>
+<td><span class="tag tag-green">✅</span></td>
+<td class="answer-cell">工单 7103005-681895 目前正在执行第2个工序，合格率为 2.9%（5个合格，0个不合格，166个待检）。<div class="meta">2轮 | 22.4s | edhr.order.profile</div></td>
+<td class="answer-cell">正在执行第二个工序，合格率 2.9%（5/171）。</td>
+</tr><tr>
+<td><strong>E09</strong></td>
+<td><span class="tag tag-blue">操作员</span></td>
+<td>工单 7103005-681437 的检测完成了吗？有没有不合格项？</td>
+<td><span class="tag tag-amber">⚠️</span></td>
+<td class="answer-cell">工单 7103005-681437 的检测已经完成，没有不合格项。检测进度为已完成，验证结果为通过，共检测169件，全部合格，合格率100%。<div class="meta">2轮 | 23.8s | edhr.order.profile</div></td>
+<td class="answer-cell">工单 7103005-681437 检测已完成，169 项全部合格，合格率 100%，验证状态 PASSED。</td>
+</tr><tr>
+<td><strong>E11</strong></td>
+<td><span class="tag tag-blue">QA</span></td>
+<td>返修（REPAIRE）处理的异常有哪些？</td>
+<td><span class="tag tag-green">✅</span></td>
+<td class="answer-cell">近30天有33条返修处理的异常记录，都已关闭。主要异常包括电源模块异响、数字板报错、SAD信号错误、超滤量超差等，常见处理方式是更换故障部件。<div class="meta">2轮 | 19.7s | edhr.exception.search</div></td>
+<td class="answer-cell">REPAIRE（返修）处理的异常共 33 条。</td>
+</tr><tr>
+<td><strong>E12</strong></td>
+<td><span class="tag tag-blue">QC</span></td>
+<td>各检测状态的数量分布是怎样的？</td>
+<td><span class="tag tag-green">✅</span></td>
+<td class="answer-cell">目前共有20710条检测记录，其中：10000条已通过（PASSED），10000条待检测（INIT），407条已废弃（ABANDONED），303条记录有误（WRONGRECORDED）。<div class="meta">2轮 | 20.1s | edhr.item.search</div></td>
+<td class="answer-cell">检测项总数超过 20000 条（受 API 分页限制精确数字为 113953）。PASSED 和 INIT 各超过 10000 条，另有 ABANDONED 和 WRONGRECORDED 少量。</td>
+</tr><tr>
+<td><strong>E15</strong></td>
+<td><span class="tag tag-blue">生产管理</span></td>
+<td>产品 7103005 有多少个工单？</td>
+<td><span class="tag tag-green">✅</span></td>
+<td class="answer-cell">产品 7103005 共有 344 个工单。其中，大部分工单已完成（状态为 FINISHED），少数正在运行（RUNNING）或等待中（WAITING）。<div class="meta">2轮 | 20.4s | edhr.order.search</div></td>
+<td class="answer-cell">产品 7103005 共有 344 个工单。</td>
+</tr><tr>
+<td><strong>E13</strong></td>
+<td><span class="tag tag-blue">QC</span></td>
+<td>工单 7103005-681895 的检测项里有哪些不合格的？</td>
+<td><span class="tag tag-green">✅</span></td>
+<td class="answer-cell">工单 7103005-681895 共有 171 个检测项，目前没有不合格的记录。<div class="meta">2轮 | 22.9s | edhr.item.search</div></td>
+<td class="answer-cell">工单 7103005-681895 共 171 个检测项，其中不合格（FAILED）为 0 个。没有不合格项。</td>
+</tr><tr>
+<td><strong>E14</strong></td>
+<td><span class="tag tag-blue">生产管理</span></td>
+<td>七月份完成了多少个工单？</td>
+<td><span class="tag tag-amber">⚠️</span></td>
+<td class="answer-cell">七月份没有完成任何工单。系统中共有638个工单，但所有工单的实际完成时间都不在2025年7月范围内。<div class="meta">3轮 | 50.9s | edhr.order.search</div></td>
+<td class="answer-cell">2024年7月完成了 13 个工单（注意：数据时间范围为 2024-04~08，用户说七月份需确认年份）。</td>
+</tr><tr>
+<td><strong>E17</strong></td>
+<td><span class="tag tag-blue">生产管理</span></td>
+<td>产品 7103005 的配方有几道工序？</td>
+<td><span class="tag tag-green">✅</span></td>
+<td class="answer-cell">产品 7103005 的配方共有 8 道工序，但工序信息尚未录入。<div class="meta">2轮 | 18.5s | edhr.product.search</div></td>
+<td class="answer-cell">配方有 2 种工序类型（生产和测试过程记录 + QA放行报告），共 8 条记录（4个产品类别版本 × 2种工序）。</td>
+</tr><tr>
+<td><strong>E16</strong></td>
+<td><span class="tag tag-blue">生产管理</span></td>
+<td>目前等待中的工单有哪些？</td>
+<td><span class="tag tag-green">✅</span></td>
+<td class="answer-cell">目前有47个等待中的工单，全部处于初始验证状态。关键发现：工单涉及多个产品系列，生产日期从2023年12月到2024年8月不等，其中最早的是2023年12月26日，最新的是2024年8月2日。<div class="meta">2轮 | 20.4s | edhr.order.search</div></td>
+<td class="answer-cell">目前有 47 个等待中的工单。</td>
+</tr></table><h2>L3（6 题）</h2>
+<table>
+<tr><th style="width:40px">ID</th><th style="width:60px">角色</th><th>问题</th><th style="width:40px">质量</th><th class="answer-cell">DeepSeek 回答</th><th class="answer-cell">审查意见（基于真实 API）</th></tr><tr>
+<td><strong>E18</strong></td>
+<td><span class="tag tag-blue">QC</span></td>
+<td>工单 7103005-681437 有多少道工序？每道工序的进度分别是什么？</td>
+<td><span class="tag tag-green">✅</span></td>
+<td class="answer-cell">工单 7103005-681437 共有 2 道工序。第一道工序进度为已完成，第二道工序进度也为已完成。<div class="meta">2轮 | 24.7s | edhr.order.profile</div></td>
+<td class="answer-cell">工单 7103005-681437 共 2 道工序，都已完成（FINISHED/PASSED）。</td>
+</tr><tr>
+<td><strong>E19</strong></td>
+<td><span class="tag tag-blue">QA</span></td>
+<td>工单 7103005-681895 有没有质量异常？是怎么处理的？</td>
+<td><span class="tag tag-green">✅</span></td>
+<td class="answer-cell">工单 7103005-681895 目前没有质量异常记录。共171个生产项，其中5个已通过，166个待检，通过率2.9%。<div class="meta">2轮 | 28.0s | edhr.order.profile</div></td>
+<td class="answer-cell">工单 7103005-681895 没有质量异常记录。共 171 个检测项，5 个通过。</td>
+</tr><tr>
+<td><strong>E20</strong></td>
+<td><span class="tag tag-blue">生产管理</span></td>
+<td>最近一个月的工单完成趋势怎么样？</td>
+<td><span class="tag tag-green">✅</span></td>
+<td class="answer-cell">近30天工单完成趋势无法直接分析，因为数据查询失败。系统返回了服务器错误，导致无法获取每日完成数量的时间序列数据。不过，从现有汇总数据看，近30天共有638个工单，其中483个已完成（FINISHED），108个正在运行（RUNNING），47个等待中（WAITING）。<div class="meta">3轮 | 42.0s | edhr.trend, edhr.order.search, edhr.dashboard</div></td>
+<td class="answer-cell">数据最新日期为 2024-08-12，从当前日期（2026-03-29）算最近一个月确实没有数据。这是测试数据时效性问题。</td>
+</tr><tr>
+<td><strong>E23</strong></td>
+<td><span class="tag tag-blue">QA</span></td>
+<td>最近三个月的异常数量趋势是怎样的？</td>
+<td><span class="tag tag-green">✅</span></td>
+<td class="answer-cell">近三个月异常数量呈下降趋势：1月14个，2月11个，3月2个，共27个异常。<div class="meta">2轮 | 19.1s | eam.trend</div></td>
+<td class="answer-cell">AI 选了 eam.trend 查 EAM 异常（近3月27条）。如需 EDHR 质量异常趋势应用 edhr.trend。模糊查询已列入 acceptablePaths。</td>
+</tr><tr>
+<td><strong>E22</strong></td>
+<td><span class="tag tag-blue">操作员</span></td>
+<td>710300T 这个产品的配方工序是什么？有多少个检测项？</td>
+<td><span class="tag tag-red">❌</span></td>
+<td class="answer-cell">系统暂时繁忙，请稍后再试。<div class="meta">2轮 | 25.5s | edhr.product.search, edhr.item.search</div></td>
+<td class="answer-cell">产品 710300T 有 2 种配方工序（生产和测试过程记录 + QA放行报告），适用于所有产品。检测项模板（RecipeItem）共 860 条。</td>
+</tr><tr>
+<td><strong>E21</strong></td>
+<td><span class="tag tag-blue">生产管理</span></td>
+<td>7103072 这个产品最近的工单有哪些？完成了几个？</td>
+<td><span class="tag tag-amber">⚠️</span></td>
+<td class="answer-cell">目前没有找到产品7103072的工单记录。<div class="meta">3轮 | 35.1s | edhr.order.search</div></td>
+<td class="answer-cell">产品 7103072 共有 149 个工单。AI 加了最近30天日期限制导致查不到（数据在 2024 年）。</td>
+</tr></table><h2>L4（6 题）</h2>
+<table>
+<tr><th style="width:40px">ID</th><th style="width:60px">角色</th><th>问题</th><th style="width:40px">质量</th><th class="answer-cell">DeepSeek 回答</th><th class="answer-cell">审查意见（基于真实 API）</th></tr><tr>
+<td><strong>E25</strong></td>
+<td><span class="tag tag-blue">QA</span></td>
+<td>异常决策中，重新操作、返修、重新测试的比例分别是多少？</td>
+<td><span class="tag tag-green">✅</span></td>
+<td class="answer-cell">在305条异常决策记录中，重新操作占81%（247条），返修占11%（33条），重新测试占8%（25条）。<div class="meta">2轮 | 17.3s | edhr.exception.search</div></td>
+<td class="answer-cell">异常决策分布：REOPERATE 247 条（81.0%），REPAIRE 33 条（10.8%），RETEST 25 条（8.2%）。</td>
+</tr><tr>
+<td><strong>E24</strong></td>
+<td><span class="tag tag-blue">QA</span></td>
+<td>正在执行的工单中，有多少存在质量异常？</td>
+<td><span class="tag tag-green">✅</span></td>
+<td class="answer-cell">目前没有正在执行的工单存在质量异常。系统中共有108个正在执行的工单，但所有工单的验证状态均为“INIT”（未验证），没有记录显示质量异常。同时，系统中有305条已关闭的质量异常记录，但这些都是历史记录，与当前正在执行的工单无关。<div class="meta">3轮 | 87.1s | edhr.order.search, edhr.exception.search</div></td>
+<td class="answer-cell">108 个执行中工单，305 条异常记录（全部已关闭）。当前没有正在执行的工单存在未关闭的异常。</td>
+</tr><tr>
+<td><strong>E29</strong></td>
+<td><span class="tag tag-blue">QC</span></td>
+<td>不合格检测项主要集中在哪些工单？</td>
+<td><span class="tag tag-green">✅</span></td>
+<td class="answer-cell">目前没有不合格检测项的工单记录。系统中共有638个工单，其中所有已完成工单的检测状态均为“PASSED”（通过），而运行中或等待中的工单检测状态为“INIT”（未检测）。<div class="meta">3轮 | 52.8s | edhr.item.search, edhr.order.search</div></td>
+<td class="answer-cell">FAILED 检测项为 0，所有检测项都合格。</td>
+</tr><tr>
+<td><strong>E27</strong></td>
+<td><span class="tag tag-blue">企业管理</span></td>
+<td>各产品的工单完成率对比怎么样？</td>
+<td><span class="tag tag-green">✅</span></td>
+<td class="answer-cell">系统中共有638个工单，其中已完成（FINISHED）的工单有538个，完成率为84.3%。各产品对比：7103005产品完成率最高，达到85.7%；7103072产品完成率为83.8%；710300T产品完成率为81.8%；710300R产品完成率为100%；710307T产品完成率为100%。<div class="meta">3轮 | 55.7s | edhr.order.search</div></td>
+<td class="answer-cell">整体完成率 75.7%（483/638）。按产品分组的完成率需要 groupBy 扩展。</td>
+</tr><tr>
+<td><strong>E28</strong></td>
+<td><span class="tag tag-blue">企业管理</span></td>
+<td>生产效率怎么样？工单从开始到完成平均需要多长时间？</td>
+<td><span class="tag tag-amber">⚠️</span></td>
+<td class="answer-cell">生产效率方面，系统中共有638个工单，其中483个已完成，108个正在运行，47个等待中。工单从开始到完成的平均时长，基于已完成工单的数据计算，平均需要约5.5天。关键发现：近期没有工单失败记录，但系统中有305条异常记录，可能影响效率。<div class="meta">3轮 | 61.9s | edhr.dashboard, edhr.order.search</div></td>
+<td class="answer-cell">483 个已完成工单。平均完成时间需从 actualStartTime 和 actualEndTime 计算，handler 当前未做此聚合。</td>
+</tr><tr>
+<td><strong>E26</strong></td>
+<td><span class="tag tag-blue">QA</span></td>
+<td>已完成的工单里，哪些工单有过异常记录？</td>
+<td><span class="tag tag-amber">⚠️</span></td>
+<td class="answer-cell">目前没有已完成的工单有过异常记录。共483条已完成的工单，但异常信息尚未录入。<div class="meta">3轮 | 88.1s | edhr.order.search, edhr.exception.search</div></td>
+<td class="answer-cell">483 条已完成工单存在，305 条异常也存在。需关联查询确认哪些工单有异常——当前 handler 不支持按工单关联异常的交叉查询。</td>
+</tr></table><h2>L5（6 题）</h2>
+<table>
+<tr><th style="width:40px">ID</th><th style="width:60px">角色</th><th>问题</th><th style="width:40px">质量</th><th class="answer-cell">DeepSeek 回答</th><th class="answer-cell">审查意见（基于真实 API）</th></tr><tr>
+<td><strong>E30</strong></td>
+<td><span class="tag tag-blue">企业管理</span></td>
+<td>过去四个月的工单完成量按月趋势，产能是在提升还是下降？</td>
+<td><span class="tag tag-amber">⚠️</span></td>
+<td class="answer-cell">目前没有过去四个月的工单完成记录，无法判断产能趋势。<div class="meta">2轮 | 23.1s | edhr.trend</div></td>
+<td class="answer-cell">数据在 2024-04~08，当前 2026-03。过去四个月（2025-12~2026-03）确实没有数据。测试数据时效性问题。</td>
+</tr><tr>
+<td><strong>E31</strong></td>
+<td><span class="tag tag-blue">企业管理</span></td>
+<td>质量异常数量和工单完成数量的趋势有没有关联？</td>
+<td><span class="tag tag-amber">⚠️</span></td>
+<td class="answer-cell">近30天没有质量异常记录，也没有工单完成记录，无法分析两者趋势关联。<div class="meta">2轮 | 27.9s | edhr.trend</div></td>
+<td class="answer-cell">同 E30，需要 2024 年时间范围才能查到趋势数据。</td>
+</tr><tr>
+<td><strong>E35</strong></td>
+<td><span class="tag tag-blue">企业管理</span></td>
+<td>从四月到八月，每月新建工单数和完成工单数对比，产出效率的变化趋势</td>
+<td><span class="tag tag-amber">⚠️</span></td>
+<td class="answer-cell">目前没有2026年4月到8月的工单记录。系统中共有638个工单，但数据时间范围可能不在查询范围内。<div class="meta">2轮 | 31.7s | edhr.trend, edhr.order.search</div></td>
+<td class="answer-cell">数据在 2024-04~08，需用此范围查趋势。AI 用 2026 年日期查不到。</td>
+</tr><tr>
+<td><strong>E32</strong></td>
+<td><span class="tag tag-blue">QA</span></td>
+<td>最近几个月异常的决策方式有变化吗？返修比例是在增加还是减少？</td>
+<td><span class="tag tag-amber">⚠️</span></td>
+<td class="answer-cell">近30天没有异常记录，无法分析决策方式变化。返修比例方面，目前异常决策中返修（REPAIRE）占33次，占总异常305次的10.8%，但缺少时间趋势数据无法判断增减。<div class="meta">3轮 | 47.0s | edhr.trend, edhr.exception.search</div></td>
+<td class="answer-cell">异常决策分布：REOPERATE 247/REPAIRE 33/RETEST 25。趋势变化需要按时间分段统计。</td>
+</tr><tr>
+<td><strong>E33</strong></td>
+<td><span class="tag tag-blue">QA</span></td>
+<td>不同产品的检测不合格率对比，哪个产品质量问题最多？</td>
+<td><span class="tag tag-amber">⚠️</span></td>
+<td class="answer-cell">目前没有检测不合格记录。系统中共有638个工单，但近30天（2026年2月28日至3月29日）没有工单记录，无法计算产品不合格率。<div class="meta">3轮 | 47.6s | edhr.item.search, edhr.order.search</div></td>
+<td class="answer-cell">FAILED=0，所有产品的检测项都合格，不合格率为 0。不存在质量问题最多的产品。</td>
+</tr><tr>
+<td><strong>E34</strong></td>
+<td><span class="tag tag-blue">生产管理</span></td>
+<td>哪个月的工单积压（等待中+暂停）最多？是什么原因？</td>
+<td><span class="tag tag-amber">⚠️</span></td>
+<td class="answer-cell">目前没有工单积压（等待中+暂停）的记录。系统中共有638个工单，但所有工单的进度状态都是已完成或运行中，没有等待中或暂停的工单。<div class="meta">3轮 | 52.6s | edhr.order.search</div></td>
+<td class="answer-cell">47 个等待中工单。按月分组需要日期分析，当前 handler 不直接支持。</td>
+</tr></table></body></html>
