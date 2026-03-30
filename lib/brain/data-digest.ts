@@ -1,13 +1,9 @@
-// 数据摘要引擎 — 将工具返回的原始 JSON 转为紧凑的文本摘要
+// 数据摘要引擎 v2 — 将工具返回的原始 JSON 转为精简 JSON 摘要
 // 目的：让 LLM 在 summarize 阶段直接引用预计算数字，避免手动数数出错
-//
-// 处理数据形态：
-//   - items 列表（搜索/list 类）
-//   - groups 聚合数据（groupBy 类）
-//   - 嵌套对象（dashboard 类）
-//   - profile 数据（设备全景，含嵌套数组）
-//   - 错误响应（含 value 字符串键）
-//   - 空结果（total: 0）
+// v2 改动：输出 JSON 格式（LLM 更熟悉）+ 修复领域公式分母/污染 bug
+
+import { SYSTEM_REGISTRY } from '@/lib/systems'
+import { applyDomainFormulas } from './domain-formulas'
 
 // ============================================================
 // 类型定义
@@ -20,10 +16,15 @@ export interface ToolResultInput {
 
 // 需要统计分布的枚举字段（已知）
 const ENUM_FIELDS = new Set([
-  'status', 'progressStatus', 'validatedStatus', 'type', 'orderType',
+  'status', 'statusText', 'progressStatus', 'validatedStatus', 'type', 'orderType',
   'category', 'priority', 'urgency', 'severity', 'department',
   'productionLine', 'decisionType', 'resultStatus', 'lowStock', 'isKey',
 ])
+
+// 可读标签字段：优先用 statusText 而非 status 数字代码
+const READABLE_FIELD_MAP: Record<string, string> = {
+  status: 'statusText',
+}
 
 // 内部字段（不展示给 LLM）
 const SKIP_FIELDS = new Set([
@@ -34,270 +35,257 @@ const SKIP_FIELDS = new Set([
 // ID 类字段后缀（数字但不做汇总）
 const ID_FIELD_SUFFIXES = ['Id', 'id']
 
-// 日期字段正则（ISO 字符串 or 毫秒时间戳字段名）
-// 使用大小写边界避免误匹配（如 materialCost 中的 'at'）
+// 日期字段正则
 const DATE_FIELD_PATTERN = /[Tt]ime$|[Dd]ate$|[Tt]ime[A-Z]|[Dd]ate[A-Z]|[Aa]t$|[Ss]tartTime|[Ee]ndTime|[Cc]reated[A-Z]|[Uu]pdated[A-Z]|[Pp]roduction[Dd]ate/
+
+const SMALL_DATASET_THRESHOLD = 20
 
 // ============================================================
 // 主入口
 // ============================================================
 
 /**
- * 将多个工具结果转换为文本摘要
- * @param results 工具结果数组，每项含 tool 名称和 data
- * @returns 纯文本摘要，供注入 LLM prompt
+ * 将多个工具结果转换为 JSON 格式摘要
  */
 export function digestToolResults(results: Array<ToolResultInput>): string {
-  const sections: string[] = []
-  const multiTool = results.length > 1
+  if (results.length === 0) return '{}'
+
+  if (results.length === 1) {
+    const digest = digestSingle(results[0].data)
+    return JSON.stringify(digest, null, 2)
+  }
+
+  // 多工具：以 tool 名为 key
+  const combined: Record<string, unknown> = {}
+  for (const { tool, data } of results) {
+    combined[tool] = digestSingle(data)
+  }
+  return JSON.stringify(combined, null, 2)
+}
+
+/**
+ * 为 summarize 构建完整数据摘要（通用统计 + 领域 KPI）
+ */
+export function buildDigestForSummarize(
+  results: Array<{ tool: string; data: unknown }>,
+  systemId?: string,
+): string {
+  if (results.length === 0) return '{}'
+
+  // 构建通用摘要
+  const digestObj: Record<string, unknown> = {}
 
   for (const { tool, data } of results) {
-    const section = digestSingle(data)
-    if (multiTool) {
-      sections.push(`[${tool}]\n${section}`)
-    } else {
-      sections.push(section)
+    digestObj[tool] = digestSingle(data)
+  }
+
+  // 领域公式
+  const metrics = systemId ? SYSTEM_REGISTRY[systemId]?.computedMetrics : undefined
+  if (metrics) {
+    const kpiResults: Record<string, unknown> = {}
+    for (const r of results) {
+      if (!r.data || typeof r.data !== 'object') continue
+      const obj = r.data as Record<string, unknown>
+      if ('items' in obj && Array.isArray(obj.items) && obj.items.length > 0) {
+        const kpi = applyDomainFormulas(
+          obj.items as Record<string, unknown>[],
+          obj.items.length,  // bug fix: 用 items.length 不用 total（total 可能是全量数，items 是当前页）
+          metrics,
+        )
+        if (Object.keys(kpi).length > 0) {
+          kpiResults[r.tool] = kpi
+        }
+      }
+    }
+    if (Object.keys(kpiResults).length > 0) {
+      digestObj['_领域指标'] = kpiResults
     }
   }
 
-  return sections.join('\n\n')
+  // 单工具时简化结构
+  if (results.length === 1) {
+    const key = results[0].tool
+    const result: Record<string, unknown> = digestObj[key] as Record<string, unknown>
+    if (digestObj['_领域指标']) {
+      result['_领域指标'] = (digestObj['_领域指标'] as Record<string, unknown>)[key]
+    }
+    return JSON.stringify(result, null, 2)
+  }
+
+  return JSON.stringify(digestObj, null, 2)
 }
 
 // ============================================================
-// 单个工具结果处理
+// 单个工具结果 → 结构化摘要对象
 // ============================================================
 
-function digestSingle(data: unknown): string {
-  if (data === null || data === undefined) return '无数据'
+function digestSingle(data: unknown): unknown {
+  if (data === null || data === undefined) return { error: '无数据' }
 
-  // 错误响应：只有 value 字符串键
+  // 错误响应
   if (isErrorResponse(data)) {
-    return `错误: ${(data as Record<string, unknown>).value}`
+    return { error: (data as Record<string, unknown>).value }
   }
 
-  // 数组直接处理（groups 或 items 列表）
+  if (typeof data !== 'object') return data
+
+  // 数组
   if (Array.isArray(data)) {
-    return digestArray(data)
+    return digestItemsList(data as Record<string, unknown>[])
   }
-
-  if (typeof data !== 'object') return String(data)
 
   const obj = data as Record<string, unknown>
 
-  // groups 聚合数据：{ total, groupBy, groups: [{group, count}] }
+  // groups 聚合数据
   if (Array.isArray(obj.groups) && typeof obj.total === 'number') {
-    return digestGroups(obj)
+    return digestGroupsToObj(obj)
   }
 
-  // items 列表数据：{ total, count, items: [...] }
+  // items 列表数据
   if (Array.isArray(obj.items)) {
-    return digestItemsWrapper(obj)
+    return digestItemsWrapperToObj(obj)
   }
 
-  // dashboard / profile 嵌套对象：递归展平
-  return digestNestedObject(obj)
+  // dashboard / profile 嵌套对象
+  return digestNestedToObj(obj)
 }
 
 // ============================================================
-// 错误响应检测
+// groups 数据 → JSON
 // ============================================================
 
-function isErrorResponse(data: unknown): boolean {
-  if (typeof data !== 'object' || data === null || Array.isArray(data)) return false
-  const keys = Object.keys(data as Record<string, unknown>)
-  if (keys.length !== 1 && keys.length !== 2) return false
-  const obj = data as Record<string, unknown>
-  return typeof obj.value === 'string' && keys.every(k => k === 'value' || k === 'error')
-}
-
-// ============================================================
-// groups 聚合数据
-// ============================================================
-
-function digestGroups(obj: Record<string, unknown>): string {
+function digestGroupsToObj(obj: Record<string, unknown>): Record<string, unknown> {
   const total = obj.total as number
   const groups = obj.groups as Array<Record<string, unknown>>
   const groupBy = obj.groupBy as string | undefined
 
-  const lines: string[] = []
-  lines.push(`合计: ${total} 条`)
-  if (groupBy) lines.push(`分组维度: ${groupBy}`)
-
-  if (groups.length === 0) {
-    lines.push('无分组数据')
-    return lines.join('\n')
-  }
-
-  lines.push('分布:')
+  const distribution: Record<string, unknown> = {}
   for (const g of groups) {
     const label = String(g.group ?? g.name ?? g.key ?? '未知')
     const count = Number(g.count ?? g.value ?? 0)
-    const pct = total > 0 ? ((count / total) * 100).toFixed(1) : '0.0'
-    lines.push(`  ${label}: ${count} (${pct}%)`)
+    const pct = total > 0 ? `${((count / total) * 100).toFixed(1)}%` : '0%'
+    distribution[label] = { count, pct }
   }
 
-  return lines.join('\n')
+  return {
+    total,
+    ...(groupBy ? { groupBy } : {}),
+    distribution,
+  }
 }
 
 // ============================================================
-// items 列表包装对象
+// items 包装对象 → JSON
 // ============================================================
 
-function digestItemsWrapper(obj: Record<string, unknown>): string {
+function digestItemsWrapperToObj(obj: Record<string, unknown>): Record<string, unknown> {
   const total = typeof obj.total === 'number' ? obj.total : null
   const items = obj.items as unknown[]
   const context = typeof obj.context === 'string' ? obj.context : null
 
-  const lines: string[] = []
+  const result: Record<string, unknown> = {}
+  if (total !== null) result.total = total
+  result.itemCount = items.length
 
-  // 显示合计
-  if (total !== null) {
-    lines.push(`合计: ${total} 条`)
-  }
-
-  // 空结果
   if (items.length === 0) {
-    if (context) lines.push(`上下文: ${context}`)
-    return lines.join('\n')
+    if (context) result.context = context
+    return result
   }
 
-  // 非对象数组
   if (typeof items[0] !== 'object' || items[0] === null) {
-    lines.push(digestArray(items))
-    return lines.join('\n')
+    result.values = items.slice(0, 20)
+    return result
   }
 
   const objItems = items as Record<string, unknown>[]
 
-  // 字段分析
-  const fieldAnalysis = analyzeFields(objItems)
-  if (fieldAnalysis) lines.push(fieldAnalysis)
+  // 分布统计
+  const stats = buildStatsObj(objItems)
+  if (Object.keys(stats).length > 0) result.stats = stats
 
-  // 样本展示
-  const sample = buildSample(objItems, total ?? objItems.length)
-  if (sample) lines.push(sample)
+  // 样本
+  result.samples = buildSamplesArray(objItems)
 
-  if (context) lines.push(`上下文: ${context}`)
-
-  return lines.join('\n')
+  if (context) result.context = context
+  return result
 }
 
 // ============================================================
-// 纯数组处理（无包装对象）
+// items 列表（无包装） → JSON
 // ============================================================
 
-function digestArray(items: unknown[]): string {
-  if (items.length === 0) return '合计: 0 条'
+function digestItemsList(items: Record<string, unknown>[]): Record<string, unknown> {
+  if (items.length === 0) return { total: 0 }
 
-  if (typeof items[0] !== 'object' || items[0] === null) {
-    // 基本类型数组
-    return `合计: ${items.length} 条\n值: ${items.slice(0, 10).join(', ')}${items.length > 10 ? ` ... 共${items.length}` : ''}`
+  const result: Record<string, unknown> = { total: items.length }
+
+  if (typeof items[0] !== 'object') {
+    result.values = items.slice(0, 20)
+    return result
   }
 
-  const objItems = items as Record<string, unknown>[]
-  const lines: string[] = [`合计: ${items.length} 条`]
-
-  const fieldAnalysis = analyzeFields(objItems)
-  if (fieldAnalysis) lines.push(fieldAnalysis)
-
-  const sample = buildSample(objItems, items.length)
-  if (sample) lines.push(sample)
-
-  return lines.join('\n')
+  const stats = buildStatsObj(items)
+  if (Object.keys(stats).length > 0) result.stats = stats
+  result.samples = buildSamplesArray(items)
+  return result
 }
 
 // ============================================================
-// 嵌套对象（dashboard / profile）
+// 嵌套对象（dashboard/profile） → JSON
 // ============================================================
 
-function digestNestedObject(obj: Record<string, unknown>): string {
-  const lines: string[] = []
+function digestNestedToObj(obj: Record<string, unknown>): Record<string, unknown> {
+  const result: Record<string, unknown> = {}
 
   for (const [key, value] of Object.entries(obj)) {
     if (SKIP_FIELDS.has(key)) continue
-
     if (value === null || value === undefined) continue
 
-    // 嵌套对象 — 展平为 key.subkey
-    if (typeof value === 'object' && !Array.isArray(value)) {
-      const nested = value as Record<string, unknown>
-      // 检查是否是简单的数值对象（dashboard style）
-      const isSimpleNumericObj = Object.values(nested).every(v =>
-        typeof v === 'number' || v === null || v === undefined
-      )
-
-      if (isSimpleNumericObj && Object.keys(nested).length <= 8) {
-        // dashboard 风格：展平
-        for (const [subKey, subVal] of Object.entries(nested)) {
-          if (subVal !== null && subVal !== undefined) {
-            lines.push(`${key}.${subKey}: ${subVal}`)
-          }
-        }
-      } else {
-        // 递归处理复杂嵌套
-        lines.push(`${key}:`)
-        const subLines = digestNestedObject(nested)
-        subLines.split('\n').forEach(l => lines.push(`  ${l}`))
-      }
-      continue
-    }
-
-    // 数组 — profile 数据中的嵌套列表
     if (Array.isArray(value)) {
-      lines.push(`${key}: ${digestProfileArray(key, value)}`)
-      continue
+      // 嵌套数组（recentFaults, recentMaintenance 等）
+      if (value.length === 0) {
+        result[key] = { count: 0 }
+      } else if (typeof value[0] === 'object' && value[0] !== null) {
+        const arrItems = value as Record<string, unknown>[]
+        const arrResult: Record<string, unknown> = { count: arrItems.length }
+        const stats = buildStatsObj(arrItems)
+        if (Object.keys(stats).length > 0) arrResult.stats = stats
+        arrResult.samples = buildSamplesArray(arrItems)
+        result[key] = arrResult
+      } else {
+        result[key] = value.slice(0, 10)
+      }
+    } else if (typeof value === 'object') {
+      // 嵌套对象 — 保留原样（dashboard 的 equipment、kpi 等已经是紧凑的）
+      const nested = value as Record<string, unknown>
+      const clean: Record<string, unknown> = {}
+      for (const [k, v] of Object.entries(nested)) {
+        if (!SKIP_FIELDS.has(k) && v !== null && v !== undefined) {
+          clean[k] = v
+        }
+      }
+      result[key] = clean
+    } else {
+      result[key] = value
     }
-
-    // 基础值
-    lines.push(`${key}: ${value}`)
   }
 
-  return lines.join('\n')
-}
-
-/**
- * profile 数据中的嵌套数组（如 recentFaults, activeRepairs）
- * 显示数量 + 字段分布/汇总
- */
-function digestProfileArray(_key: string, items: unknown[]): string {
-  if (items.length === 0) return '0 条'
-
-  if (typeof items[0] !== 'object' || items[0] === null) {
-    return `${items.length} 条`
-  }
-
-  const objItems = items as Record<string, unknown>[]
-  const parts: string[] = [`${items.length} 条`]
-
-  // 简化分析（不递归，只做一层）
-  const fieldAnalysis = analyzeFields(objItems, { compact: true })
-  if (fieldAnalysis) parts.push(fieldAnalysis)
-
-  return parts.join(' | ')
+  return result
 }
 
 // ============================================================
-// 字段分析：分布 + 数值汇总 + 日期跨度
+// 统计分析 → JSON 对象
 // ============================================================
 
-interface AnalyzeOptions {
-  compact?: boolean  // 紧凑模式：不加前缀标题行
-}
-
-function analyzeFields(items: Record<string, unknown>[], options: AnalyzeOptions = {}): string {
-  if (items.length === 0) return ''
+function buildStatsObj(items: Record<string, unknown>[]): Record<string, unknown> {
+  if (items.length === 0) return {}
 
   const allKeys = new Set<string>()
   for (const item of items) {
     for (const k of Object.keys(item)) allKeys.add(k)
   }
 
-  const lines: string[] = []
-
-  // 按字段类型分类处理
-  const enumLines: string[] = []
-  const numLines: string[] = []
-  const dateLines: string[] = []
+  const stats: Record<string, unknown> = {}
 
   for (const key of allKeys) {
     if (SKIP_FIELDS.has(key)) continue
@@ -305,179 +293,80 @@ function analyzeFields(items: Record<string, unknown>[], options: AnalyzeOptions
     const values = items.map(item => item[key]).filter(v => v !== null && v !== undefined)
     if (values.length === 0) continue
 
-    // 1. 已知枚举字段 or 自动检测枚举特征
+    // 优先用可读字段（statusText > status）
+    const readableKey = READABLE_FIELD_MAP[key]
+    if (readableKey) {
+      const readableValues = items.map(item => item[readableKey]).filter(v => v != null)
+      if (readableValues.length > 0 && typeof readableValues[0] === 'string') {
+        // 用可读字段做分布
+        stats[readableKey] = buildDistObj(readableValues, items.length)
+        continue
+      }
+    }
+
+    // 已知枚举字段 or 自动检测
     if (ENUM_FIELDS.has(key) || isEnumLike(key, values)) {
-      const dist = buildDistribution(values, items.length)
-      if (dist) enumLines.push(`${key}分布: ${dist}`)
+      stats[key] = buildDistObj(values, items.length)
       continue
     }
 
-    // 2. 数值字段（排除 ID 类）
+    // 数值字段
     if (isNumericField(key, values)) {
-      const agg = buildAggregation(key, values as number[])
-      if (agg) numLines.push(agg)
+      const nums = values.filter(v => typeof v === 'number' && !isNaN(v)) as number[]
+      if (nums.length > 0) {
+        const sum = nums.reduce((a, b) => a + b, 0)
+        stats[key] = {
+          sum: roundNum(sum),
+          avg: roundNum(sum / nums.length),
+          min: roundNum(Math.min(...nums)),
+          max: roundNum(Math.max(...nums)),
+        }
+      }
       continue
     }
 
-    // 3. 日期字段
+    // 日期字段
     if (DATE_FIELD_PATTERN.test(key)) {
       const range = buildDateRange(values)
-      if (range) dateLines.push(`${key}: ${range}`)
-      continue
+      if (range) stats[key + '_range'] = range
     }
   }
 
-  if (!options.compact) {
-    if (enumLines.length > 0) lines.push(...enumLines)
-    if (numLines.length > 0) lines.push(...numLines)
-    if (dateLines.length > 0) lines.push(...dateLines)
-  } else {
-    // 紧凑模式：只取最重要的枚举和数值
-    const combined = [...enumLines.slice(0, 2), ...numLines.slice(0, 2)]
-    if (combined.length > 0) lines.push(...combined)
-  }
-
-  return lines.join('\n')
+  return stats
 }
 
-// ============================================================
-// 分布统计
-// ============================================================
-
-function buildDistribution(values: unknown[], total: number): string {
+/** 分布统计 → { "已完成": {"count": 5, "pct": "83.3%"}, ... } */
+function buildDistObj(values: unknown[], total: number): Record<string, unknown> {
   const counts = new Map<string, number>()
   for (const v of values) {
-    const key = String(v)
-    counts.set(key, (counts.get(key) ?? 0) + 1)
+    const label = String(v)
+    counts.set(label, (counts.get(label) ?? 0) + 1)
   }
-
-  // 按数量降序排列
+  const dist: Record<string, unknown> = {}
   const sorted = [...counts.entries()].sort((a, b) => b[1] - a[1])
-
-  const parts = sorted.map(([label, count]) => {
-    const pct = total > 0 ? ((count / total) * 100).toFixed(1) : '0.0'
-    return `${label}:${count}(${pct}%)`
-  })
-
-  return parts.join(' ')
-}
-
-// ============================================================
-// 数值汇总
-// ============================================================
-
-function buildAggregation(key: string, values: number[]): string {
-  const nums = values.filter(v => typeof v === 'number' && !isNaN(v))
-  if (nums.length === 0) return ''
-
-  const sum = nums.reduce((a, b) => a + b, 0)
-  const avg = sum / nums.length
-  const min = Math.min(...nums)
-  const max = Math.max(...nums)
-
-  // 全部相同 → 简化显示
-  if (min === max) {
-    return `${key}: 全部为 ${formatNum(min)}`
+  for (const [label, count] of sorted) {
+    dist[label] = { count, pct: `${((count / total) * 100).toFixed(1)}%` }
   }
-
-  const parts = [
-    `合计:${formatNum(sum)}`,
-    `平均:${formatNum(avg)}`,
-    `最小:${formatNum(min)}`,
-    `最大:${formatNum(max)}`,
-  ]
-  return `${key}[${parts.join(' ')}]`
-}
-
-function formatNum(n: number): string {
-  // 整数直接显示
-  if (Number.isInteger(n)) return String(n)
-  // 小数保留1位
-  return n.toFixed(1)
+  return dist
 }
 
 // ============================================================
-// 日期跨度
+// 样本数据
 // ============================================================
 
-function buildDateRange(values: unknown[]): string {
-  const dates: Date[] = []
-
-  for (const v of values) {
-    if (typeof v === 'number') {
-      // 毫秒时间戳（13位）
-      if (v > 1e12) {
-        const d = new Date(v)
-        if (!isNaN(d.getTime())) dates.push(d)
-      }
-    } else if (typeof v === 'string') {
-      const d = new Date(v)
-      if (!isNaN(d.getTime())) dates.push(d)
-    }
-  }
-
-  if (dates.length === 0) return ''
-
-  const times = dates.map(d => d.getTime())
-  const earliest = new Date(Math.min(...times))
-  const latest = new Date(Math.max(...times))
-
-  const fmt = (d: Date) => d.toISOString().slice(0, 10)
-
-  if (fmt(earliest) === fmt(latest)) return fmt(earliest)
-  return `${fmt(earliest)}~${fmt(latest)}`
-}
-
-// ============================================================
-// 样本展示
-// ============================================================
-
-function buildSample(items: Record<string, unknown>[], total: number): string {
-  const count = items.length
-
-  if (count === 0) return ''
-
+function buildSamplesArray(items: Record<string, unknown>[]): unknown[] {
   const stripped = items.map(stripInternalFields)
 
-  if (total <= 20) {
-    // 全部展示
-    const lines = ['全部样本:']
-    stripped.forEach((item, i) => {
-      lines.push(`  ${i + 1}. ${formatItem(item)}`)
-    })
-    return lines.join('\n')
+  if (items.length <= SMALL_DATASET_THRESHOLD) {
+    return stripped
   }
 
-  // 前5 + 省略 + 后2
-  const head = stripped.slice(0, 5)
-  const tail = stripped.slice(-2)
-  const omitted = count - 7
-  const totalShown = count
-
-  const lines = [`前${Math.min(5, count)}条样本:`]
-  head.forEach((item, i) => {
-    lines.push(`  ${i + 1}. ${formatItem(item)}`)
-  })
-
-  if (omitted > 0) {
-    lines.push(`  ... 省略 ${omitted} 条 (共 ${totalShown} 条) ...`)
-    tail.forEach((item, i) => {
-      lines.push(`  ${totalShown - 1 + i}. ${formatItem(item)}`)
-    })
-  }
-
-  return lines.join('\n')
-}
-
-/** 格式化单条记录为紧凑字符串 */
-function formatItem(item: Record<string, unknown>): string {
-  const pairs = Object.entries(item)
-    .filter(([, v]) => v !== null && v !== undefined)
-    .map(([k, v]) => {
-      if (typeof v === 'object') return `${k}:{...}`
-      return `${k}:${v}`
-    })
-  return pairs.join(' | ')
+  // 前5 + 后2
+  return [
+    ...stripped.slice(0, 5),
+    { _omitted: `省略 ${items.length - 7} 条，共 ${items.length} 条` },
+    ...stripped.slice(-2),
+  ]
 }
 
 /** 去除内部字段 */
@@ -490,82 +379,57 @@ function stripInternalFields(item: Record<string, unknown>): Record<string, unkn
 }
 
 // ============================================================
-// 类型检测辅助函数
+// 辅助函数
 // ============================================================
 
-/**
- * 自动检测是否为枚举型字段
- * 条件：字符串类型 + 唯一值 ≤ 10 + 唯一值占比 < 50%
- */
+function buildDateRange(values: unknown[]): string | null {
+  const dates: Date[] = []
+  for (const v of values) {
+    if (typeof v === 'number' && v > 1e12) {
+      const d = new Date(v)
+      if (!isNaN(d.getTime())) dates.push(d)
+    } else if (typeof v === 'string') {
+      const d = new Date(v)
+      if (!isNaN(d.getTime())) dates.push(d)
+    }
+  }
+  if (dates.length === 0) return null
+  const times = dates.map(d => d.getTime())
+  const fmt = (d: Date) => d.toISOString().slice(0, 10)
+  const earliest = new Date(Math.min(...times))
+  const latest = new Date(Math.max(...times))
+  if (fmt(earliest) === fmt(latest)) return fmt(earliest)
+  return `${fmt(earliest)} ~ ${fmt(latest)}`
+}
+
+function roundNum(n: number): number {
+  if (Number.isInteger(n)) return n
+  return Math.round(n * 10) / 10
+}
+
+function isErrorResponse(data: unknown): boolean {
+  if (typeof data !== 'object' || data === null || Array.isArray(data)) return false
+  const keys = Object.keys(data as Record<string, unknown>)
+  if (keys.length !== 1 && keys.length !== 2) return false
+  const obj = data as Record<string, unknown>
+  return typeof obj.value === 'string' && keys.every(k => k === 'value' || k === 'error')
+}
+
 function isEnumLike(key: string, values: unknown[]): boolean {
   if (values.length === 0) return false
   if (typeof values[0] !== 'string') return false
-
-  // 已知 ID 字段后缀不做枚举
   if (ID_FIELD_SUFFIXES.some(suffix => key.endsWith(suffix))) return false
-
   const unique = new Set(values.map(v => String(v)))
   return unique.size <= 10 && unique.size < values.length * 0.5
 }
 
-/**
- * 是否为数值汇总字段（排除 ID、日期时间戳）
- */
 function isNumericField(key: string, values: unknown[]): boolean {
   if (values.length === 0) return false
   if (typeof values[0] !== 'number') return false
-
-  // ID 类字段不汇总
   if (ID_FIELD_SUFFIXES.some(suffix => key.endsWith(suffix))) return false
-
-  // 字段名含 id/Id 也跳过
   if (/[Ii]d$/.test(key)) return false
-
-  // 时间戳字段（13位数字）不汇总
   if (DATE_FIELD_PATTERN.test(key)) return false
   const numVals = values as number[]
-  if (numVals.every(v => v > 1e12)) return false  // 全是毫秒时间戳
-
+  if (numVals.every(v => v > 1e12)) return false
   return true
-}
-
-// ============================================================
-// 集成入口 — 通用引擎 + 领域公式
-// ============================================================
-
-import { SYSTEM_REGISTRY } from '@/lib/systems'
-import { applyDomainFormulas } from './domain-formulas'
-
-/**
- * 为 summarize 构建完整数据摘要（通用统计 + 领域 KPI）
- * 替代 JSON.stringify(data) 传给 LLM
- */
-export function buildDigestForSummarize(
-  results: Array<{ tool: string; data: unknown }>,
-  systemId?: string,
-): string {
-  // 1. 通用引擎输出
-  const genericDigest = digestToolResults(results)
-
-  // 2. 领域公式（如果有配置）
-  const metrics = systemId ? SYSTEM_REGISTRY[systemId]?.computedMetrics : undefined
-  if (!metrics) return genericDigest
-
-  // 对每个工具的 items 数据应用领域公式
-  const formulaLines: string[] = []
-  for (const r of results) {
-    if (!r.data || typeof r.data !== 'object') continue
-    const obj = r.data as Record<string, unknown>
-    if ('items' in obj && Array.isArray(obj.items) && obj.items.length > 0) {
-      const result = applyDomainFormulas(
-        obj.items as Record<string, unknown>[],
-        (obj.total as number) || obj.items.length,
-        metrics,
-      )
-      if (result) formulaLines.push(result)
-    }
-  }
-
-  if (formulaLines.length === 0) return genericDigest
-  return genericDigest + '\n\n' + formulaLines.join('\n')
 }
