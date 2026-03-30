@@ -5,6 +5,7 @@ import { detectDisplayFormat, buildStructuredResult } from './result-presenter'
 import { extractIntentFromThinkResult } from './intent'
 import { validateResult } from './validator'
 import { buildDigestForSummarize } from './data-digest'
+import { SYSTEM_REGISTRY } from '@/lib/systems'
 import { TraceCollector } from './trace'
 import type { ToolRegistry } from '@/lib/tools/registry'
 import type { StorageInterface } from '@/lib/storage/types'
@@ -309,12 +310,22 @@ export async function processQuery(
       if (nums.length) relatedHints.push(`${r.tool}: ${nums.join(', ')}`)
     }
   }
+  // 从第一个工具推断系统 ID，读取 domain model
+  const firstToolDef = allResults.length > 0 ? registry.getTool(allResults[0].tool) : undefined
+  const systemId = firstToolDef?.system
+
+  // 注入 domain model — 让 summarize AI 知道实体间的关系链，做更好的跨域分析和 followUp
+  if (systemId) {
+    const meta = SYSTEM_REGISTRY[systemId]
+    if (meta?.domainModel) {
+      relatedHints.unshift(`业务关系链:\n${meta.domainModel}`)
+    }
+  }
+
   const relatedContext = relatedHints.length > 0 ? relatedHints.join('\n') : undefined
 
   // 数据处理层 — 将原始 JSON 转为结构化摘要（省 token + 预计算统计值）
   const toolResultsForDigest = allResults.map(r => ({ tool: r.tool, data: r.data }))
-  const firstToolDef = allResults.length > 0 ? registry.getTool(allResults[0].tool) : undefined
-  const systemId = firstToolDef?.system
   const dataDigest = toolResultsForDigest.length > 0
     ? buildDigestForSummarize(toolResultsForDigest, systemId)
     : undefined
