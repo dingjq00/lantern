@@ -134,7 +134,6 @@ interface BenchmarkResult {
   trace?: any; answer: string
   data?: Record<string, unknown>[]; display?: string; columns?: string[]
   followUp?: string[]; sources?: Array<{ tool: string; description: string }>
-  lessonEval?: { quality: string; reason: string; lesson: string }
   error?: string
   // v3 三层评估
   factCheck?: {
@@ -287,7 +286,6 @@ async function runBenchmarkForModel(
         trace: result.trace, answer: result.answer,
         data: result.data, display: result.display, columns: result.columns,
         followUp: result.followUp, sources: result.sources,
-        lessonEval: result.lessonEval,
         factCheck, followUpCheck,
       }
       results.push(r)

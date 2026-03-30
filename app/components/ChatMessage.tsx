@@ -79,7 +79,7 @@ export function ChatMessage({ message, onFollowUp, onFeedback }: ChatMessageProp
 
         {/* 执行追踪 */}
         {!isUser && message.trace && (
-          <TracePanel trace={message.trace} lessonEval={(message as any).lessonEval} />
+          <TracePanel trace={message.trace} />
         )}
 
         {/* 追问建议 */}

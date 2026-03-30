@@ -4,8 +4,6 @@ import { computeConfidence, computeVerdictConfidence } from './confidence'
 import { detectDisplayFormat, buildStructuredResult } from './result-presenter'
 import { extractIntentFromThinkResult } from './intent'
 import { maybeUpdateVerdict } from './verdict'
-import { extractDataFields } from './relevance-checker'
-import { evaluateWithSubagent } from './subagent-evaluator'
 import { TraceCollector } from './trace'
 import type { ToolRegistry } from '@/lib/tools/registry'
 import type { StorageInterface } from '@/lib/storage/types'
@@ -322,31 +320,6 @@ export async function processQuery(
     }
   } catch (err) { console.warn('[Router] Session/trace 写入失败:', err) }
 
-  // subagent 评估（和 result 一起返回，前端可展示）
-  let lessonEval: { quality: string; reason: string; lesson: string } | undefined
-  try {
-    const dataFields = extractDataFields(mergedData.length === 1 ? mergedData[0] : mergedData)
-    const dataSample = JSON.stringify(mergedData).slice(0, 300)
-    const subagentResult = await evaluateWithSubagent(llm, query, dataFields.join(', '), dataSample)
-    lessonEval = { quality: subagentResult.quality, reason: subagentResult.reason, lesson: subagentResult.lesson }
-
-    // 写 lesson
-    if (subagentResult.quality !== 'good' && intent?.intentHash) {
-      try {
-        storage.insertLesson({
-          intentHash: intent.intentHash, tenantId, query,
-          selectedTools: allResults.map(r => r.tool),
-          quality: subagentResult.quality,
-          errorReason: subagentResult.reason,
-          betterPath: subagentResult.missing.length > 0 ? subagentResult.missing : undefined,
-          lesson: `[subagent] ${subagentResult.lesson}`,
-          source: 'self_eval' as const,
-          createdAt: new Date(),
-        })
-      } catch (err) { console.warn('[Router] Lesson 写入失败:', err) }
-    }
-  } catch (err) { console.warn('[Router] Subagent 评估失败:', err) }
-
   const result = buildStructuredResult(
     summary.answer,
     mergedData.map(d => (typeof d === 'object' && d !== null ? d : { value: d }) as Record<string, unknown>),
@@ -357,7 +330,6 @@ export async function processQuery(
   )
   result.sources = uniqueSources
   result.trace = trace.build()
-  result.lessonEval = lessonEval
   return result
 }
 

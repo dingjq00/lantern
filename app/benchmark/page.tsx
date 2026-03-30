@@ -24,7 +24,6 @@ interface RunDetail {
     data?: Record<string, unknown>[]; display?: string; columns?: string[]
     followUp?: string[]; sources?: Array<{ tool: string; description: string }>
     trace?: any
-    lessonEval?: { quality: string; reason: string; lesson: string }
   }>
 }
 
@@ -412,15 +411,7 @@ function RunDetailPanel({ result: r }: { result: any }) {
         </div>
       )}
 
-      {/* ⑥ Lesson 评估 */}
-      {r.lessonEval && (
-        <div className={`px-3 py-1.5 rounded-lg text-xs ${r.lessonEval.quality === 'good' ? 'bg-green-50 text-green-700 border border-green-200' : r.lessonEval.quality === 'bad' ? 'bg-red-50 text-red-700 border border-red-200' : 'bg-amber-50 text-amber-700 border border-amber-200'}`}>
-          Subagent: {r.lessonEval.quality === 'good' ? '✅' : r.lessonEval.quality === 'bad' ? '❌' : '⚠️'} {r.lessonEval.reason}
-          {r.lessonEval.lesson && <div className="mt-0.5 opacity-80">教训: {r.lessonEval.lesson}</div>}
-        </div>
-      )}
-
-      {/* ⑥b 事实层 + followUp 检查 (v3) */}
+      {/* ⑥ 事实层 + followUp 检查 (v3) */}
       {(r.factCheck || r.followUpCheck) && (
         <div className="flex flex-wrap gap-2 text-xs">
           {r.factCheck && r.factCheck.mustTotal > 0 && (
