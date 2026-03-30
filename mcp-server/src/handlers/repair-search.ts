@@ -112,18 +112,53 @@ export function registerRepairSearch(server: McpServer) {
 
         const spareCost = Array.isArray(spares) ? spares.reduce((sum: number, s: any) => sum + (s.quantity ?? 0) * (s.unitPrice ?? 0), 0) : 0
         const spareCount = Array.isArray(spares) ? spares.length : 0
+        const spareDetails = Array.isArray(spares) ? spares.map((s: any) => ({
+          sparePartId: s.sparePartId,
+          spareName: s.spareName,  // 备件名称（如果 API 返回了）
+          quantity: s.quantity,
+          unitPrice: s.unitPrice,
+          totalPrice: s.totalPrice ?? (s.quantity ?? 0) * (s.unitPrice ?? 0),
+        })) : []
         const knowledgeTitles = Array.isArray(knowledge) ? knowledge.map((k: any) => k.documentTitle ?? k.title ?? '').filter(Boolean) : []
 
         return {
           id: r.id, code: r.orderCode, status: r.status, statusText: REPAIR_STATUS[r.status],
           orderType: r.orderType, equipmentId: r.equipmentId,
           repairMinutes: r.repairMinutes, laborCost: r.laborCost, materialCost: r.materialCost,
-          spareSummary: { count: spareCount, totalCost: spareCost },
+          spareSummary: { count: spareCount, totalCost: spareCost, details: spareDetails },
           knowledgeRefs: knowledgeTitles,
         }
       }))
 
-      return textResult({ total, count: enriched.length, items: enriched })
+      // 批量查备件名称（spare API 的 usage 记录可能没有 spareName）
+      const allSpareIds = new Set<number>()
+      for (const item of enriched) {
+        for (const d of item.spareSummary.details) {
+          if (d.sparePartId && !d.spareName) allSpareIds.add(d.sparePartId)
+        }
+      }
+      if (allSpareIds.size > 0) {
+        try {
+          const sparePage = await eamGet<{ list: Array<{ id: number; spareName: string; spareCode: string }> }>(
+            '/eam/spare/part/page', { pageNo: 1, pageSize: allSpareIds.size + 10 }
+          )
+          const nameMap = new Map(sparePage.list.map(s => [s.id, s.spareName]))
+          for (const item of enriched) {
+            for (const d of item.spareSummary.details) {
+              if (d.sparePartId && !d.spareName) {
+                d.spareName = nameMap.get(d.sparePartId) ?? `备件#${d.sparePartId}`
+              }
+            }
+          }
+        } catch { /* 查不到名称不影响主流程 */ }
+      }
+
+      return textResult({
+        total,
+        count: enriched.length,
+        items: enriched,
+        ...(enriched.length < total ? { note: `详细模式仅展示前${enriched.length}条（含备件/知识引用），总计${total}条。如需全部工单基础信息请用 format=concise。` } : {}),
+      })
     }
   )
 }
