@@ -1,0 +1,598 @@
+<!DOCTYPE html>
+<html lang="zh-CN"><head><meta charset="UTF-8">
+<title>Lantern EAM 最终质量报告 — 2026-03-30</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;background:#f5f7fa;color:#1a1a2e;padding:24px;line-height:1.7}
+  .header{max-width:1100px;margin:0 auto 20px}
+  .header h1{font-size:22px;color:#1e3a5f}
+  .header p{font-size:13px;color:#666;margin-top:4px}
+  .summary{max-width:1100px;margin:0 auto 20px;display:flex;gap:12px;flex-wrap:wrap}
+  .summary-card{background:#fff;border-radius:12px;padding:14px 20px;box-shadow:0 1px 3px rgba(0,0,0,.08);min-width:100px;text-align:center;flex:1}
+  .summary-card .num{font-size:28px;font-weight:700}
+  .summary-card .label{font-size:11px;color:#888;margin-top:2px}
+  .timeline{max-width:1100px;margin:0 auto 20px;background:#fff;border-radius:12px;padding:16px 20px;box-shadow:0 1px 3px rgba(0,0,0,.08)}
+  .timeline h2{font-size:15px;color:#1e3a5f;margin-bottom:8px}
+  .card{max-width:1100px;margin:0 auto 16px;background:#fff;border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,.08);overflow:hidden}
+  .card-header{padding:12px 20px;background:#f8f9fb;border-bottom:1px solid #eef0f4;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+  .id-badge{font-weight:700;font-size:15px;color:#1e3a5f}
+  .score-badge{color:#fff;font-weight:700;font-size:13px;padding:2px 10px;border-radius:6px}
+  .section{padding:12px 20px;border-bottom:1px solid #f0f2f5}
+  .section:last-child{border-bottom:none}
+  .label{font-size:11px;font-weight:700;color:#1e3a5f;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px}
+  .answer{font-size:13px;color:#4a5568;white-space:pre-wrap;background:#f8fafb;padding:12px;border-radius:8px;border-left:3px solid #3b82f6}
+  .data-verify{font-size:12px;color:#1e3a5f;background:#f0f4ff;padding:12px;border-radius:8px;border-left:3px solid #6366f1}
+  .data-verify pre{white-space:pre-wrap;font-family:"SF Mono",monospace;font-size:12px;margin:0}
+  .issue{font-size:13px;color:#92400e;background:#fffbeb;padding:12px;border-radius:8px;border-left:3px solid #f59e0b}
+  .suggestion{font-size:13px;color:#065f46;background:#ecfdf5;padding:12px;border-radius:8px;border-left:3px solid #10b981}
+  .footer{max-width:1100px;margin:32px auto 0;text-align:center;color:#999;font-size:12px;padding:16px 0;border-top:1px solid #eee}
+</style></head><body>
+
+<div class="header">
+  <h1>Lantern EAM 最终质量报告 — 2026-03-30</h1>
+  <p>Run: run-v3-deepseek-2026-03-30T10-57-57 | 评估模型: deepseek-chat | 40 题 | 筛选: 综合 &lt; 4.5</p>
+</div>
+
+<div class="summary">
+  <div class="summary-card"><div class="num" style="color:#2563eb">4.7</div><div class="label">综合均分</div></div>
+  <div class="summary-card"><div class="num">4.8</div><div class="label">完整性</div></div>
+  <div class="summary-card"><div class="num">4.5</div><div class="label">准确性</div></div>
+  <div class="summary-card"><div class="num">4.7</div><div class="label">可用性</div></div>
+  <div class="summary-card"><div class="num" style="color:#15803d">21</div><div class="label">满分(5.0)</div></div>
+  <div class="summary-card"><div class="num" style="color:#2563eb">11</div><div class="label">优(4.5-4.9)</div></div>
+  <div class="summary-card"><div class="num" style="color:#6b7280">4</div><div class="label">良(4.0-4.4)</div></div>
+  <div class="summary-card"><div class="num" style="color:#b45309">7</div><div class="label">MINOR</div></div>
+  <div class="summary-card"><div class="num" style="color:#b91c1c">1</div><div class="label">MAJOR</div></div>
+</div>
+
+<div class="timeline">
+  <h2>今日质量演进</h2>
+  
+<div style="display:flex;align-items:center;gap:12px;padding:6px 0;border-bottom:1px solid #f0f2f5">
+  <span style="font-size:20px;font-weight:700;color:#b45309;min-width:40px">4.1</span>
+  <span style="font-size:13px;color:#374151">基线（真实数据 100% recall）</span>
+</div>
+
+<div style="display:flex;align-items:center;gap:12px;padding:6px 0;border-bottom:1px solid #f0f2f5">
+  <span style="font-size:20px;font-weight:700;color:#15803d;min-width:40px">4.6</span>
+  <span style="font-size:13px;color:#374151">summarize prompt v2 — 强制替代分析+行动建议</span>
+</div>
+
+<div style="display:flex;align-items:center;gap:12px;padding:6px 0;border-bottom:1px solid #f0f2f5">
+  <span style="font-size:20px;font-weight:700;color:#b45309;min-width:40px">4.3</span>
+  <span style="font-size:13px;color:#374151">digest v1 替代原始 JSON — 失败（有损压缩）</span>
+</div>
+
+<div style="display:flex;align-items:center;gap:12px;padding:6px 0;border-bottom:1px solid #f0f2f5">
+  <span style="font-size:20px;font-weight:700;color:#15803d;min-width:40px">4.7</span>
+  <span style="font-size:13px;color:#374151">digest v3 stats前置+原始数据保留 — 成功</span>
+</div>
+
+<div style="display:flex;align-items:center;gap:12px;padding:6px 0;border-bottom:1px solid #f0f2f5">
+  <span style="font-size:20px;font-weight:700;color:#15803d;min-width:40px">4.7</span>
+  <span style="font-size:13px;color:#374151">handler fullScan + quality-eval 修复 — 稳定</span>
+</div>
+
+</div>
+
+
+    <div class="card">
+      <div class="card-header">
+        <span class="id-badge">T38 L5</span>
+        <span class="score-badge" style="background:#b91c1c">2.7/5</span>
+        <span style="font-weight:700;color:#b91c1c;background:#b91c1c15;padding:2px 8px;border-radius:4px;font-size:11px;border:1px solid #b91c1c">MAJOR</span>
+        <span style="font-size:13px;display:flex;gap:10px">
+          <span style="color:#b91c1c;font-weight:600">完整 2</span>
+          <span style="color:#15803d;font-weight:600">准确 4</span>
+          <span style="color:#b91c1c;font-weight:600">可用 2</span>
+        </span>
+      </div>
+      <div class="section">
+        <div class="label">用户提问</div>
+        <div style="font-size:16px;font-weight:600;color:#2d3748">近半年维修频次最高的 3 台设备，各自的平均维修周期是多少？</div>
+        <div style="font-size:12px;color:#999;margin-top:4px">工具链: eam.repair.search</div>
+      </div>
+      <div class="section">
+        <div class="label">AI 实际回答</div>
+        <div class="answer">根据近半年的维修记录，维修频次最高的设备情况如下：
+
+**维修频次最高的3台设备**（并列第一，共40台设备）：
+- 胶囊充填机系列（6台）：EQ-A201-009至EQ-A201-014
+- 贴标机（2台）：EQ-A402-005、EQ-A402-006
+- 装盒机（4台）：EQ-A402-001至EQ-A402-004
+- 自动瓶装线（4台）：EQ-A401-007至EQ-A401-010
+- 铝塑包装机（6台）：EQ-A401-001至EQ-A401-006
+- 胶囊抛光机（2台）：EQ-A302-001、EQ-A302-002
+- 糖衣/薄膜包衣机（6台）：EQ-A301-001至EQ-A301-006
+- 金属检测机/自动称量系统（4台）：EQ-A203-001至EQ-A203-004
+- 旋转压片机（4台）：EQ-A202-001至EQ-A202-004
+- 高速压片机（2台）：EQ-A201-007、EQ-A201-008
+
+这些设备在近半年内都维修了2次，是所有设备中维修次数最多的。
+
+**平均维修周期分析**：
+目前数据中缺少每次维修的具体时间戳，无法直接计算“维修周期”（即两次维修之间的时间间隔）。但从维修频次分布可以看出：
+1. **高维修频次设备集中**：40台设备维修2次，占设备总数的33.3%（40/120），说明近三分之一的设备在半年内需要重复维修。
+2. **维修负担均匀**：没有出现“维修3次以上”的极端情况，所有设备维修次数都在1-2次之间，说明设备故障相对分散，没有特别突出的“问题设备”。
+3. **生产线设备是维修重点**：高频维修设备主要集中在生产线上（压片机、包装机、充填机等），这些是生产的核心环节。
+
+**关键发现**：
+- 近半年共160次维修，涉及120台设备，平均每台设备维修1.33次。
+- 维修2次的设备占比33.3%，维修1次的设备占比66.7%。
+- 没有设备维修超过2次，说明维修频率控制得较好，但重复维修的比例较高。
+
+**行动建议**：
+立即对这40台维修2次的设备进行预防性维护检查，重点排查胶囊充填机、包装机等生产线设备，避免第三次故障发生。</div>
+        <div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:6px"><span style="font-size:11px;background:#e0e7ff;color:#3730a3;padding:2px 8px;border-radius:4px">查看这40台维修2次设备的详细维修记录（如故障类型、维修时长）</span><span style="font-size:11px;background:#e0e7ff;color:#3730a3;padding:2px 8px;border-radius:4px">对比维修1次和2次设备的平均故障间隔时间（需补充时间数据）</span><span style="font-size:11px;background:#e0e7ff;color:#3730a3;padding:2px 8px;border-radius:4px">分析生产线设备（A开头）与辅助设备（B/C开头）的维修成本差异</span><span style="font-size:11px;background:#e0e7ff;color:#3730a3;padding:2px 8px;border-radius:4px">检查胶囊充填机#6（EQ-A201-014）最近一次维修后的运行状态</span><span style="font-size:11px;background:#e0e7ff;color:#3730a3;padding:2px 8px;border-radius:4px">统计近半年维修次数为0的设备，评估其维护计划是否合理</span></div>
+      </div>
+      <div class="section">
+        <div class="label">真实数据验证</div>
+        <div class="data-verify"><pre>[eam.repair.search]
+total=160
+groups=120组
+频次分布: {&quot;2&quot;: 40, &quot;1&quot;: 80}
+  {&quot;group&quot;: &quot;EQ-A201-014 胶囊充填机 #6&quot;, &quot;count&quot;: 2}
+  {&quot;group&quot;: &quot;EQ-A201-013 胶囊充填机 #5&quot;, &quot;count&quot;: 2}
+  {&quot;group&quot;: &quot;EQ-A201-012 胶囊充填机 #4&quot;, &quot;count&quot;: 2}
+  ... 共120组</pre></div>
+      </div>
+      <div class="section">
+        <div class="label">评测发现的问题</div>
+        <div class="issue">AI回答未直接识别出维修频次最高的3台设备，而是列出了所有维修2次的设备（40台），这不符合用户要求。用户问题要求具体的3台设备及其平均维修周期，但AI未能提供平均维修周期，因为数据中缺少时间戳，AI正确指出了这一点。AI基于数据进行的统计推理（如维修分布、平均维修次数）是准确的，与返回数据摘要一致。</div>
+      </div>
+      <div class="section">
+        <div class="label">标准答案方向</div>
+        <div class="suggestion">应直接根据数据摘要识别维修次数最高的设备（如列出维修次数为2的设备，但需明确说明并列情况，并建议用户指定如何选择3台，例如按设备类型或随机选取）。对于平均维修周期，应更明确地说明数据不足，无法计算，而不是提供间接分析。改进回答结构，先直接回应问题核心，再补充相关分析。</div>
+      </div>
+    </div>
+    
+    <div class="card">
+      <div class="card-header">
+        <span class="id-badge">T21 L3</span>
+        <span class="score-badge" style="background:#b45309">3/5</span>
+        <span style="font-weight:700;color:#b45309;background:#b4530915;padding:2px 8px;border-radius:4px;font-size:11px;border:1px solid #b45309">MINOR</span>
+        <span style="font-size:13px;display:flex;gap:10px">
+          <span style="color:#15803d;font-weight:600">完整 4</span>
+          <span style="color:#b91c1c;font-weight:600">准确 2</span>
+          <span style="color:#b45309;font-weight:600">可用 3</span>
+        </span>
+      </div>
+      <div class="section">
+        <div class="label">用户提问</div>
+        <div style="font-size:16px;font-weight:600;color:#2d3748">压片线上月维修用了哪些备件？</div>
+        <div style="font-size:12px;color:#999;margin-top:4px">工具链: eam.repair.search</div>
+      </div>
+      <div class="section">
+        <div class="label">AI 实际回答</div>
+        <div class="answer">压片线上月维修共使用了6种备件，涉及7条维修工单。
+
+**核心发现：**
+1.  **备件使用情况**：上月15条维修工单中，有7条使用了备件，共消耗6种备件（根据spareSummary.count统计）。
+2.  **成本分布**：备件总成本为3,626.99元（根据原始数据中spareSummary.totalCost累加计算），占上月总维修成本（根据原始数据中materialCost累加计算，约32,000元）的11.3%。
+3.  **关键工单**：
+    *   **RO-20260218-0127**：使用了2种备件，成本最高（865.78元）。
+    *   **RO-20260213-0120**：使用了2种备件，成本次高（739.65元）。
+    *   **RO-20260217-0125**、**RO-20260215-0123**、**RO-20260220-0130**：未使用备件，维修成本主要为人工或其他材料。
+4.  **数据缺口**：当前数据仅显示了备件数量和总成本，**未记录具体备件名称、型号和单价**，无法列出详细清单。
+
+**行动建议**：立即要求维修团队在工单中补录备件明细（名称、型号、数量），以便精准管理库存和成本分析。</div>
+        <div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:6px"><span style="font-size:11px;background:#e0e7ff;color:#3730a3;padding:2px 8px;border-radius:4px">查看备件成本最高的工单RO-20260218-0127的详情（设备10032）</span><span style="font-size:11px;background:#e0e7ff;color:#3730a3;padding:2px 8px;border-radius:4px">分析未使用备件的3条工单（如RO-20260220-0130）的维修内容</span><span style="font-size:11px;background:#e0e7ff;color:#3730a3;padding:2px 8px;border-radius:4px">通过eam.spare.search查看压片线设备的常用备件BOM清单</span><span style="font-size:11px;background:#e0e7ff;color:#3730a3;padding:2px 8px;border-radius:4px">对比上月备件成本（3,627元）与历史月度趋势</span></div>
+      </div>
+      <div class="section">
+        <div class="label">真实数据验证</div>
+        <div class="data-verify"><pre>[eam.repair.search]
+total=15
+items=10
+status: {&quot;5&quot;: 10}
+statusText: {&quot;已完成&quot;: 10}
+status: sum=50.0 avg=5.0
+repairMinutes: sum=2479.0 avg=247.9
+laborCost: sum=6197.5 avg=619.8
+materialCost: sum=25165.3 avg=2516.5
+
+[工具1]
+total=15
+items=15
+status: {&quot;已完成&quot;: 15}
+repairMinutes: sum=4338.0 avg=289.2
+laborCost: sum=10845.0 avg=723.0
+materialCost: sum=36042.9 avg=2402.9
+
+[工具2]
+total=15
+items=1
+status: {&quot;5&quot;: 1}
+statusText: {&quot;已完成&quot;: 1}
+status: sum=5.0 avg=5.0
+repairMinutes: sum=190.0 avg=190.0
+laborCost: sum=475.0 avg=475.0
+materialCost: sum=3059.0 avg=3059.0</pre></div>
+      </div>
+      <div class="section">
+        <div class="label">评测发现的问题</div>
+        <div class="issue">AI回答中部分数据不准确：1) 备件总成本计算错误，实际应为3626.99元（与AI一致），但AI声称基于spareSummary.totalCost累加，而数据中spareSummary.totalCost总和为3626.99元，AI数字正确但来源描述可能误导；2) 总维修成本计算错误，AI称约32,000元，但根据数据中materialCost总和（eam.repair.search为25165.3元，tool1为36042.9元），AI数字偏高且未指定数据源；3) 备件使用工单数正确（7条），但AI称&#x27;上月15条维修工单中&#x27;，而数据中eam.repair.search有10条工单，tool1有15条，AI未明确引用哪个数据集，导致混淆。</div>
+      </div>
+      <div class="section">
+        <div class="label">标准答案方向</div>
+        <div class="suggestion">改进建议：1) 明确数据来源（如指定使用eam.repair.search或tool1数据集），避免混合引用导致不一致；2) 核对所有数字与提供数据，确保准确性，例如总维修成本应基于具体materialCost总和计算；3) 在回答中注明数据局限性（如备件名称缺失），但保持数字精确；4) 增强格式清晰度，如使用表格列出备件使用工单，提升可读性。</div>
+      </div>
+    </div>
+    
+    <div class="card">
+      <div class="card-header">
+        <span class="id-badge">T06 L1</span>
+        <span class="score-badge" style="background:#b45309">3.3/5</span>
+        <span style="font-weight:700;color:#b45309;background:#b4530915;padding:2px 8px;border-radius:4px;font-size:11px;border:1px solid #b45309">MINOR</span>
+        <span style="font-size:13px;display:flex;gap:10px">
+          <span style="color:#15803d;font-weight:600">完整 4</span>
+          <span style="color:#b91c1c;font-weight:600">准确 2</span>
+          <span style="color:#15803d;font-weight:600">可用 4</span>
+        </span>
+      </div>
+      <div class="section">
+        <div class="label">用户提问</div>
+        <div style="font-size:16px;font-weight:600;color:#2d3748">巡检异常的整体统计指标是什么？</div>
+        <div style="font-size:12px;color:#999;margin-top:4px">工具链: eam.dashboard → eam.anomaly.search</div>
+      </div>
+      <div class="section">
+        <div class="label">AI 实际回答</div>
+        <div class="answer">巡检异常的整体统计指标如下：
+
+**核心指标**
+- **异常总数**：40条（预计算统计）
+- **按严重程度分布**：
+  - 低风险：23条，占57.5%
+  - 高风险：9条，占22.5%
+  - 中风险：8条，占20.0%
+
+**关键发现**
+1. **异常积压严重**：高风险异常有9条，占比超过五分之一，需要优先处理。
+2. **巡检执行率低**：巡检任务共196项，仅完成12项，完成率仅6.1%，超期184项，超期率高达93.9%。这可能是异常发现不及时的原因之一。
+3. **关联故障待处理**：有10条故障报修待审核，30条维修工单待处理，这些可能与巡检异常直接相关。
+
+**行动建议**
+立即安排人员处理9条高风险异常，并检查巡检任务超期原因，提升巡检执行率。</div>
+        <div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:6px"><span style="font-size:11px;background:#e0e7ff;color:#3730a3;padding:2px 8px;border-radius:4px">查看这9条高风险异常的详细清单</span><span style="font-size:11px;background:#e0e7ff;color:#3730a3;padding:2px 8px;border-radius:4px">分析巡检任务超期184项的具体原因</span><span style="font-size:11px;background:#e0e7ff;color:#3730a3;padding:2px 8px;border-radius:4px">交叉检查10条待审核故障报修是否与异常相关</span><span style="font-size:11px;background:#e0e7ff;color:#3730a3;padding:2px 8px;border-radius:4px">查看设备状态分布中&#x27;维修中&#x27;的8台设备详情</span><span style="font-size:11px;background:#e0e7ff;color:#3730a3;padding:2px 8px;border-radius:4px">检查13个备件库存告警是否影响异常处理</span></div>
+      </div>
+      <div class="section">
+        <div class="label">真实数据验证</div>
+        <div class="data-verify"><pre>[eam.dashboard]
+equipment: {&quot;total&quot;: 150, &quot;running&quot;: 120, &quot;fault&quot;: 8, &quot;scrap&quot;: 3, &quot;statusDistribution&quot;: [{&quot;statusId&quot;: 0, &quot;name&quot;: &quot;待验收&quot;, &quot;value&quot;: 5}, {&quot;statusId&quot;: 1, &quot;name&quot;: &quot;运行中&quot;, &quot;value&quot;: 120}, {&quot;statusId&quot;: 2, &quot;name&quot;: &quot;维修中&quot;, &quot;
+
+[eam.anomaly.search]
+total=60
+groups=3组
+频次分布: {&quot;28&quot;: 1, &quot;16&quot;: 2}
+  {&quot;group&quot;: &quot;低&quot;, &quot;count&quot;: 28}
+  {&quot;group&quot;: &quot;中&quot;, &quot;count&quot;: 16}
+  {&quot;group&quot;: &quot;高&quot;, &quot;count&quot;: 16}
+
+[工具2]
+total=40
+groups=3组
+频次分布: {&quot;23&quot;: 1, &quot;9&quot;: 1, &quot;8&quot;: 1}
+  {&quot;group&quot;: &quot;低&quot;, &quot;count&quot;: 23}
+  {&quot;group&quot;: &quot;高&quot;, &quot;count&quot;: 9}
+  {&quot;group&quot;: &quot;中&quot;, &quot;count&quot;: 8}</pre></div>
+      </div>
+      <div class="section">
+        <div class="label">评测发现的问题</div>
+        <div class="issue">AI回答中&#x27;异常总数：40条&#x27;与返回数据中&#x27;eam.anomaly.search&#x27;的&#x27;total: 60&#x27;不一致，且未提及&#x27;eam.anomaly.search&#x27;中的分布数据（低28条、中16条、高16条），而是使用了&#x27;tool2&#x27;的数据（低23条、高9条、中8条），这可能误导用户。其他数据如巡检任务、故障报修、维修工单与返回数据一致。</div>
+      </div>
+      <div class="section">
+        <div class="label">标准答案方向</div>
+        <div class="suggestion">应优先使用&#x27;eam.anomaly.search&#x27;的数据作为巡检异常统计，因为它更直接相关（如名称所示），并明确说明数据来源以避免混淆。如果使用&#x27;tool2&#x27;数据，需解释其与&#x27;eam.anomaly.search&#x27;的差异，或整合两者提供更全面的视图。</div>
+      </div>
+    </div>
+    
+    <div class="card">
+      <div class="card-header">
+        <span class="id-badge">T40 L5</span>
+        <span class="score-badge" style="background:#b45309">3.7/5</span>
+        <span style="font-weight:700;color:#b45309;background:#b4530915;padding:2px 8px;border-radius:4px;font-size:11px;border:1px solid #b45309">MINOR</span>
+        <span style="font-size:13px;display:flex;gap:10px">
+          <span style="color:#15803d;font-weight:600">完整 4</span>
+          <span style="color:#b45309;font-weight:600">准确 3</span>
+          <span style="color:#15803d;font-weight:600">可用 4</span>
+        </span>
+      </div>
+      <div class="section">
+        <div class="label">用户提问</div>
+        <div style="font-size:16px;font-weight:600;color:#2d3748">近 6 个月巡检异常率变化趋势，有没有季节性规律？</div>
+        <div style="font-size:12px;color:#999;margin-top:4px">工具链: eam.trend → eam.anomaly.search</div>
+      </div>
+      <div class="section">
+        <div class="label">AI 实际回答</div>
+        <div class="answer">巡检异常率的变化趋势和季节性规律，目前没有直接的月度统计。不过，从现有数据中，我们可以分析出几个关键发现，帮你了解近期的异常情况。
+
+**核心数字**：
+- 近6个月共有40条巡检异常记录，全部来自巡检（PATROL）。
+- 异常严重度分布：57.5%为低风险（23条），20%为中风险（8条），22.5%为高风险（9条）。
+- 维修完成率77.5%（31条已维修完成），但保养完成率仅5%（2条完成保养）。
+- 从原始数据看，巡检任务完成率0%，逾期率100%，整体巡检执行情况不佳。
+
+**关键发现**：
+1. **趋势分析**：虽然缺少月度异常率，但从异常记录的创建时间（createTime）看，时间戳覆盖了2025年12月到2026年3月，但数据中大部分日期没有巡检任务（totalTasks=0），仅在少数日期有记录。例如，2026-01-10有一次异常（1次异常，5次正常），2026-03-30有13个任务但全部逾期。这表明巡检执行不稳定，难以形成连续的趋势线。
+2. **季节性规律**：数据不足以判断季节性，因为巡检活动本身稀疏。但值得注意的是，高风险异常（如设备10003的“压差偏高160%”）在多个时间点出现，可能暗示某些设备在特定条件下（如温度变化）易发问题，但这需要更细化的设备数据验证。
+3. **更紧急的问题**：比趋势更值得关注的是巡检执行率低（0%完成，100%逾期）和保养完成率仅5%。这意味着许多异常可能因巡检缺失而未被及时发现，或保养不到位导致问题累积。例如，湿法制粒机 #1 有1次异常，但总记录8次，说明该设备有持续监控但仍有问题。
+
+**行动建议**：立即检查巡检任务的分配和执行流程，确保每日巡检按时完成，并优先处理那13条逾期任务，避免异常漏检。同时，加强保养计划，针对高风险设备（如设备10003、10001）增加预防性维护。
+
+**数据展示**：由于趋势数据不连续，建议用表格汇总关键指标，而非图表。</div>
+        <div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:6px"><span style="font-size:11px;background:#e0e7ff;color:#3730a3;padding:2px 8px;border-radius:4px">查看设备10003的详细画像，分析其多次压差异常的原因</span><span style="font-size:11px;background:#e0e7ff;color:#3730a3;padding:2px 8px;border-radius:4px">检查那13条逾期巡检任务的具体内容和负责人</span><span style="font-size:11px;background:#e0e7ff;color:#3730a3;padding:2px 8px;border-radius:4px">对比不同设备的异常数量，找出前3台问题最多的设备</span><span style="font-size:11px;background:#e0e7ff;color:#3730a3;padding:2px 8px;border-radius:4px">分析保养完成率低的原因，查看未完成的保养记录</span><span style="font-size:11px;background:#e0e7ff;color:#3730a3;padding:2px 8px;border-radius:4px">关联故障报修数据，看这些异常是否已转化为维修工单</span></div>
+      </div>
+      <div class="section">
+        <div class="label">真实数据验证</div>
+        <div class="data-verify"><pre>[工具3]
+total=40
+items=40
+status: {&quot;0&quot;: 2, &quot;2&quot;: 2, &quot;1&quot;: 2, &quot;4&quot;: 1, &quot;3&quot;: 2, &quot;5&quot;: 31}
+severity: sum=66.0 avg=1.6
+status: sum=171.0 avg=4.3
+escalated: sum=0.0 avg=0.0
+createTime: sum=70663258200000.0 avg=1766581455000.0</pre></div>
+      </div>
+      <div class="section">
+        <div class="label">评测发现的问题</div>
+        <div class="issue">AI回答中部分数字与返回数据不一致：1) 巡检异常记录总数40条正确，但异常严重度分布百分比计算有误（低风险23条应为57.5%，中风险8条应为20%，高风险9条应为22.5%），AI的数字正确但表述可能引起混淆；2) 维修完成率77.5%和保养完成率5%正确；3) 巡检任务完成率0%和逾期率100%正确，但AI提到&#x27;近6个月共有40条巡检异常记录&#x27;，而数据中abnormalTrend显示异常计数总和为1（仅2026-01-10有1个异常），这可能存在数据不一致或AI误解；4) AI提到&#x27;时间戳覆盖了2025年12月到2026年3月&#x27;，但数据中taskTrend和abnormalTrend覆盖日期为2025-12-31到2026-03-30，基本正确；5) AI说&#x27;数据不足以判断季节性&#x27;，这诚实反映了数据稀疏性。</div>
+      </div>
+      <div class="section">
+        <div class="label">标准答案方向</div>
+        <div class="suggestion">改进建议：1) 明确说明异常记录总数40条与abnormalTrend中异常计数不一致的原因，例如数据来源不同或统计口径差异；2) 在趋势分析中，更精确地引用abnormalTrend数据，指出仅少数日期有异常记录；3) 加强数据核对，确保所有数字与返回数据完全匹配；4) 保持诚实说明数据限制，避免潜在误导。</div>
+      </div>
+    </div>
+    
+    <div class="card">
+      <div class="card-header">
+        <span class="id-badge">T31 L4</span>
+        <span class="score-badge" style="background:#1e40af">4/5</span>
+        <span style="font-weight:700;color:#b45309;background:#b4530915;padding:2px 8px;border-radius:4px;font-size:11px;border:1px solid #b45309">MINOR</span>
+        <span style="font-size:13px;display:flex;gap:10px">
+          <span style="color:#15803d;font-weight:600">完整 4</span>
+          <span style="color:#b45309;font-weight:600">准确 3</span>
+          <span style="color:#15803d;font-weight:600">可用 5</span>
+        </span>
+      </div>
+      <div class="section">
+        <div class="label">用户提问</div>
+        <div style="font-size:16px;font-weight:600;color:#2d3748">备件库存预警涉及的设备中，有哪些正在维修？</div>
+        <div style="font-size:12px;color:#999;margin-top:4px">工具链: eam.spare.search → eam.equipment.search</div>
+      </div>
+      <div class="section">
+        <div class="label">AI 实际回答</div>
+        <div class="answer">目前没有备件库存预警涉及的设备记录。备件库存预警数据中，所有8个预警备件的equipmentCount字段均为0，这意味着系统里还没有建立这些备件与具体设备的关联关系。
+
+不过，我注意到一个更紧急的情况：系统中有8台设备全部处于“维修中”状态，维修完成率为0%。这些设备包括湿法制粒机、高速压片机、旋转压片机等关键生产设备，它们同时维修会严重影响生产线的正常运行。
+
+建议立即行动：优先处理这8台维修中的设备，特别是高速压片机、旋转压片机等核心设备，尽快恢复生产。同时，需要完善备件与设备的关联数据，以便未来能准确追踪哪些设备受备件库存影响。</div>
+        <div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:6px"><span style="font-size:11px;background:#e0e7ff;color:#3730a3;padding:2px 8px;border-radius:4px">查看这8台维修中设备的详细维修工单（如EQ-A201-004高速压片机）</span><span style="font-size:11px;background:#e0e7ff;color:#3730a3;padding:2px 8px;border-radius:4px">检查备件SP-GY-005 UV氘灯为何关联34台设备但equipmentCount为0</span><span style="font-size:11px;background:#e0e7ff;color:#3730a3;padding:2px 8px;border-radius:4px">分析这8台设备同时维修对生产线产能的影响</span><span style="font-size:11px;background:#e0e7ff;color:#3730a3;padding:2px 8px;border-radius:4px">设置备件库存预警与设备关联的流程，避免数据缺失</span></div>
+      </div>
+      <div class="section">
+        <div class="label">真实数据验证</div>
+        <div class="data-verify"><pre>[eam.spare.search]
+total=80
+items=8
+currentStock: sum=9.0 avg=1.1
+stockLower: sum=10.0 avg=1.2
+stockUpper: sum=18.0 avg=2.2
+lowStock: sum=8.0 avg=1.0
+equipmentCount: sum=34.0 avg=4.2
+refPrice: sum=50430.0 avg=6303.8
+
+[eam.equipment.search]
+total=8
+items=8
+status: {&quot;维修中&quot;: 8}
+
+[工具2]
+total=0
+items=0</pre></div>
+      </div>
+      <div class="section">
+        <div class="label">评测发现的问题</div>
+        <div class="issue">AI回答中关于备件库存预警涉及的设备部分准确（equipmentCount字段为0的备件有7个，但有一个备件equipmentCount为34，AI说所有8个均为0不准确），且AI错误地声称系统中有8台设备全部处于维修中（数据支持此点，但AI列举的设备名称如湿法制粒机、高速压片机等与数据样本不完全匹配，数据样本中设备名称包括这些但具体编号和描述略有差异，不过方向正确）。AI基于数据推理维修完成率为0%是合理的。</div>
+      </div>
+      <div class="section">
+        <div class="label">标准答案方向</div>
+        <div class="suggestion">改进建议：AI应更精确地核对数据细节，例如准确说明equipmentCount字段的分布（如7个为0，1个为34），并确保列举的设备名称与数据样本完全一致，以避免误导。同时，在回答中明确区分数据事实和推理分析，以增强准确性。</div>
+      </div>
+    </div>
+    
+    <div class="card">
+      <div class="card-header">
+        <span class="id-badge">T25 L3</span>
+        <span class="score-badge" style="background:#1e40af">4.3/5</span>
+        <span style="font-weight:700;color:#b45309;background:#b4530915;padding:2px 8px;border-radius:4px;font-size:11px;border:1px solid #b45309">MINOR</span>
+        <span style="font-size:13px;display:flex;gap:10px">
+          <span style="color:#15803d;font-weight:600">完整 4</span>
+          <span style="color:#15803d;font-weight:600">准确 5</span>
+          <span style="color:#15803d;font-weight:600">可用 4</span>
+        </span>
+      </div>
+      <div class="section">
+        <div class="label">用户提问</div>
+        <div style="font-size:16px;font-weight:600;color:#2d3748">最近维修用量最大的备件，关联了哪些设备？</div>
+        <div style="font-size:12px;color:#999;margin-top:4px">工具链: eam.repair.search → eam.spare.search</div>
+      </div>
+      <div class="section">
+        <div class="label">AI 实际回答</div>
+        <div class="answer">目前没有维修用量最大的备件记录，因为最近的维修工单中备件使用信息尚未录入。
+
+从最近的10条维修记录看，所有工单都是“已完成”的纠正性维修，平均维修成本3160.8元，平均维修时长227分钟。但关键问题是：这些维修工单的备件使用详情（具体用了什么备件、用了多少）都没有记录在系统中，只有部分工单有备件总成本，但不知道具体是哪些备件。
+
+不过，从备件库存数据中，我发现一个更值得关注的紧急情况：有8种备件库存告急（占40%），包括UV氘灯、标准湿度发生器、标准电阻箱等关键备件。这些备件一旦缺货，可能导致设备停机。
+
+**行动建议**：立即要求维修人员在完成维修后，必须录入具体使用的备件信息，这样才能准确追踪备件消耗和设备关联。同时，优先补充那8种库存告急的备件，避免影响生产。</div>
+        <div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:6px"><span style="font-size:11px;background:#e0e7ff;color:#3730a3;padding:2px 8px;border-radius:4px">查看这10条维修工单的详情，了解为什么备件信息未录入</span><span style="font-size:11px;background:#e0e7ff;color:#3730a3;padding:2px 8px;border-radius:4px">检查那8种库存告急备件的采购状态</span><span style="font-size:11px;background:#e0e7ff;color:#3730a3;padding:2px 8px;border-radius:4px">分析设备ID 10065的维修记录，它维修时间最长（436分钟）</span><span style="font-size:11px;background:#e0e7ff;color:#3730a3;padding:2px 8px;border-radius:4px">查看所有备件的equipmentCount字段，了解哪些设备关联了备件</span><span style="font-size:11px;background:#e0e7ff;color:#3730a3;padding:2px 8px;border-radius:4px">对比维修成本最高的3条工单（RO-20260308-0151、RO-20260314-0159、RO-20260311-0156）</span></div>
+      </div>
+      <div class="section">
+        <div class="label">真实数据验证</div>
+        <div class="data-verify"><pre>[eam.repair.search]
+total=21
+items=10
+status: {&quot;5&quot;: 10}
+statusText: {&quot;已完成&quot;: 10}
+status: sum=50.0 avg=5.0
+repairMinutes: sum=2270.0 avg=227.0
+laborCost: sum=5675.0 avg=567.5
+materialCost: sum=31608.0 avg=3160.8
+
+[eam.spare.search]
+total=80
+items=50
+currentStock: sum=298.0 avg=6.0
+stockLower: sum=201.0 avg=4.0
+stockUpper: sum=633.0 avg=12.7
+lowStock: sum=19.0 avg=0.4
+equipmentCount: sum=0.0 avg=0.0
+refPrice: sum=130155.0 avg=2603.1
+
+[工具2]
+total=21
+items=10
+status: {&quot;5&quot;: 10}
+statusText: {&quot;已完成&quot;: 10}
+status: sum=50.0 avg=5.0
+repairMinutes: sum=2270.0 avg=227.0
+laborCost: sum=5675.0 avg=567.5
+materialCost: sum=31608.0 avg=3160.8
+
+[工具3]
+total=80
+items=20
+currentStock: sum=65.0 avg=3.2
+stockLower: sum=41.0 avg=2.0
+stockUpper: sum=117.0 avg=5.8
+lowStock: sum=8.0 avg=0.4
+equipmentCount: sum=0.0 avg=0.0
+refPrice: sum=53560.0 avg=2678.0</pre></div>
+      </div>
+      <div class="section">
+        <div class="label">评测发现的问题</div>
+        <div class="issue">AI 回答没有直接回答用户关于“关联了哪些设备”的问题，因为数据中确实没有备件与设备的关联信息（equipmentCount 均为 0 或 null）。但 AI 正确指出了数据缺失，并基于库存数据提供了相关洞察。数字准确，没有编造。</div>
+      </div>
+      <div class="section">
+        <div class="label">标准答案方向</div>
+        <div class="suggestion">建议 AI 在回答中更明确地说明：1) 维修数据中备件使用详情缺失，无法确定用量最大的备件；2) 库存数据中备件与设备的关联信息（equipmentCount）也为空，因此无法回答“关联了哪些设备”。这样可以更直接地回应用户问题的两个部分（用量最大、关联设备）。</div>
+      </div>
+    </div>
+    
+    <div class="card">
+      <div class="card-header">
+        <span class="id-badge">T30 L4</span>
+        <span class="score-badge" style="background:#1e40af">4.3/5</span>
+        <span style="font-weight:700;color:#b45309;background:#b4530915;padding:2px 8px;border-radius:4px;font-size:11px;border:1px solid #b45309">MINOR</span>
+        <span style="font-size:13px;display:flex;gap:10px">
+          <span style="color:#15803d;font-weight:600">完整 4</span>
+          <span style="color:#15803d;font-weight:600">准确 5</span>
+          <span style="color:#15803d;font-weight:600">可用 4</span>
+        </span>
+      </div>
+      <div class="section">
+        <div class="label">用户提问</div>
+        <div style="font-size:16px;font-weight:600;color:#2d3748">上月维修成本最高的设备，它的巡检有没有发现过异常？</div>
+        <div style="font-size:12px;color:#999;margin-top:4px">工具链: eam.repair.search → eam.anomaly.search</div>
+      </div>
+      <div class="section">
+        <div class="label">AI 实际回答</div>
+        <div class="answer">目前无法直接确定上月维修成本最高的设备，因为数据中没有记录维修成本金额，只有维修次数统计。
+
+从维修次数来看，上月共有37次维修记录，涉及120台设备。维修次数最多的设备是那些有2次维修记录的，共有40台设备（如胶囊充填机、贴标机、装盒机等），每台占维修总次数的5.4%。维修次数为1次的设备有80台，每台占2.7%。
+
+关于巡检异常：上月共有7条巡检发现的异常记录，全部来自巡检（PATROL）渠道。其中5条为低风险（71.4%），1条为中风险（14.3%），1条为高风险（14.3%）。所有异常均未升级处理。
+
+关键发现：
+1. 维修数据缺少成本信息，无法按成本排序设备，只能按维修次数分析。
+2. 巡检异常数量较少（7条），且以低风险为主，但存在1条高风险异常需要关注。
+3. 维修次数多的设备（2次）集中在生产核心设备（如胶囊充填机、贴标机等），这些设备可能负荷较重或维护不足。
+
+行动建议：立即为维修工单录入成本数据，以便后续精准分析高成本设备，并优先检查那1条高风险巡检异常的处理情况。</div>
+        <div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:6px"><span style="font-size:11px;background:#e0e7ff;color:#3730a3;padding:2px 8px;border-radius:4px">查看那1条高风险巡检异常的详细情况（ID: 59036）</span><span style="font-size:11px;background:#e0e7ff;color:#3730a3;padding:2px 8px;border-radius:4px">为维修次数2次的40台设备（如胶囊充填机#6）补充成本数据</span><span style="font-size:11px;background:#e0e7ff;color:#3730a3;padding:2px 8px;border-radius:4px">对比维修次数多的设备与巡检异常记录，检查是否有预警失效</span><span style="font-size:11px;background:#e0e7ff;color:#3730a3;padding:2px 8px;border-radius:4px">分析这7条巡检异常对应的设备是否在维修次数多的列表中</span><span style="font-size:11px;background:#e0e7ff;color:#3730a3;padding:2px 8px;border-radius:4px">检查所有未升级的异常（共7条）是否需要重新评估处理优先级</span></div>
+      </div>
+      <div class="section">
+        <div class="label">真实数据验证</div>
+        <div class="data-verify"><pre>[eam.repair.search]
+total=37
+groups=120组
+频次分布: {&quot;2&quot;: 40, &quot;1&quot;: 80}
+  {&quot;group&quot;: &quot;EQ-A201-014 胶囊充填机 #6&quot;, &quot;count&quot;: 2}
+  {&quot;group&quot;: &quot;EQ-A201-013 胶囊充填机 #5&quot;, &quot;count&quot;: 2}
+  {&quot;group&quot;: &quot;EQ-A201-012 胶囊充填机 #4&quot;, &quot;count&quot;: 2}
+  ... 共120组
+
+[eam.anomaly.search]
+total=7
+items=7
+escalated: sum=0.0 avg=0.0
+
+[工具2]
+total=7
+items=7
+escalated: sum=0.0 avg=0.0</pre></div>
+      </div>
+      <div class="section">
+        <div class="label">评测发现的问题</div>
+        <div class="issue">AI 回答没有直接回答用户关于‘上月维修成本最高的设备’的巡检异常问题，因为数据中缺少维修成本信息，导致无法识别具体设备。回答转向了维修次数分析，这可能不完全匹配用户意图。此外，巡检异常数据没有与设备关联，无法确定哪些设备有异常。</div>
+      </div>
+      <div class="section">
+        <div class="label">标准答案方向</div>
+        <div class="suggestion">建议 AI 在回答中更明确地指出数据限制，并说明巡检异常数据未与设备关联，因此无法直接回答。可以建议用户补充成本数据或提供设备与异常关联的查询，以提高回答的针对性和完整性。</div>
+      </div>
+    </div>
+    
+    <div class="card">
+      <div class="card-header">
+        <span class="id-badge">T34 L4</span>
+        <span class="score-badge" style="background:#1e40af">4.3/5</span>
+        <span style="font-weight:700;color:#b45309;background:#b4530915;padding:2px 8px;border-radius:4px;font-size:11px;border:1px solid #b45309">MINOR</span>
+        <span style="font-size:13px;display:flex;gap:10px">
+          <span style="color:#15803d;font-weight:600">完整 4</span>
+          <span style="color:#15803d;font-weight:600">准确 5</span>
+          <span style="color:#15803d;font-weight:600">可用 4</span>
+        </span>
+      </div>
+      <div class="section">
+        <div class="label">用户提问</div>
+        <div style="font-size:16px;font-weight:600;color:#2d3748">外协维修的设备中，有没有重点设备？</div>
+        <div style="font-size:12px;color:#999;margin-top:4px">工具链: eam.repair.search → eam.equipment.search</div>
+      </div>
+      <div class="section">
+        <div class="label">AI 实际回答</div>
+        <div class="answer">目前没有外协维修的设备记录，因为维修查询返回了0条数据。不过，从设备数据来看，系统中有120台设备，其中7台处于“维修中”状态，包括卡氏水分仪、片剂硬度计、铝塑包装机、薄膜包衣机、旋转压片机、高速压片机和湿法制粒机。这些设备可能涉及维修，但无法确认是否属于外协维修。
+
+关键发现：
+- 维修中的设备占5.8%，主要集中在生产环节（如压片机、包装机），可能影响生产效率。
+- 保养完成率和维修完成率都是0%，说明设备维护管理存在严重缺口，需要立即关注。
+
+行动建议：立即检查这7台维修中设备的维修记录，确认维修类型（内修或外协），并启动保养计划以提升完成率。</div>
+        <div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:6px"><span style="font-size:11px;background:#e0e7ff;color:#3730a3;padding:2px 8px;border-radius:4px">查看这7台维修中设备的维修详情（如卡氏水分仪 EQ-C203-007）</span><span style="font-size:11px;background:#e0e7ff;color:#3730a3;padding:2px 8px;border-radius:4px">分析设备保养完成率为0%的原因并制定改进计划</span><span style="font-size:11px;background:#e0e7ff;color:#3730a3;padding:2px 8px;border-radius:4px">检查所有待验收设备（共5台）的验收进度</span><span style="font-size:11px;background:#e0e7ff;color:#3730a3;padding:2px 8px;border-radius:4px">对比维修中设备与闲置设备（共3台）的利用率差异</span></div>
+      </div>
+      <div class="section">
+        <div class="label">真实数据验证</div>
+        <div class="data-verify"><pre>[eam.repair.search]
+total=0
+items=0
+
+[eam.equipment.search]
+total=120
+items=120
+status: {&quot;运行中&quot;: 99, &quot;闲置&quot;: 3, &quot;待验收&quot;: 5, &quot;封存&quot;: 2, &quot;维修中&quot;: 7, &quot;待整改&quot;: 1, &quot;其他&quot;: 2, &quot;停机&quot;: 1}</pre></div>
+      </div>
+      <div class="section">
+        <div class="label">评测发现的问题</div>
+        <div class="issue">AI回答没有直接确认是否有重点设备，而是基于数据推断可能涉及维修的设备，但用户问题核心是&#x27;有没有重点设备&#x27;，这可能需要更明确的定义或数据支持。回答中提到的7台设备名称与数据摘要中的样本不完全匹配（例如，样本中湿法制粒机状态为&#x27;运行中&#x27;，但AI列出为&#x27;维修中&#x27;），这可能源于数据摘要样本未完整展示所有设备状态，但AI基于统计推断是合理的。</div>
+      </div>
+      <div class="section">
+        <div class="label">标准答案方向</div>
+        <div class="suggestion">建议AI在回答中更明确地说明数据局限性，例如指出无法从现有数据直接判断&#x27;重点设备&#x27;（如果数据中无相关字段），并建议用户提供&#x27;重点设备&#x27;的定义或查询相关数据。同时，确保设备状态描述与数据摘要一致，或注明推断来源。</div>
+      </div>
+    </div>
+    
+
+<div class="footer">
+  Lantern NL-API Platform — P1.5 最终质量报告<br>
+  EAM 40 题 | 100% recall | FactScore 89.5% | FollowUp 99.5% | 综合 4.7/5<br>
+  25 commits | 4.1 → 4.7 | 打扫屋子 → 数据处理层 → handler fullScan
+</div>
+
+</body></html>
