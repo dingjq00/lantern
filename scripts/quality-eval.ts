@@ -34,10 +34,85 @@ interface QualityScore {
   suggestion: string    // 改进建议
 }
 
+/** 生成数据摘要 — 让评估 AI 看到完整的统计信息，而不是截断的 JSON */
+function summarizeData(data: unknown): string {
+  if (!data || typeof data !== 'object') return JSON.stringify(data)
+
+  // 多工具返回：data 是数组
+  if (Array.isArray(data)) {
+    return data.map((d, i) => `[工具${i}] ${summarizeSingleResult(d)}`).join('\n\n')
+  }
+
+  return summarizeSingleResult(data)
+}
+
+function summarizeSingleResult(d: unknown): string {
+  if (!d || typeof d !== 'object') return String(d)
+  const obj = d as Record<string, unknown>
+  const parts: string[] = []
+
+  // total / count
+  if ('total' in obj) parts.push(`total: ${obj.total}`)
+  if ('count' in obj) parts.push(`count: ${obj.count}`)
+  if ('context' in obj) parts.push(`context: ${obj.context}`)
+
+  // items 数组 — 统计分布而非截断
+  if ('items' in obj && Array.isArray(obj.items)) {
+    const items = obj.items as Record<string, unknown>[]
+    parts.push(`items: ${items.length} 条`)
+    if (items.length > 0) {
+      // 提取所有字段名
+      parts.push(`  字段: ${Object.keys(items[0]).join(', ')}`)
+      // 对常见分类字段做分布统计
+      const distFields = ['status', 'orderStatus', 'progressStatus', 'validatedStatus',
+        'type', 'category', 'priority', 'severity', 'department', 'productionLine',
+        'decisionType', 'resultStatus']
+      for (const field of distFields) {
+        if (field in items[0]) {
+          const dist: Record<string, number> = {}
+          for (const item of items) {
+            const v = String(item[field] ?? 'null')
+            dist[v] = (dist[v] || 0) + 1
+          }
+          parts.push(`  ${field} 分布: ${JSON.stringify(dist)}`)
+        }
+      }
+      // 前 3 条样本（完整 JSON）
+      const sampleCount = Math.min(3, items.length)
+      parts.push(`  前${sampleCount}条样本:`)
+      for (let i = 0; i < sampleCount; i++) {
+        parts.push(`    ${JSON.stringify(items[i])}`)
+      }
+    }
+  }
+
+  // groups 数组
+  if ('groups' in obj && Array.isArray(obj.groups)) {
+    const groups = obj.groups as Record<string, unknown>[]
+    parts.push(`groups: ${groups.length} 组`)
+    if (groups.length > 0) {
+      for (const g of groups.slice(0, 10)) {
+        parts.push(`  ${JSON.stringify(g)}`)
+      }
+      if (groups.length > 10) parts.push(`  ... (共${groups.length}组)`)
+    }
+  }
+
+  // 其他顶层字段（非 items/groups/total/count/context）
+  const skip = new Set(['items', 'groups', 'total', 'count', 'context'])
+  for (const [k, v] of Object.entries(obj)) {
+    if (skip.has(k)) continue
+    const vs = JSON.stringify(v)
+    parts.push(`${k}: ${vs.length > 300 ? vs.slice(0, 300) + '...' : vs}`)
+  }
+
+  return parts.join('\n')
+}
+
 async function evaluateAnswer(query: string, answer: string, data: unknown): Promise<{
   completeness: number; accuracy: number; usability: number; issues: string; suggestion: string
 }> {
-  const dataSample = JSON.stringify(data).slice(0, 500)
+  const dataSummary = summarizeData(data)
 
   const response = await client.chat.completions.create({
     model: LLM_MODEL,
@@ -53,15 +128,17 @@ async function evaluateAnswer(query: string, answer: string, data: unknown): Pro
 - usability（可用性）：用户看了这个回答能不能做决策/获得价值。5=直接可用，1=毫无价值
 
 注意：
+- 你收到的是**完整数据摘要**（包含总数、分布统计、样本），不是截断数据。用这些统计核对 AI 的数字
 - 如果回答说"无法统计""数据不完整"但实际数据确实不完整，accuracy 应该给高分（诚实）
-- 如果回答有具体数字但和返回数据对不上，accuracy 应该给低分
+- 如果回答有具体数字但和返回数据对不上，accuracy 应该给低分。注意区分"数字完全错误"(1-2分) 和"数字有小偏差但方向正确"(3-4分)
 - 如果回答格式良好、有数据表格、有后续建议，usability 加分
+- AI 基于数据做推理分析（如从状态分布算完成率）是正常行为，不算编造
 
 返回 JSON：{"completeness":N,"accuracy":N,"usability":N,"issues":"具体问题","suggestion":"改进建议"}`
       },
       {
         role: 'user',
-        content: `用户问题: ${query}\n\nAI 回答:\n${answer}\n\n返回数据样本:\n${dataSample}`
+        content: `用户问题: ${query}\n\nAI 回答:\n${answer}\n\n返回数据摘要（完整统计，非截断）:\n${dataSummary}`
       }
     ],
     response_format: { type: 'json_object' },
