@@ -45,24 +45,35 @@ const ThinkResultSchema = z.object({
   unsupported: z.boolean().optional(),
 })
 
-const DEFAULT_BASE_URL = process.env.LLM_BASE_URL || 'https://gptapi.tutu02.us.ci/v1'
-const DEFAULT_API_KEY = process.env.LLM_API_KEY || 'sk-mes-ai-explorer-2026'
-const DEFAULT_MODEL = process.env.LLM_MODEL || 'gpt-5.4-mini'
-const SUMMARIZE_MODEL = process.env.LLM_SUMMARIZE_MODEL || ''  // 空=用主模型，设置后 summarize 用独立模型
+// 延迟读取环境变量 — ESM import hoisting 导致模块顶层常量在 .env.local 加载前就固化
+// 改为函数调用，在构造函数/方法中才真正读取
+const env = (key: string, fallback = '') => process.env[key] || fallback
 
 export class CodexProxyProvider implements LLMProvider {
   private client: OpenAI
+  private summarizeClient: OpenAI | null  // summarize 独立客户端（可选）
   private model: string
   /** 推理模型（GPT-5-mini/o1/o3）不支持 temperature 和 response_format */
   private isReasoningModel: boolean
 
   constructor(baseURL?: string, apiKey?: string, model?: string) {
+    const defaultBaseURL = env('LLM_BASE_URL', 'https://gptapi.tutu02.us.ci/v1')
+    const defaultApiKey = env('LLM_API_KEY', 'sk-mes-ai-explorer-2026')
     this.client = new OpenAI({
-      baseURL: baseURL || DEFAULT_BASE_URL,
-      apiKey: apiKey || DEFAULT_API_KEY,
+      baseURL: baseURL || defaultBaseURL,
+      apiKey: apiKey || defaultApiKey,
     })
-    this.model = model || DEFAULT_MODEL
+    this.model = model || env('LLM_MODEL', 'gpt-5.4-mini')
     this.isReasoningModel = /gpt-5-mini|gpt-5\.0-mini|\/o[13]/i.test(this.model)
+    // summarize 独立客户端（有独立 base URL 时创建）
+    const sumBaseURL = env('LLM_SUMMARIZE_BASE_URL')
+    const sumApiKey = env('LLM_SUMMARIZE_API_KEY')
+    this.summarizeClient = sumBaseURL
+      ? new OpenAI({
+          baseURL: sumBaseURL,
+          apiKey: sumApiKey || (apiKey || defaultApiKey),
+        })
+      : null
   }
 
   async route(prompt: string, tools: ToolDefinition[]): Promise<RouteResult> {
@@ -127,15 +138,17 @@ ${toolDescriptions}
   }
 
   async summarize(data: unknown, question: string, formatHint: DisplayFormat, relatedContext?: string, dataDigest?: string): Promise<SummarizeResult> {
-    const useModel = SUMMARIZE_MODEL || this.model
-    const isReasoning = SUMMARIZE_MODEL
-      ? /deepseek-reasoner|gpt-5-mini|gpt-5\.0-mini|\/o[13]/i.test(SUMMARIZE_MODEL)
+    const sumModel = env('LLM_SUMMARIZE_MODEL')
+    const useModel = sumModel || this.model
+    const useClient = this.summarizeClient || this.client
+    const isReasoning = sumModel
+      ? /deepseek-reasoner|gpt-5-mini|gpt-5\.0-mini|\/o[13]/i.test(sumModel)
       : this.isReasoningModel
-    // 优先用预计算摘要（省 token + 数字准确），无摘要时降级为原始 JSON
+    // stats 在前（引导引用预计算数字）+ 原始数据跟后（保留完整细节供 AI 分析）
     const dataContent = dataDigest
-      ? `数据摘要（已预计算，直接引用数字即可）:\n${dataDigest}`
+      ? `预计算统计（有统计的直接引用，未覆盖的请自行分析原始数据）:\n${dataDigest}\n\n原始数据:\n${JSON.stringify(data)}`
       : `数据: ${JSON.stringify(data)}`
-    const response = await this.client.chat.completions.create({
+    const response = await useClient.chat.completions.create({
       model: useModel,
       ...(!isReasoning && { temperature: 0.3 }),
       max_completion_tokens: isReasoning ? 8192 : 4096,
