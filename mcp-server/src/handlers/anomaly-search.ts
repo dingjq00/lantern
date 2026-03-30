@@ -56,6 +56,7 @@ export function registerAnomalySearch(server: McpServer) {
           : gb === 'severity' ? SEVERITY_MAP[a.severity] ?? String(a.severity)
           : a.source ?? 'unknown',
         limit: args.limit,
+        fullScan: !args.groupBy,
       })
 
       let { list, total } = result

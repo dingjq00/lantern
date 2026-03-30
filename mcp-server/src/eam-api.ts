@@ -110,6 +110,7 @@ export async function eamSearch<T extends Record<string, unknown>>(
     groupBy?: string
     groupKeyFn: (item: T, groupBy: string) => string  // 从记录中提取分组 key
     limit?: number
+    fullScan?: boolean  // 无 groupBy 时也拉全量（用于统计类查询，确保 items 完整）
   },
 ): Promise<{ total: number; list: T[]; groups?: Array<{ group: string; count: number }> }> {
   if (options.groupBy) {
@@ -126,6 +127,10 @@ export async function eamSearch<T extends Record<string, unknown>>(
       list: all,
       groups: sorted.map(([group, count]) => ({ group, count })),
     }
+  } else if (options.fullScan) {
+    // 全量拉取（统计类查询需要完整数据，不能只看一页）
+    const all = await eamGetAll<T>(path, params)
+    return { total: all.length, list: all }
   } else {
     // 普通分页
     const page = await eamGet<PageResult<T>>(path, { ...params, pageSize: options.limit ?? 20 })

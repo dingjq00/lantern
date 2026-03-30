@@ -50,6 +50,7 @@ export function registerFaultSearch(server: McpServer) {
       // productionLine groupBy 需要 eq→line 映射
       const eqToLine = args.groupBy === 'productionLine' ? await getEquipmentToLineMap() : null
 
+      // 无 groupBy 时也拉全量，确保统计类查询（如"本月新增了多少"）不丢数据
       const result = await eamSearch<FaultReport>('/eam/fault-report/page', params, {
         groupBy: args.groupBy,
         groupKeyFn: (f, gb) => gb === 'equipment' ? String(f.equipmentId)
@@ -57,6 +58,7 @@ export function registerFaultSearch(server: McpServer) {
           : gb === 'status' ? FAULT_STATUS[f.status] ?? String(f.status)
           : URGENCY_MAP[f.urgency] ?? String(f.urgency),
         limit: args.limit,
+        fullScan: !args.groupBy,  // 非 groupBy 查询也拉全量
       })
 
       let { list, total } = result

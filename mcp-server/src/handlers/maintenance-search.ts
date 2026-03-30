@@ -54,6 +54,7 @@ export function registerMaintenanceSearch(server: McpServer) {
           : gb === 'productionLine' ? (eqToLine?.get(t.equipmentId) ?? '未分配产线')
           : MAINT_STATUS[t.status] ?? String(t.status),
         limit: args.limit,
+        fullScan: !args.groupBy,
       })
 
       let { list, total } = result

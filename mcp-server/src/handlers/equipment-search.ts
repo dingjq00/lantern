@@ -63,6 +63,7 @@ export function registerEquipmentSearch(server: McpServer) {
           : gb === 'category' ? String(eq.categoryId ?? '未分类')
           : String(eq.deptId ?? '未分配'),
         limit: args.limit,
+        fullScan: !args.groupBy,
       })
 
       let { list, total } = result
