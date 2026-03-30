@@ -3,6 +3,7 @@
 
 import { describe, it, expect } from 'vitest'
 import { digestToolResults } from './data-digest'
+import { applyDomainFormulas } from './domain-formulas'
 
 describe('digestToolResults', () => {
   // ============================================================
@@ -413,5 +414,80 @@ describe('digestToolResults', () => {
 
     expect(result).not.toContain('[eam.repair.search]')
     expect(result).toContain('合计: 2 条')
+  })
+})
+
+describe('applyDomainFormulas', () => {
+  it('计算 rate 类型指标（维修完成率）', () => {
+    const items = [
+      { status: 5 }, { status: 5 }, { status: 5 },
+      { status: 3 }, { status: 1 },
+    ]
+    const metrics = {
+      '维修完成率': { label: '维修完成率', formula: 'rate' as const, numerator: 'status=5', denominator: 'total', unit: '%' },
+    }
+    const result = applyDomainFormulas(items, 5, metrics)
+    expect(result).toContain('维修完成率: 60.0%')
+    expect(result).toContain('(3/5)')
+  })
+
+  it('计算 avg 类型指标（平均维修成本）', () => {
+    const items = [
+      { materialCost: 1000 }, { materialCost: 2000 }, { materialCost: 3000 },
+    ]
+    const metrics = {
+      '平均维修成本': { label: '平均维修成本', formula: 'avg' as const, field: 'materialCost', unit: '元' },
+    }
+    const result = applyDomainFormulas(items, 3, metrics)
+    expect(result).toContain('平均维修成本: 2000元')
+  })
+
+  it('EDHR 工单完成率 + 批次合格率', () => {
+    const items = [
+      { progressStatus: 'FINISHED', validatedStatus: 'PASSED' },
+      { progressStatus: 'FINISHED', validatedStatus: 'PASSED' },
+      { progressStatus: 'RUNNING', validatedStatus: 'INIT' },
+    ]
+    const metrics = {
+      '工单完成率': { label: '工单完成率', formula: 'rate' as const, numerator: 'progressStatus=FINISHED', denominator: 'total', unit: '%' },
+      '批次合格率': { label: '批次合格率', formula: 'rate' as const, numerator: 'validatedStatus=PASSED', denominator: 'total', unit: '%' },
+    }
+    const result = applyDomainFormulas(items, 3, metrics)
+    expect(result).toContain('工单完成率: 66.7%')
+    expect(result).toContain('批次合格率: 66.7%')
+  })
+
+  it('无匹配字段时不输出', () => {
+    const items = [{ name: 'test' }]
+    const metrics = {
+      '完成率': { label: '完成率', formula: 'rate' as const, numerator: 'status=DONE', denominator: 'total', unit: '%' },
+    }
+    const result = applyDomainFormulas(items, 1, metrics)
+    expect(result).toBe('')
+  })
+
+  it('通配符 * 匹配非空值', () => {
+    const items = [
+      { decisionType: 'REOPERATE' },
+      { decisionType: 'REPAIRE' },
+      { decisionType: null },
+    ]
+    const metrics = {
+      '异常率': { label: '异常率', formula: 'rate' as const, numerator: 'decisionType=*', denominator: 'total', unit: '%' },
+    }
+    const result = applyDomainFormulas(items, 10, metrics)
+    expect(result).toContain('异常率: 20.0%')
+    expect(result).toContain('(2/10)')
+  })
+
+  it('sum 类型指标', () => {
+    const items = [
+      { materialCost: 100 }, { materialCost: 200 }, { materialCost: 300 },
+    ]
+    const metrics = {
+      '维修总成本': { label: '维修总成本', formula: 'sum' as const, field: 'materialCost', unit: '元' },
+    }
+    const result = applyDomainFormulas(items, 3, metrics)
+    expect(result).toContain('维修总成本: 600元')
   })
 })
