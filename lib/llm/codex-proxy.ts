@@ -48,6 +48,7 @@ const ThinkResultSchema = z.object({
 const DEFAULT_BASE_URL = process.env.LLM_BASE_URL || 'https://gptapi.tutu02.us.ci/v1'
 const DEFAULT_API_KEY = process.env.LLM_API_KEY || 'sk-mes-ai-explorer-2026'
 const DEFAULT_MODEL = process.env.LLM_MODEL || 'gpt-5.4-mini'
+const SUMMARIZE_MODEL = process.env.LLM_SUMMARIZE_MODEL || ''  // 空=用主模型，设置后 summarize 用独立模型
 
 export class CodexProxyProvider implements LLMProvider {
   private client: OpenAI
@@ -126,15 +127,19 @@ ${toolDescriptions}
   }
 
   async summarize(data: unknown, question: string, formatHint: DisplayFormat, relatedContext?: string): Promise<SummarizeResult> {
+    const useModel = SUMMARIZE_MODEL || this.model
+    const isReasoning = SUMMARIZE_MODEL
+      ? /deepseek-reasoner|gpt-5-mini|gpt-5\.0-mini|\/o[13]/i.test(SUMMARIZE_MODEL)
+      : this.isReasoningModel
     const response = await this.client.chat.completions.create({
-      model: this.model,
-      ...(!this.isReasoningModel && { temperature: 0.3 }),
-      max_completion_tokens: 4096,
+      model: useModel,
+      ...(!isReasoning && { temperature: 0.3 }),
+      max_completion_tokens: isReasoning ? 8192 : 4096,  // reasoner 需要更多 token（含 reasoning）
       messages: [
         { role: 'system', content: `${getSummarizePrompt()}\n数据展示类型参考: ${formatHint}` },
         { role: 'user', content: `问题: ${question}\n数据: ${JSON.stringify(data)}${relatedContext ? `\n\n可深挖方向: ${relatedContext}` : ''}` },
       ],
-      ...(!this.isReasoningModel && { response_format: { type: 'json_object' as const } }),
+      ...(!isReasoning && { response_format: { type: 'json_object' as const } }),
     })
 
     const content = response.choices[0]?.message?.content || '{}'
