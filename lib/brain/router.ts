@@ -14,7 +14,8 @@ import type {
 } from '@/lib/types'
 
 const MAX_CHASE_ROUNDS = 2  // ①规划 → ②审查放开 → ③finish，最多 3 次 think
-const ESCALATION_MODEL = process.env.LLM_ESCALATION_MODEL || 'gpt-5.4'
+// 延迟读取，避免 ESM import hoisting 导致 env 未加载
+const getEscalationModel = () => process.env.LLM_ESCALATION_MODEL || process.env.LLM_MODEL || 'deepseek-chat'
 
 interface RouterDeps {
   registry: ToolRegistry
@@ -92,8 +93,9 @@ export async function processQuery(
       trace.endRound('mini 判定超纲/无 calls，尝试升级模型')
 
       // 级联：用强模型重跑同样的 messages
-      const escalated = await llm.think(messages, ESCALATION_MODEL)
-      trace.startRound(round, `[escalated→${ESCALATION_MODEL}] ${escalated.thought}`)
+      const escalationModel = getEscalationModel()
+      const escalated = await llm.think(messages, escalationModel)
+      trace.startRound(round, `[escalated→${escalationModel}] ${escalated.thought}`)
 
       if (escalated.unsupported || !escalated.calls?.length) {
         // 强模型也搞不定——用 AI 推理生成上下文相关的回复，不用写死文本
@@ -175,9 +177,9 @@ export async function processQuery(
         }
       }
 
-      // 校验每个工具返回的数据（数值异常、空结果检测）
-      for (const r of allResults) {
-        const validations = validateResult(r.data)
+      // 校验本轮新增的工具返回数据（数值异常、空结果检测）
+      for (let ci = 0; ci < roundResults.length; ci++) {
+        const validations = validateResult(roundResults[ci])
         for (const v of validations) {
           trace.addValidation(v)
         }
@@ -191,11 +193,26 @@ export async function processQuery(
 
       // 把本轮结果注入消息上下文，引导 AI 判断是否充足
       messages.push({ role: 'assistant', content: JSON.stringify(thinkResult) })
-      // 用本轮 roundResults（index-aligned），不用跨轮累积的 allResults
-      const obsData = thinkResult.calls.map((c, ci) => ({
-        tool: c.tool,
-        result: roundResults[ci] ?? 'error',
-      }))
+      // 用本轮 roundResults（index-aligned），截断过大的结果防止撑爆 context
+      const obsData = thinkResult.calls.map((c, ci) => {
+        const raw = roundResults[ci] ?? 'error'
+        const json = JSON.stringify(raw)
+        // 超过 2000 字符的结果截断，保留结构信息（total/context/keys）
+        if (json.length > 2000) {
+          const obj = raw as Record<string, unknown>
+          const summary: Record<string, unknown> = { _truncated: true }
+          if (obj && typeof obj === 'object') {
+            if ('total' in obj) summary.total = obj.total
+            if ('count' in obj) summary.count = obj.count
+            if ('context' in obj) summary.context = obj.context
+            if ('items' in obj && Array.isArray(obj.items)) summary.itemCount = obj.items.length
+            if ('groups' in obj && Array.isArray(obj.groups)) summary.groupCount = obj.groups.length
+            summary._keys = Object.keys(obj).slice(0, 10)
+          }
+          return { tool: c.tool, result: summary }
+        }
+        return { tool: c.tool, result: raw }
+      })
       // 观察注入（Reflexion 式事实对比）
       const dataFields = obsData.flatMap(d => {
         if (d.result && typeof d.result === 'object' && !Array.isArray(d.result)) return Object.keys(d.result as Record<string, unknown>)

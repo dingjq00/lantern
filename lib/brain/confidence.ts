@@ -1,11 +1,11 @@
-// 置信度三信号融合 — spec Section 5.5
+// 置信度融合 — P1.5: verdict 已停用，实际为二信号（toolMatch + queryClarity）
 import type { ConfidenceSignals, ConfidenceLevel, MemoryVerdict } from '@/lib/types'
 
 /**
- * 三信号融合规则：
- * - 3 个 high → high（直接执行）
- * - 任意 1 个 low → low（反问澄清）
- * - 其余 → medium（执行 + 提示"以上是根据您的描述匹配的结果"）
+ * 融合规则（verdictConfidence 固定 medium，实际由 toolMatch + queryClarity 决定）：
+ * - toolMatch=high + clarity=high → high
+ * - 任意 low → low（反问澄清）
+ * - 其余 → medium
  */
 export function computeConfidence(signals: ConfidenceSignals): ConfidenceLevel {
   const values = [signals.toolMatch, signals.verdictConfidence, signals.queryClarity]
