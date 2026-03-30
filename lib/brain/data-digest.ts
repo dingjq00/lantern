@@ -159,12 +159,19 @@ function digestGroupsToObj(obj: Record<string, unknown>): Record<string, unknown
   const groups = obj.groups as Array<Record<string, unknown>>
   const groupBy = obj.groupBy as string | undefined
 
+  // 保留每个 group 的所有字段（不只取 count），适配不同 handler 的输出格式
   const distribution: Record<string, unknown> = {}
   for (const g of groups) {
     const label = String(g.group ?? g.name ?? g.key ?? '未知')
-    const count = Number(g.count ?? g.value ?? 0)
-    const pct = total > 0 ? `${((count / total) * 100).toFixed(1)}%` : '0%'
-    distribution[label] = { count, pct }
+    const count = Number(g.count ?? g.total ?? g.value ?? 0)
+    const entry: Record<string, unknown> = { count }
+    if (total > 0) entry.pct = `${((count / total) * 100).toFixed(1)}%`
+    // 保留 handler 返回的额外字段（如 completed、completionRate）
+    for (const [k, v] of Object.entries(g)) {
+      if (k === 'group' || k === 'name' || k === 'key' || k === 'count' || k === 'value') continue
+      entry[k] = v
+    }
+    distribution[label] = entry
   }
 
   return {
