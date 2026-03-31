@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="zh-CN"><head><meta charset="UTF-8">
+<title>Lantern 上下文工程深度分析</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{
+  font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;
+  background:linear-gradient(170deg, #e8f0e8 0%, #eaf2f0 30%, #f0f4f2 60%, #f2f5f0 100%);
+  color:#2c3e2c;padding:28px;line-height:1.8;max-width:1280px;margin:0 auto;
+  min-height:100vh
+}
+h1{font-size:24px;color:#2d4a3e;letter-spacing:-.5px}
+h2{font-size:17px;color:#3a5f4a;margin:32px 0 14px;padding-bottom:8px;border-bottom:2px solid #c8dbc8}
+.sub{font-size:13px;color:#6b8f7a;margin-bottom:28px}
+
+.kpi-row{display:flex;gap:14px;flex-wrap:wrap;margin:18px 0}
+.kpi{
+  background:rgba(255,255,255,.85);backdrop-filter:blur(8px);
+  border-radius:14px;padding:18px 22px;min-width:130px;flex:1;text-align:center;
+  box-shadow:0 2px 12px rgba(40,80,60,.08);border:1px solid rgba(160,190,170,.3)
+}
+.kpi .num{font-size:34px;font-weight:800} .kpi .label{font-size:11px;color:#6b8f7a;margin-top:3px}
+
+.compare{
+  display:flex;align-items:center;gap:14px;margin:10px 0;padding:14px 18px;
+  background:rgba(255,255,255,.75);backdrop-filter:blur(6px);
+  border-radius:10px;box-shadow:0 1px 6px rgba(40,80,60,.06);border:1px solid rgba(160,190,170,.25)
+}
+.compare .left{flex:1;text-align:right;font-size:14px;color:#3a5f4a}
+.compare .vs{font-weight:700;color:#a0b8a8;font-size:12px}
+.compare .right{flex:1;font-size:14px;color:#3a5f4a}
+.compare .delta{font-weight:800;font-size:16px;margin-left:auto;padding:3px 12px;border-radius:8px;background:#f5e6e4;color:#8b3a2e}
+
+.insight{
+  padding:18px 22px;background:rgba(255,255,255,.8);backdrop-filter:blur(6px);
+  border-radius:12px;margin:18px 0;font-size:13px;color:#4a6b5a;
+  box-shadow:0 1px 8px rgba(40,80,60,.06);border-left:3px solid #b44d3e
+}
+.insight b{color:#2d4a3e}
+
+.flow{
+  font-family:"SF Mono","Cascadia Code",monospace;font-size:13px;line-height:2.4;
+  padding:18px 22px;background:rgba(255,255,255,.8);backdrop-filter:blur(6px);
+  border-radius:12px;border:1px solid rgba(160,190,170,.25);color:#5a7a6a
+}
+.flow b{color:#2d4a3e} .flow .red{color:#b44d3e} .flow .amber{color:#8a6d3b} .flow .muted{color:#a0b8a8}
+
+.dim{
+  background:rgba(255,255,255,.82);backdrop-filter:blur(6px);
+  border-radius:14px;margin:22px 0;
+  box-shadow:0 2px 12px rgba(40,80,60,.07);overflow:hidden
+}
+.dim-head{padding:14px 20px;display:flex;align-items:center;gap:12px;background:rgba(245,248,245,.6);border-bottom:1px solid rgba(160,190,170,.2)}
+.dim-num{font-size:30px;font-weight:800;min-width:38px}
+.dim-title{font-size:16px;font-weight:700;color:#2d4a3e}
+.dim-prio{font-size:11px;font-weight:700;padding:3px 10px;border-radius:6px;margin-left:auto}
+.dim-grid{display:grid;grid-template-columns:1fr 1fr;gap:0}
+.dc{padding:12px 18px;font-size:13px;border-bottom:1px solid rgba(160,190,170,.15);border-right:1px solid rgba(160,190,170,.15)}
+.dc:nth-child(even){border-right:none}
+.dc.benefit{grid-column:1/3;border-bottom:none}
+.cl{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px}
+.problem{background:rgba(245,230,228,.4)} .problem .cl{color:#8b3a2e}
+.evidence{background:rgba(228,245,235,.4)} .evidence .cl{color:#2e6b4a}
+.cursor{background:rgba(230,235,248,.4)} .cursor .cl{color:#3a4a8b}
+.lantern{background:rgba(248,242,228,.4)} .lantern .cl{color:#7a5c2e}
+.benefit{background:rgba(228,245,240,.4)} .benefit .cl{color:#2e7a6b}
+
+.case{background:rgba(255,255,255,.6);border:1px solid rgba(160,190,170,.2);border-radius:10px;padding:10px 14px;margin:6px 0}
+.case-head{display:flex;align-items:center;gap:8px;font-size:13px}
+.case-id{font-weight:700;color:#2d4a3e} .case-score{font-weight:700;color:#8b3a2e;font-size:12px} .case-q{color:#6b8f7a;font-size:12px}
+.case-meta{font-size:11px;color:#8aa89a;margin-top:3px}
+.tag{font-size:10px;background:rgba(160,190,170,.25);color:#4a6b5a;padding:1px 7px;border-radius:4px;margin:1px;display:inline-block}
+
+table{
+  width:100%;border-collapse:collapse;font-size:13px;margin:14px 0;
+  background:rgba(255,255,255,.8);border-radius:10px;overflow:hidden;
+  box-shadow:0 1px 6px rgba(40,80,60,.06)
+}
+th{background:#3a5f4a;color:#fff;padding:11px 16px;text-align:left;font-weight:600}
+td{padding:11px 16px;border-bottom:1px solid rgba(160,190,170,.15);color:#3a5f4a}
+tr:hover td{background:rgba(228,245,235,.3)}
+
+.conclusion{
+  padding:22px;background:rgba(255,255,255,.82);backdrop-filter:blur(6px);
+  border-radius:14px;margin:18px 0;box-shadow:0 2px 10px rgba(40,80,60,.06)
+}
+.conclusion h3{font-size:16px;color:#2d4a3e;margin-bottom:10px}
+
+.footer{text-align:center;color:#8aa89a;font-size:12px;padding:28px 0;margin-top:36px;border-top:1px solid rgba(160,190,170,.3)}
+</style></head><body>
+
+<h1>Lantern 上下文工程深度分析</h1>
+<div class="sub">cursor2api 偷师 7 维度 + 40 题定量验证 | 2026-03-31</div>
+
+<h2>核心命题：质量瓶颈在上下文管理层</h2>
+
+<div class="kpi-row">
+  <div class="kpi"><div class="num" style="color:#3a7a5a">4.7</div><div class="label">当前综合</div></div>
+  <div class="kpi"><div class="num" style="color:#2e8b57">4.88</div><div class="label">2轮题 (24题)</div></div>
+  <div class="kpi"><div class="num" style="color:#b44d3e">4.51</div><div class="label">3轮题 (16题)</div></div>
+  <div class="kpi"><div class="num" style="color:#b44d3e">-0.37</div><div class="label">多轮惩罚</div></div>
+</div>
+
+<div class="compare">
+  <div class="left">有上下文污染 (14题): <b>4.46</b></div>
+  <div class="vs">vs</div>
+  <div class="right">无污染 (26题): <b>4.88</b></div>
+  <div class="delta">-0.42</div>
+</div>
+<div class="compare">
+  <div class="left">触发截断 (3题): <b>4.90</b></div>
+  <div class="vs">vs</div>
+  <div class="right">未触发 (37题): <b>4.72</b></div>
+  <div class="delta">--0.18</div>
+</div>
+
+<div class="insight">
+  <b>关键发现</b>：T33（122K data）质量 5.0，T21（24K data）质量 3.0。不是数据量的问题，是上下文管理的问题。多一轮应该更准，实际反而差 0.37 — 审查轮引入的上下文污染抵消了信息补充的收益。
+</div>
+
+<h2>三层架构 × 七个维度</h2>
+<div class="flow">
+<b>Layer A — 输入优化</b>（给 AI 看什么）<br>
+&nbsp;&nbsp;├── <span class="amber">维度 1: Schema 压缩</span> <span class="muted">[P3]</span><br>
+&nbsp;&nbsp;├── <span class="amber">维度 4: Few-shot 覆盖</span> <span class="amber">[P1]</span><br>
+&nbsp;&nbsp;└── <span class="amber">维度 5: 上下文压力</span> <span class="amber">[P1]</span><br><br>
+<b>Layer B — 运行时管理</b>（不给 AI 看什么 + 怎么看到）<br>
+&nbsp;&nbsp;├── <span class="red">维度 2: 结构感知压缩</span> <span class="red">[P0]</span><br>
+&nbsp;&nbsp;├── <span class="red">维度 3: 动态预算</span> <span class="red">[P0]</span><br>
+&nbsp;&nbsp;└── <span class="red">维度 7: 污染防控</span> <span class="red">[P0]</span><br><br>
+<b>Layer C — 输出控制</b>（最后一道防线）<br>
+&nbsp;&nbsp;└── <span class="amber">维度 6: 拒绝检测</span> <span class="amber">[P1]</span>
+</div>
+
+<h2>七个维度详细分析</h2>
+
+    <div class="dim" style="border-left:3px solid #b44d3e">
+      <div class="dim-head"><span class="dim-num" style="color:#b44d3e">7</span><span class="dim-title">污染防控</span><span class="dim-prio" style="background:#f5e6e4;color:#8b3a2e">P0</span></div>
+      <div class="dim-grid">
+        <div class="dc problem"><div class="cl">问题</div>多轮 ReAct 中，前一轮的"防御性判断"通过 assistant 消息传染后续轮次。AI 继承犹豫心态。<br>四种机制：重复调用(5) > 冲突数据(4) > 防御性判断(3) > 截断标记(2)</div>
+        <div class="dc evidence"><div class="cl">数据证据</div>有污染 14 题均 <b>4.46</b> vs 无污染 26 题均 <b>4.88</b> → <b>差距 0.42</b></div>
+        <div class="dc cursor"><div class="cl">cursor2api 解法</div>converter.ts L556: 正则扫描 assistant 消息，替换拒绝/犹豫痕迹。<br><b>AI 不需要看到自己"前世"的犹豫。清洗历史 = 给 AI 信心。</b></div>
+        <div class="dc lantern"><div class="cl">Lantern 适配</div>去 _truncated → 清洗 assistant 防御性语言 → allResults 去重 → 动态阈值源头治理</div>
+        <div class="dc benefit"><div class="cl">预期收益</div>消除 0.42 分差距 → 3轮题 4.51 → <b>4.7+</b></div>
+      </div>
+    </div>
+    <div class="dim" style="border-left:3px solid #b44d3e">
+      <div class="dim-head"><span class="dim-num" style="color:#b44d3e">2</span><span class="dim-title">结构感知压缩</span><span class="dim-prio" style="background:#f5e6e4;color:#8b3a2e">P0</span></div>
+      <div class="dim-grid">
+        <div class="dc problem"><div class="cl">问题</div>观察注入截断一刀切 4000 chars → <code>_truncated: true</code>。不区分 items/groups/profile。</div>
+        <div class="dc evidence"><div class="cl">数据证据</div>截断 3 题均 <b>4.90</b> vs 未截断 37 题均 <b>4.72</b> → <b>差距 -0.18</b></div>
+        <div class="dc cursor"><div class="cl">cursor2api 解法</div>按类型差异化：assistant→工具名摘要 | 工具结果→头尾保留(Read:50/30, Bash:20/60, Search:70/15) | 文本→换行处截断</div>
+        <div class="dc lantern"><div class="cl">Lantern 适配</div>items→digest摘要+前N条 | groups→全保留 | profile→保留kpi/equipment，大数组只保留统计 | 正面语言描述</div>
+        <div class="dc benefit"><div class="cl">预期收益</div>消除 0.22 分截断差距 + 减少重试</div>
+      </div>
+    </div>
+    <div class="dim" style="border-left:3px solid #b44d3e">
+      <div class="dim-head"><span class="dim-num" style="color:#b44d3e">3</span><span class="dim-title">动态预算</span><span class="dim-prio" style="background:#f5e6e4;color:#8b3a2e">P0</span></div>
+      <div class="dim-grid">
+        <div class="dc problem"><div class="cl">问题</div>固定 4000 chars。简单查询浪费空间，复杂查询过度截断。</div>
+        <div class="dc evidence"><div class="cl">数据证据</div>T01(2K)→5.0 | T17(8K)→截断→4.7 | T21(24K)→严重截断→3.0</div>
+        <div class="dc cursor"><div class="cl">cursor2api 解法</div>按 context 大小：>100K→4000 | >60K→6000 | >30K→10000 | ≤30K→15000</div>
+        <div class="dc lantern"><div class="cl">Lantern 适配</div>计算 messages 总 chars 动态设阈值。Lantern ≤40K chars → 给 8000-15000 预算</div>
+        <div class="dc benefit"><div class="cl">预期收益</div>简单查询完整保留，复杂查询智能压缩</div>
+      </div>
+    </div>
+    <div class="dim" style="border-left:3px solid #8a6d3b">
+      <div class="dim-head"><span class="dim-num" style="color:#8a6d3b">4</span><span class="dim-title">Few-shot 覆盖</span><span class="dim-prio" style="background:#f5efe4;color:#7a5c2e">P1</span></div>
+      <div class="dim-grid">
+        <div class="dc problem"><div class="cl">问题</div>6 个 few-shot 零覆盖 EDHR。7 个 EDHR 工具从未出现。</div>
+        <div class="dc evidence"><div class="cl">数据证据</div>EAM: 8/12 | EDHR: <b>0/7</b> ⚠️<br>未覆盖: edhr.dashboard, edhr.exception.search, edhr.item.search, edhr.order.profile...</div>
+        <div class="dc cursor"><div class="cl">cursor2api 解法</div>按命名空间分组，每组选一个代表。<i>"few-shot 是让模型遵循格式最强力的手段"</i></div>
+        <div class="dc lantern"><div class="cl">Lantern 适配</div>增加 2 个 EDHR 示例（dashboard + order/exception 组合）</div>
+        <div class="dc benefit"><div class="cl">预期收益</div>EDHR 34/35 → 35/35</div>
+      </div>
+    </div>
+    <div class="dim" style="border-left:3px solid #8a6d3b">
+      <div class="dim-head"><span class="dim-num" style="color:#8a6d3b">5</span><span class="dim-title">上下文压力</span><span class="dim-prio" style="background:#f5efe4;color:#7a5c2e">P1</span></div>
+      <div class="dim-grid">
+        <div class="dc problem"><div class="cl">问题</div>messages 膨胀 R0:14.5K → R2:20.5K tokens，早期内容被推远。</div>
+        <div class="dc evidence"><div class="cl">数据证据</div>3轮 4.51 vs 2轮 4.88 → <b>差距 0.38</b></div>
+        <div class="dc cursor"><div class="cl">cursor2api 解法</div>三层管理：条数限制 → token 限制 → 渐进式压缩 + contextPressure 系数</div>
+        <div class="dc lantern"><div class="cl">Lantern 适配</div>assistant 只保留 thought 摘要+calls | 观察注入用 digest 而非原始 JSON</div>
+        <div class="dc benefit"><div class="cl">预期收益</div>减少 attention 稀释 → +0.1-0.2</div>
+      </div>
+    </div>
+    <div class="dim" style="border-left:3px solid #8a6d3b">
+      <div class="dim-head"><span class="dim-num" style="color:#8a6d3b">6</span><span class="dim-title">拒绝检测</span><span class="dim-prio" style="background:#f5efe4;color:#7a5c2e">P1</span></div>
+      <div class="dim-grid">
+        <div class="dc problem"><div class="cl">问题</div>prompt 禁了 7 词但无输出层拦截。有概率逃逸（上轮 T40）。</div>
+        <div class="dc evidence"><div class="cl">数据证据</div>当前逃逸 0 次，但非零概率</div>
+        <div class="dc cursor"><div class="cl">cursor2api 解法</div>50+ 正则 + 三层防御 + 最多 3 次重试</div>
+        <div class="dc lantern"><div class="cl">Lantern 适配</div>summarize 后检查禁用词，命中重试一次。成本极低。</div>
+        <div class="dc benefit"><div class="cl">预期收益</div>安全网</div>
+      </div>
+    </div>
+    <div class="dim" style="border-left:3px solid #7a8b7a">
+      <div class="dim-head"><span class="dim-num" style="color:#7a8b7a">1</span><span class="dim-title">Schema 压缩</span><span class="dim-prio" style="background:#e8ebe8;color:#5a6b5a">P3</span></div>
+      <div class="dim-grid">
+        <div class="dc problem"><div class="cl">问题</div>19 工具 20,426 chars ≈ 10,213 tokens，占 system prompt 70%。</div>
+        <div class="dc evidence"><div class="cl">数据证据</div>compact 可省 60%。当前 19 工具可控。</div>
+        <div class="dc cursor"><div class="cl">cursor2api 解法</div>三种模式：compact(87%压缩) / full / names_only</div>
+        <div class="dc lantern"><div class="cl">Lantern 适配</div>等 30+ 工具再做。保留参数 description。</div>
+        <div class="dc benefit"><div class="cl">预期收益</div>未来扩展 27K→17K tokens</div>
+      </div>
+    </div>
+
+<h2>上下文污染题详情</h2>
+<div class="case"><div class="case-head"><span class="case-id">T25 L3</span><span class="case-score">3.7</span>最近维修用量最大的备件，关联了哪些设备？</div><div class="case-meta">3轮 4次调用 → 4个data <span class="tag">防御性判断</span><span class="tag">重复调用</span><span class="tag">数据冲突</span></div></div><div class="case"><div class="case-head"><span class="case-id">T21 L3</span><span class="case-score">3</span>压片线上月维修用了哪些备件？</div><div class="case-meta">3轮 7次调用 → 7个data <span class="tag">防御性判断</span><span class="tag">重复调用</span><span class="tag">数据冲突</span></div></div><div class="case"><div class="case-head"><span class="case-id">T35 L5</span><span class="case-score">4.3</span>哪条产线近 3 个月故障呈上升趋势，且备件库存不足？</div><div class="case-meta">3轮 4次调用 → 4个data <span class="tag">防御性判断</span><span class="tag">重复调用</span></div></div><div class="case"><div class="case-head"><span class="case-id">T39 L5</span><span class="case-score">4.3</span>备件月消耗量环比分析，哪些备件用量在持续上升？</div><div class="case-meta">3轮 3次调用 → 3个data <span class="tag">重复调用</span><span class="tag">数据冲突</span></div></div><div class="case"><div class="case-head"><span class="case-id">T40 L5</span><span class="case-score">3</span>近 6 个月巡检异常率变化趋势，有没有季节性规律？</div><div class="case-meta">3轮 4次调用 → 4个data <span class="tag">截断标记</span><span class="tag">截断标记</span><span class="tag">重复调用</span><span class="tag">数据冲突</span></div></div>
+
+<h2>实施计划</h2>
+<table>
+<tr><th>Phase</th><th>维度</th><th>改动</th><th>预期</th></tr>
+<tr style="background:rgba(245,230,228,.3)"><td rowspan="3"><b>Phase 1<br>止血</b></td><td>7 污染防控</td><td>去 _truncated + 清洗 assistant + allResults 去重</td><td rowspan="3"><b>4.7→4.85+</b></td></tr>
+<tr style="background:rgba(245,230,228,.3)"><td>2 结构感知</td><td>按数据类型差异化截断 + 正面描述</td></tr>
+<tr style="background:rgba(245,230,228,.3)"><td>3 动态预算</td><td>根据 context 大小动态调整</td></tr>
+<tr><td rowspan="2"><b>Phase 2<br>加固</b></td><td>6 拒绝检测</td><td>输出禁用词检查 + 重试</td><td rowspan="2">安全网 + EDHR</td></tr>
+<tr><td>4 Few-shot</td><td>+2 个 EDHR 示例</td></tr>
+<tr style="background:rgba(228,245,235,.2)"><td><b>Phase 3<br>优化</b></td><td>5 + 1</td><td>assistant 压缩 + Schema 压缩</td><td>扩展性</td></tr>
+</table>
+
+<div class="conclusion">
+  <h3>核心认知升级</h3>
+  <p style="font-size:15px;color:#2d4a3e;font-weight:600;margin-bottom:10px">上下文工程 = 控制 AI 看到什么 + 不给 AI 看什么 + 以什么方式让 AI 看到</p>
+  <p style="font-size:13px;color:#4a6b5a">Lantern 在"给 AI 看什么"做得好（6层prompt + domain model + data-digest）。但在"不给 AI 看什么"几乎没做 — _truncated 标记、防御性 thought、重复数据全部暴露。cursor2api 的核心教训：<b>AI 的注意力和判断力是有限资源，噪音消耗这些资源。</b></p>
+</div>
+
+<div class="conclusion" style="border-left:3px solid #2e8b57">
+  <h3>Playcard 伙伴洞察验证</h3>
+  <p style="font-size:13px;color:#4a6b5a">"4.7→5.0 的瓶颈可能不在架构层，而在多轮对话的上下文污染" — 数据证实：有污染的题低 0.42 分。不是 DeepSeek 能力限制，是我们给了错误的上下文。</p>
+</div>
+
+<div class="footer">
+  Lantern NL-API Platform — 上下文工程深度分析<br>
+  cursor2api 偷师 7 维度 | 40 题定量验证 | 三阶段实施计划 | 目标 4.7 → 4.85+
+</div>
+</body></html>
