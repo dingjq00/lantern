@@ -23,9 +23,13 @@ export function registerRepairSearch(server: McpServer) {
     async (args) => {
       const params: Record<string, unknown> = { pageNo: 1, pageSize: args.limit }
 
+      let resolvedEquipmentLabel: string | undefined
       if (args.equipment) {
         const eq = await resolveEquipment(args.equipment)
-        if (eq.match === 'exact' && eq.entity) params.equipmentId = eq.entity.id
+        if (eq.match === 'exact' && eq.entity) {
+          params.equipmentId = eq.entity.id
+          resolvedEquipmentLabel = `${eq.entity.equipmentCode} ${eq.entity.equipmentName}`
+        }
         else if (eq.match === 'candidates') return textResult({ message: '找到多个匹配设备，请确认', candidates: eq.candidates })
       }
       if (args.status !== undefined) params.status = args.status
@@ -111,13 +115,15 @@ export function registerRepairSearch(server: McpServer) {
             }
           }
           const enrichedGroups = args.groupBy === 'productionLine' ? result.groups : await enrichGroupNames(result.groups, args.groupBy!)
-          return textResult({ total, groupBy: args.groupBy, groups: enrichedGroups })
+          const groupResult: Record<string, unknown> = { total, groupBy: args.groupBy, groups: enrichedGroups }
+          if (resolvedEquipmentLabel) groupResult.context = `查询设备: ${resolvedEquipmentLabel}`
+          return textResult(groupResult)
         }
       }
 
       // concise: 不做丰富化
       if (args.format === 'concise') {
-        return textResult({
+        const conciseResult: Record<string, unknown> = {
           total,
           count: list.length,
           items: list.map(r => ({
@@ -125,7 +131,9 @@ export function registerRepairSearch(server: McpServer) {
             equipmentId: r.equipmentId, repairMinutes: r.repairMinutes,
             laborCost: r.laborCost, materialCost: r.materialCost,
           })),
-        })
+        }
+        if (resolvedEquipmentLabel) conciseResult.context = `查询设备: ${resolvedEquipmentLabel}`
+        return textResult(conciseResult)
       }
 
       // detailed: 丰富化前 10 条（避免调用爆炸）
@@ -179,12 +187,14 @@ export function registerRepairSearch(server: McpServer) {
         } catch { /* 查不到名称不影响主流程 */ }
       }
 
-      return textResult({
+      const detailResult: Record<string, unknown> = {
         total,
         count: enriched.length,
         items: enriched,
         ...(enriched.length < total ? { note: `详细模式仅展示前${enriched.length}条（含备件/知识引用），总计${total}条。如需全部工单基础信息请用 format=concise。` } : {}),
-      })
+      }
+      if (resolvedEquipmentLabel) detailResult.context = `查询设备: ${resolvedEquipmentLabel}`
+      return textResult(detailResult)
     }
   )
 }

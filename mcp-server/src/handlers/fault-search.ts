@@ -22,11 +22,15 @@ export function registerFaultSearch(server: McpServer) {
     },
     async (args) => {
       const params: Record<string, unknown> = { pageNo: 1, pageSize: args.limit }
+      let resolvedEquipmentLabel: string | undefined
 
       // 设备解析
       if (args.equipment) {
         const eq = await resolveEquipment(args.equipment)
-        if (eq.match === 'exact' && eq.entity) params.equipmentId = eq.entity.id
+        if (eq.match === 'exact' && eq.entity) {
+          params.equipmentId = eq.entity.id
+          resolvedEquipmentLabel = `${eq.entity.equipmentCode} ${eq.entity.equipmentName}`
+        }
         else if (eq.match === 'candidates') return textResult({ message: '找到多个匹配设备，请确认', candidates: eq.candidates })
       }
 
@@ -69,7 +73,9 @@ export function registerFaultSearch(server: McpServer) {
 
       if (result.groups) {
         const enrichedGroups = args.groupBy === 'productionLine' ? result.groups : await enrichGroupNames(result.groups, args.groupBy!)
-        return textResult({ total, groupBy: args.groupBy, groups: enrichedGroups })
+        const groupResult: Record<string, unknown> = { total, groupBy: args.groupBy, groups: enrichedGroups }
+        if (resolvedEquipmentLabel) groupResult.context = `查询设备: ${resolvedEquipmentLabel}`
+        return textResult(groupResult)
       }
 
       const items = list.map(f => args.format === 'concise'
@@ -82,7 +88,9 @@ export function registerFaultSearch(server: McpServer) {
           }
       )
 
-      return textResult({ total, count: items.length, items })
+      const itemResult: Record<string, unknown> = { total, count: items.length, items }
+      if (resolvedEquipmentLabel) itemResult.context = `查询设备: ${resolvedEquipmentLabel}`
+      return textResult(itemResult)
     }
   )
 }
