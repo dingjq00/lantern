@@ -70,6 +70,7 @@ export async function processQuery(
   const enrichedQuery = glossaryHints.length > 0
     ? `${query}\n\n[术语提示] ${glossaryHints.join('；')}`
     : query
+  if (glossaryHints.length > 0) console.warn(`[Router] 术语命中: ${glossaryHints.length}条 → ${glossaryHints.map(h => h.split('=')[0].trim()).join(', ')}`)
 
   const messages: Array<{ role: string; content: string }> = [
     { role: 'system', content: systemPrompt },

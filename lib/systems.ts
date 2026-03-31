@@ -76,7 +76,7 @@ export const SYSTEM_REGISTRY: Record<string, SystemMeta> = {
       '工单生产周期': { label: '平均工单周期', formula: 'interval', groupByField: 'productId', timeField: 'createTime', unit: '天' },
     },
     businessGlossary: {
-      '积压': { definition: '截至某时点未关闭的工单累积数', computation: '过滤状态为 WAITING/PENDING/INIT 的工单数，按月分析需看各月末快照', relatedTools: ['edhr.order.search'] },
+      '积压': { definition: '截至某时点未关闭的工单累积数（不是创建量）', computation: '分别查 progressStatus=WAITING 和 progressStatus=PENDING 的工单数（必须传 progressStatus 参数过滤，不能拿全量自己算）', relatedTools: ['edhr.order.search'] },
       '产能': { definition: '单位时间内完成的工单数', computation: '过滤 progressStatus=FINISHED，按月/周 groupBy 统计', relatedTools: ['edhr.order.search', 'edhr.trend'] },
       '良率': { definition: '检测合格率', computation: '检测状态 PASSED 数 ÷ 总检测数', relatedTools: ['edhr.item.search'] },
       '异常率': { definition: '产生质量异常的工单占比', computation: '有异常记录的工单数 ÷ 工单总数', relatedTools: ['edhr.exception.search', 'edhr.order.search'] },

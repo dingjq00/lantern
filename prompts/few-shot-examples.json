@@ -140,5 +140,17 @@
     },
     "finish": true,
     "note": "EDHR 跨域：每个域一个工具并行查，和 EAM 跨域模式相同"
+  },
+  {
+    "type": "single_round",
+    "query": "各产线的保养完成率怎么样？\n\n[术语提示] 保养完成率 = 按计划完成的保养任务占比。计算方式: 状态=已完成的保养数 ÷ 保养总数",
+    "round0": {
+      "thought": "[意图] 按产线统计保养完成率 [术语提示] 完成率=已完成÷总数，需按产线分组看完成情况 [候选] eam.maintenance.search [审查] maintenance.search 支持 groupBy=productionLine，返回 completed/total/completionRate [规划] 按术语定义，用 groupBy=productionLine 直接拿各产线完成率 [验证] 覆盖",
+      "intent": {"domains": ["maintenance"], "operation": "statistics", "filters": ["productionLine"]},
+      "clarity": "clear",
+      "calls": [{"tool": "eam.maintenance.search", "arguments": {"groupBy": "productionLine"}}]
+    },
+    "finish": true,
+    "note": "术语驱动：看到[术语提示]后按定义转化参数，不靠自己猜术语含义"
   }
 ]
