@@ -52,12 +52,12 @@ export const SYSTEM_REGISTRY: Record<string, SystemMeta> = {
       '维修间隔': { label: '平均维修间隔(MTBR)', formula: 'interval', groupByField: 'equipmentId', timeField: 'createTime', unit: '天' },
     },
     businessGlossary: {
-      '故障率': { definition: '设备发生故障的频率', computation: '故障次数 ÷ 设备总数（或运行时间）', relatedTools: ['eam.fault.search'] },
-      'MTBF': { definition: '平均故障间隔（Mean Time Between Failures）', computation: '同一设备相邻两次故障的时间差平均值', relatedTools: ['eam.fault.search'] },
-      'MTTR': { definition: '平均修复时间（Mean Time To Repair）', computation: '维修工单 repairMinutes 的平均值', relatedTools: ['eam.repair.search'] },
-      'OEE': { definition: '设备综合效率（Overall Equipment Effectiveness）', computation: '可用率 × 性能率 × 良率', relatedTools: ['eam.equipment.profile'] },
-      '保养完成率': { definition: '按计划完成的保养任务占比', computation: '状态=已完成的保养数 ÷ 保养总数', relatedTools: ['eam.maintenance.search'] },
-      '备件周转率': { definition: '备件消耗速度与库存的比值', computation: '一段时间内出库量 ÷ 平均库存量', relatedTools: ['eam.spare.search'] },
+      '故障率': { aliases: ['故障频率', '报修率'], definition: '设备发生故障的频率', computation: '故障次数 ÷ 设备总数（或运行时间）', relatedTools: ['eam.fault.search'] },
+      'MTBF': { aliases: ['故障间隔', '平均无故障时间'], definition: '平均故障间隔（Mean Time Between Failures）', computation: '同一设备相邻两次故障的时间差平均值', relatedTools: ['eam.fault.search'] },
+      'MTTR': { aliases: ['修复时间', '平均修复时长'], definition: '平均修复时间（Mean Time To Repair）', computation: '维修工单 repairMinutes 的平均值', relatedTools: ['eam.repair.search'] },
+      'OEE': { aliases: ['设备效率', '综合效率', '设备综合效率'], definition: '设备综合效率（Overall Equipment Effectiveness）', computation: '可用率 × 性能率 × 良率', relatedTools: ['eam.equipment.profile'] },
+      '保养完成率': { aliases: ['保养执行率', 'PM完成率'], definition: '按计划完成的保养任务占比', computation: '按已完成状态过滤，完成数 ÷ 总数', relatedTools: ['eam.maintenance.search'] },
+      '备件周转率': { aliases: ['备件消耗率', '库存周转'], definition: '备件消耗速度与库存的比值', computation: '一段时间内出库量 ÷ 平均库存量', relatedTools: ['eam.spare.search'] },
     },
   },
   edhr: {
