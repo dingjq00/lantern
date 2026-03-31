@@ -2,10 +2,10 @@
 // 重构：观察注入逻辑拆到 observation.ts 纯函数，router 只负责编排流程
 import { assemblePrompt } from './prompt-assembler'
 import { computeConfidence } from './confidence'
-import { detectDisplayFormat, buildStructuredResult } from './result-presenter'
+import { buildStructuredResult } from './result-presenter'
+import { prepareSummarizeContext } from './summarize-context'
 import { extractIntentFromThinkResult } from './intent'
 import { validateResult } from './validator'
-import { buildDigestForSummarize } from './data-digest'
 import { cleanDefensiveLanguage, calcTruncateThreshold, buildObservationData, buildObservationMessage } from './observation'
 import { SYSTEM_REGISTRY } from '@/lib/systems'
 import { TraceCollector } from './trace'
@@ -282,70 +282,17 @@ export async function processQuery(
   const finalConfidence = computeConfidence(signals)
   trace.setConfidence(signals, finalConfidence)
 
-  // 构建 relatedContext — 从 feeds_into 生成可深挖方向
-  const relatedHints: string[] = []
-  const calledTools = new Set(allResults.map(r => r.tool))
-  for (const r of allResults) {
-    const toolDef = registry.getTool(r.tool)
-    if (toolDef?.feedsInto?.length) {
-      const uncalled = toolDef.feedsInto.filter(t => !calledTools.has(t))
-      if (uncalled.length > 0) {
-        const toolNames = uncalled.map(t => {
-          const def = registry.getTool(t)
-          return def ? `${t}(${def.description.slice(0, 30)})` : t
-        })
-        relatedHints.push(`${r.tool} 可深挖→ ${toolNames.join(', ')}`)
-      }
-    }
-    // 从数据中提取数字摘要作为诱饵
-    const d = r.data as Record<string, unknown>
-    if (d && typeof d === 'object') {
-      const nums: string[] = []
-      if ('total' in d && typeof d.total === 'number' && d.total > 0) nums.push(`共${d.total}条`)
-      if ('bom' in d && Array.isArray(d.bom)) nums.push(`BOM${d.bom.length}种备件`)
-      if ('recentFaults' in d && Array.isArray(d.recentFaults)) nums.push(`近期${d.recentFaults.length}次故障`)
-      if ('activeRepairs' in d && Array.isArray(d.activeRepairs)) nums.push(`${d.activeRepairs.length}个进行中维修`)
-      if (nums.length) relatedHints.push(`${r.tool}: ${nums.join(', ')}`)
-    }
-  }
-  // 从第一个工具推断系统 ID，读取 domain model
-  const firstToolDef = allResults.length > 0 ? registry.getTool(allResults[0].tool) : undefined
-  const systemId = firstToolDef?.system
-
-  // 注入 domain model — 让 summarize AI 知道实体间的关系链，做更好的跨域分析和 followUp
-  if (systemId) {
-    const meta = SYSTEM_REGISTRY[systemId]
-    if (meta?.domainModel) {
-      relatedHints.unshift(`业务关系链:\n${meta.domainModel}`)
-    }
-  }
-
-  const relatedContext = relatedHints.length > 0 ? relatedHints.join('\n') : undefined
-
-  // Phase 2: allResults 去重 — 同一工具多次调用只保留最后一次，减少冲突数据对 AI 的认知干扰
-  const dedupMap = new Map<string, { tool: string; data: unknown }>()
-  for (const r of allResults) dedupMap.set(r.tool, r)
-  const dedupedResults = [...dedupMap.values()]
-
-  // 数据处理层 — 将原始 JSON 转为结构化摘要（省 token + 预计算统计值）
-  const toolResultsForDigest = dedupedResults.map(r => ({ tool: r.tool, data: r.data }))
-  const dataDigest = toolResultsForDigest.length > 0
-    ? buildDigestForSummarize(toolResultsForDigest, systemId)
-    : undefined
-
-  // LLM 总结（容错）
-  const mergedData = dedupedResults.map(r => r.data)
-  const firstData = mergedData.length === 1 ? mergedData[0] : mergedData
-  const formatHint = detectDisplayFormat(firstData)
+  // 一次性打包 summarize 所需的全部上下文（偷师 UniClaudeProxy 的 ResolvedRoute）
+  const ctx = prepareSummarizeContext(allResults, registry)
   // Phase 3: 禁用词检测 + 单次重试
   const FORBIDDEN_WORDS = ['数据不足', '无法回答', '数据不完整', '暂无数据', '数据不包含', '无法统计', '缺乏数据']
   let summary: Awaited<ReturnType<LLMProvider['summarize']>>
   try {
-    summary = await llm.summarize(firstData, query, formatHint, relatedContext, dataDigest)
+    summary = await llm.summarize(ctx.mergedData, query, ctx.formatHint, ctx.relatedContext, ctx.dataDigest)
     // 禁用词逃逸检测 — 命中就重试一次
     if (summary.answer && FORBIDDEN_WORDS.some(w => summary.answer.includes(w))) {
       console.warn(`[Router] 禁用词逃逸，重试 summarize`)
-      summary = await llm.summarize(firstData, query, formatHint, relatedContext, dataDigest)
+      summary = await llm.summarize(ctx.mergedData, query, ctx.formatHint, ctx.relatedContext, ctx.dataDigest)
     }
   } catch (err) {
     console.warn('[Router] LLM summarize 失败:', (err as Error).message)
@@ -378,7 +325,7 @@ export async function processQuery(
 
   const result = buildStructuredResult(
     summary.answer,
-    mergedData.map(d => (typeof d === 'object' && d !== null ? d : { value: d }) as Record<string, unknown>),
+    ctx.dedupedResults.map(r => (typeof r.data === 'object' && r.data !== null ? r.data : { value: r.data }) as Record<string, unknown>),
     summary.display || 'text',
     finalConfidence,
     summary.columns,
