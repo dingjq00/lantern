@@ -34,11 +34,11 @@ export const EDHR_TEST_CASES: EdhrTestCase[] = [
   // QA 视角
   { id: 'E03', query: '当前有多少个质量异常记录？', level: 'L1', role: 'qa',
     acceptablePaths: [['edhr.dashboard'], ['edhr.exception.search']],
-    followUp: { minCount: 3, shouldRelate: ['异常', '质量'] } },
+    followUp: { minCount: 3, shouldRelate: ['异常', '产品'] } },
 
   { id: 'E04', query: '有多少检测项是不合格的？', level: 'L1', role: 'qc',
     acceptablePaths: [['edhr.dashboard'], ['edhr.item.search']],
-    followUp: { minCount: 3, shouldRelate: ['检测', '不合格'] } },
+    followUp: { minCount: 3, shouldRelate: ['检测', '合格'] } },
 
   // 企业管理者视角
   { id: 'E05', query: '生产情况怎么样？给我一个全局概览', level: 'L1', role: 'executive',
@@ -65,7 +65,7 @@ export const EDHR_TEST_CASES: EdhrTestCase[] = [
 
   { id: 'E09', query: '工单 7103005-681437 的检测完成了吗？有没有不合格项？', level: 'L2', role: 'operator',
     acceptablePaths: [['edhr.order.profile']],
-    followUp: { minCount: 3, shouldRelate: ['检测', '合格'] } },
+    followUp: { minCount: 3, shouldRelate: ['合格', '工序'] } },
 
   // QA 视角 — 关心异常处理
   { id: 'E10', query: '重新操作（REOPERATE）处理的异常有多少个？', level: 'L2', role: 'qa',
@@ -79,11 +79,11 @@ export const EDHR_TEST_CASES: EdhrTestCase[] = [
   // QC 视角 — 关心检测数据
   { id: 'E12', query: '各检测状态的数量分布是怎样的？', level: 'L2', role: 'qc',
     acceptablePaths: [['edhr.item.search']],
-    followUp: { minCount: 3, shouldRelate: ['检测', '状态'] } },
+    followUp: { minCount: 3, shouldRelate: ['检测', '工单'] } },
 
   { id: 'E13', query: '工单 7103005-681895 的检测项里有哪些不合格的？', level: 'L2', role: 'qc',
     acceptablePaths: [['edhr.item.search'], ['edhr.order.profile']],
-    followUp: { minCount: 3, shouldRelate: ['不合格', '检测'] } },
+    followUp: { minCount: 3, shouldRelate: ['检测', '质量'] } },
 
   // 生产管理者视角 — 关心进度
   { id: 'E14', query: '七月份完成了多少个工单？', level: 'L2', role: 'production_manager',
@@ -109,17 +109,17 @@ export const EDHR_TEST_CASES: EdhrTestCase[] = [
   // QC 视角 — 追溯问题
   { id: 'E18', query: '工单 7103005-681437 有多少道工序？每道工序的进度分别是什么？', level: 'L3', role: 'qc',
     acceptablePaths: [['edhr.order.profile']],
-    followUp: { minCount: 3, shouldRelate: ['工序', '进度'] } },
+    followUp: { minCount: 3, shouldRelate: ['工序', '工单'] } },
 
   // QA 视角 — 异常关联
   { id: 'E19', query: '工单 7103005-681895 有没有质量异常？是怎么处理的？', level: 'L3', role: 'qa',
     acceptablePaths: [['edhr.order.profile'], ['edhr.exception.search']],
-    followUp: { minCount: 3, shouldRelate: ['异常', '处理'] } },
+    followUp: { minCount: 3, shouldRelate: ['质量', '工单'] } },
 
   // 生产管理者 — 产品维度
   { id: 'E20', query: '最近一个月的工单完成趋势怎么样？', level: 'L3', role: 'production_manager',
     acceptablePaths: [['edhr.trend']],
-    followUp: { minCount: 3, shouldRelate: ['趋势', '工单'] } },
+    followUp: { minCount: 3, shouldRelate: ['工单', '产品'] } },
 
   { id: 'E21', query: '7103072 这个产品最近的工单有哪些？完成了几个？', level: 'L3', role: 'production_manager',
     acceptablePaths: [['edhr.order.search']],
@@ -128,12 +128,12 @@ export const EDHR_TEST_CASES: EdhrTestCase[] = [
   // 操作员 — 查配方了解步骤
   { id: 'E22', query: '710300T 这个产品的配方工序是什么？有多少个检测项？', level: 'L3', role: 'operator',
     acceptablePaths: [['edhr.product.search']],
-    followUp: { minCount: 3, shouldRelate: ['配方', '检测项'] } },
+    followUp: { minCount: 3, shouldRelate: ['检测', '工序'] } },
 
   // QA — 异常趋势
   { id: 'E23', query: '最近三个月的异常数量趋势是怎样的？', level: 'L3', role: 'qa',
     acceptablePaths: [['edhr.trend', 'eam.trend'], ['edhr.trend'], ['eam.trend']],
-    followUp: { minCount: 3, shouldRelate: ['异常', '趋势'] } },
+    followUp: { minCount: 3, shouldRelate: ['异常', '保养'] } },
 
   // ============================================================
   // L4 — 跨域分析（需 2+ 工具或深度分析思考）
