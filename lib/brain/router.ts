@@ -56,9 +56,24 @@ export async function processQuery(
 
   // 组装 Prompt
   const { systemPrompt } = assemblePrompt(query, allTools, { memoryContext: historyContext })
+
+  // 术语预匹配 — 扫描 query 命中术语表时自动注入定义（确定性，不靠 AI 判断）
+  const glossaryHints: string[] = []
+  for (const [, meta] of Object.entries(SYSTEM_REGISTRY)) {
+    if (!meta.businessGlossary) continue
+    for (const [term, def] of Object.entries(meta.businessGlossary)) {
+      if (query.includes(term)) {
+        glossaryHints.push(`${term} = ${def.definition}。计算方式: ${def.computation}`)
+      }
+    }
+  }
+  const enrichedQuery = glossaryHints.length > 0
+    ? `${query}\n\n[术语提示] ${glossaryHints.join('；')}`
+    : query
+
   const messages: Array<{ role: string; content: string }> = [
     { role: 'system', content: systemPrompt },
-    { role: 'user', content: query },
+    { role: 'user', content: enrichedQuery },
   ]
 
   // ReAct 循环
