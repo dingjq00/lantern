@@ -33,8 +33,8 @@ export function registerEdhrProductSearch(server: McpServer) {
       // 产品类别
       const categories = await jmixList('ProductCategory', { limit: 20, fetchPlan: '_local' })
 
-      // 配方工序 — _base 含子工序关联
-      const recipes = await jmixList('RecipeProcedure', { limit: 50, fetchPlan: '_base' })
+      // 配方工序 — _local 只拿顶层（_base 会拉完整子树导致 token 爆炸）
+      const recipes = await jmixList('RecipeProcedure', { limit: 50, fetchPlan: '_local' })
 
       return textResult({
         products: {
