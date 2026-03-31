@@ -58,14 +58,19 @@ export async function processQuery(
   const { systemPrompt } = assemblePrompt(query, allTools, { memoryContext: historyContext })
 
   // 术语预匹配 — 扫描 query 命中术语表时自动注入定义（确定性，不靠 AI 判断）
-  // 同时检查主词和别名（如"堆积"命中"积压"的别名）
+  // 先用 scope 关键词预判 query 属于哪个系统，只注入相关系统的术语（防跨系统碰撞）
   const glossaryHints: string[] = []
-  for (const [, meta] of Object.entries(SYSTEM_REGISTRY)) {
+  const querySystems = Object.entries(SYSTEM_REGISTRY)
+    .filter(([, meta]) => meta.scope.split(/[、，,]/).some(kw => query.includes(kw.trim())))
+    .map(([sysId]) => sysId)
+  for (const [sysId, meta] of Object.entries(SYSTEM_REGISTRY)) {
     if (!meta.businessGlossary) continue
+    // 如果能判断系统归属，只注入该系统的术语；判断不了则全部注入
+    if (querySystems.length > 0 && !querySystems.includes(sysId)) continue
     for (const [term, def] of Object.entries(meta.businessGlossary)) {
       const allNames = [term, ...(def.aliases ?? [])]
       if (allNames.some(name => query.includes(name))) {
-        glossaryHints.push(`${term} = ${def.definition}。计算方式: ${def.computation}`)
+        glossaryHints.push(`${term}(${sysId.toUpperCase()}) = ${def.definition}。计算方式: ${def.computation}`)
       }
     }
   }
