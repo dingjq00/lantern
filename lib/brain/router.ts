@@ -370,9 +370,16 @@ export async function processQuery(
   const mergedData = dedupedResults.map(r => r.data)
   const firstData = mergedData.length === 1 ? mergedData[0] : mergedData
   const formatHint = detectDisplayFormat(firstData)
+  // Phase 3: 禁用词检测 + 单次重试
+  const FORBIDDEN_WORDS = ['数据不足', '无法回答', '数据不完整', '暂无数据', '数据不包含', '无法统计', '缺乏数据']
   let summary: Awaited<ReturnType<LLMProvider['summarize']>>
   try {
     summary = await llm.summarize(firstData, query, formatHint, relatedContext, dataDigest)
+    // 禁用词逃逸检测 — 命中就重试一次
+    if (summary.answer && FORBIDDEN_WORDS.some(w => summary.answer.includes(w))) {
+      console.warn(`[Router] 禁用词逃逸，重试 summarize`)
+      summary = await llm.summarize(firstData, query, formatHint, relatedContext, dataDigest)
+    }
   } catch (err) {
     console.warn('[Router] LLM summarize 失败:', (err as Error).message)
     summary = { answer: '查询已完成，请查看下方数据详情。', display: 'text' }
