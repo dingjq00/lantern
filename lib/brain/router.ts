@@ -1,10 +1,12 @@
 // 路由主编排器 — P1: ReAct 循环（批量调用 + 按需追查）
+// 重构：观察注入逻辑拆到 observation.ts 纯函数，router 只负责编排流程
 import { assemblePrompt } from './prompt-assembler'
 import { computeConfidence } from './confidence'
 import { detectDisplayFormat, buildStructuredResult } from './result-presenter'
 import { extractIntentFromThinkResult } from './intent'
 import { validateResult } from './validator'
 import { buildDigestForSummarize } from './data-digest'
+import { cleanDefensiveLanguage, calcTruncateThreshold, buildObservationData, buildObservationMessage } from './observation'
 import { SYSTEM_REGISTRY } from '@/lib/systems'
 import { TraceCollector } from './trace'
 import type { ToolRegistry } from '@/lib/tools/registry'
@@ -224,83 +226,25 @@ export async function processQuery(
         : '工具调用失败'
       trace.endRound(observation)
 
-      // 把本轮结果注入消息上下文，引导 AI 判断是否充足
-      // Phase 2: 清洗防御性语言，防止犹豫心态传染到下一轮
+      // 把本轮结果注入消息上下文（纯函数在 observation.ts）
       const cleanedThink = { ...thinkResult }
-      if (cleanedThink.thought) {
-        cleanedThink.thought = cleanedThink.thought
-          .replace(/数据被截断/g, '已获取数据')
-          .replace(/数据不完整/g, '数据概要')
-          .replace(/无法确定/g, '需要补充')
-          .replace(/不完整/g, '部分')
-          .replace(/截断/g, '概要')
-      }
+      if (cleanedThink.thought) cleanedThink.thought = cleanDefensiveLanguage(cleanedThink.thought)
       messages.push({ role: 'assistant', content: JSON.stringify(cleanedThink) })
-      // 用本轮 roundResults（index-aligned），截断过大的结果防止撑爆 context
-      // 动态预算：上下文宽裕时保留更多数据，紧张时精简（Phase 2 污染防控）
-      const msgTotalChars = messages.reduce((sum, m) => sum + m.content.length, 0)
-      const truncateThreshold = msgTotalChars > 40000 ? 4000
-        : msgTotalChars > 20000 ? 8000
-        : 12000
-      const obsData = thinkResult.calls.map((c, ci) => {
-        const raw = roundResults[ci] ?? 'error'
-        const json = JSON.stringify(raw)
-        if (json.length > truncateThreshold) {
-          const obj = raw as Record<string, unknown>
-          // 正面概要：保留实际数据样本，不暴露"截断"概念（消除 AI 防御心态）
-          const summary: Record<string, unknown> = {}
-          if (obj && typeof obj === 'object') {
-            if ('total' in obj) summary.total = obj.total
-            if ('count' in obj) summary.count = obj.count
-            if ('context' in obj) summary.context = obj.context
-            // groups 完整保留（统计查询的核心，通常不大）
-            if ('groups' in obj && Array.isArray(obj.groups)) {
-              summary.groups = obj.groups
-            }
-            // items 保留前 3 条（让 AI 看到真实数据结构和内容）
-            if ('items' in obj && Array.isArray(obj.items)) {
-              summary.items = obj.items.slice(0, 3)
-              summary.itemCount = obj.items.length
-            }
-            // stats 完整保留（预计算指标）
-            if ('stats' in obj) summary.stats = obj.stats
-          }
-          return { tool: c.tool, result: summary }
-        }
-        return { tool: c.tool, result: raw }
+
+      const truncateThreshold = calcTruncateThreshold(messages)
+      const obsData = buildObservationData(thinkResult.calls, roundResults, truncateThreshold)
+      const obsMessage = buildObservationMessage({
+        obsData, query, allResults, intent, registry,
+        validationWarnings: trace.build().validation.filter(v => v.severity === 'warning').map(v => v.message),
       })
-      // 观察注入（Reflexion 式事实对比）
-      const dataFields = obsData.flatMap(d => {
-        if (d.result && typeof d.result === 'object' && !Array.isArray(d.result)) return Object.keys(d.result as Record<string, unknown>)
-        if (d.result && typeof d.result === 'object' && Array.isArray((d.result as any)?.items)) return ['items[...]']
-        return ['(数据)']
-      })
-      // 域覆盖检查（通用跨域提示，不预定义组合）
+      messages.push({ role: 'user', content: obsMessage })
+
+      // 快速完成判断：域覆盖检查
       const calledTools = allResults.map(r => r.tool)
       const coveredDomains = [...new Set(calledTools.flatMap(t => registry.getTool(t)?.domains ?? []))]
       const intentDomains = intent?.domains ?? []
       const uncoveredDomains = intentDomains.filter(d => !coveredDomains.includes(d))
-      const domainCoverageHint = uncoveredDomains.length > 0
-        ? `\n⚠️ 域覆盖检查: 用户问题涉及 [${intentDomains.join(', ')}]，已覆盖 [${coveredDomains.join(', ')}]，未覆盖 [${uncoveredDomains.join(', ')}]。如有必要，补充未覆盖域的工具。`
-        : ''
-      // 提取工具返回的 context 提示（空结果时 handler 会解释原因）
-      const contextHints = obsData
-        .map(d => (d.result as any)?.context)
-        .filter(Boolean)
-        .map(c => `⚠️ ${c}`)
-        .join('\n')
-      const contextSection = contextHints ? `\n\n${contextHints}\n如果结果为空且有时间限定，尝试去掉时间条件重新查询。` : ''
-      // 校验警告注入（让 AI 在审查轮感知数值异常）
-      const validationWarnings = trace.build().validation
-        .filter(v => v.severity === 'warning')
-        .map(v => `⚠️ 校验: ${v.message}`)
-        .join('\n')
-      const validationSection = validationWarnings ? `\n\n${validationWarnings}` : ''
-      const obsMessage = `观察结果: ${JSON.stringify(obsData)}\n\n事实对比:\n- 用户问: "${query}"\n- 已获得字段: ${[...new Set(dataFields)].join(', ')}${domainCoverageHint}${contextSection}${validationSection}\n\n检查：数据是否已回答用户问题？有无未覆盖的域？够了就 finish，不够就补充。`
-      messages.push({ role: 'user', content: obsMessage })
 
-      // 快速完成: 单域 + 全成功 + 无覆盖缺口 + clarity=clear + 有实际数据 → 跳过审查轮
-      // 结果为空时不跳过 — 需要审查轮做洋葱式泛化（放宽条件重试）
       const hasActualData = allResults.some(r => {
         if (!r.data || typeof r.data !== 'object') return false
         const d = r.data as Record<string, unknown>
