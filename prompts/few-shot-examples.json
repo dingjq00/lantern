@@ -76,5 +76,69 @@
     },
     "finish": true,
     "note": "跨域问题：趋势用 trend，备件预警用 spare.search(lowStock=true)。不要用 fault.search 替代 spare.search"
+  },
+  {
+    "type": "multi_round",
+    "query": "上月故障最多的设备是哪台？",
+    "round0": {
+      "thought": "[意图] 查上月按设备统计的故障排名 [候选] eam.fault.search [审查] fault.search(groupBy=equipment) 直接返回按设备聚合的故障数 [规划] 传上月时间+按设备聚合 [验证] 故障排名只涉及 fault 域，一个工具覆盖",
+      "intent": {"domains": ["fault"], "operation": "statistics", "filters": ["dateRange"]},
+      "clarity": "clear",
+      "calls": [{"tool": "eam.fault.search", "arguments": {"dateRange": {"from": "2026-02-01", "to": "2026-02-28"}, "groupBy": "equipment"}}]
+    },
+    "observation0": "groups 返回 15 台设备故障统计，最多的设备故障 8 次，数据充足",
+    "round1": {
+      "thought": "[验证] 已有按设备聚合的故障排名，数据充足，直接结束",
+      "finish": true
+    },
+    "note": "审查轮：数据充足直接 finish，不要重复查询"
+  },
+  {
+    "type": "multi_round",
+    "query": "本周压片线有哪些维修工单？",
+    "round0": {
+      "thought": "[意图] 查本周某产线的维修工单 [候选] eam.repair.search [审查] repair.search 支持 productionLine+dateRange 过滤 [规划] 传产线名+本周时间 [验证] 覆盖",
+      "intent": {"domains": ["fault-repair"], "operation": "search", "filters": ["productionLine", "dateRange"]},
+      "clarity": "clear",
+      "calls": [{"tool": "eam.repair.search", "arguments": {"productionLine": "压片线", "dateRange": {"from": "2026-03-24", "to": "2026-03-30"}}}]
+    },
+    "observation0": "total=0，本周压片线没有维修工单",
+    "round1": {
+      "thought": "[审查] 结果为空，放宽时间条件保留核心实体（压片线）重试",
+      "calls": [{"tool": "eam.repair.search", "arguments": {"productionLine": "压片线"}}]
+    },
+    "observation1": "total=12，压片线有维修工单数据",
+    "round2": {
+      "thought": "[验证] 放宽时间后有数据，可以回答",
+      "finish": true
+    },
+    "note": "空结果 → 放宽限定条件（去时间），保留核心实体（产线）"
+  },
+  {
+    "type": "single_round",
+    "query": "目前生产检测的整体情况怎么样？",
+    "round0": {
+      "thought": "[意图] 查 EDHR 检测系统全局概况 [候选] edhr.dashboard [审查] dashboard 返回工单状态分布+异常统计+产品列表，一个工具搞定 [规划] 直接调用 [验证] 全局概况只需 dashboard",
+      "intent": {"domains": ["order", "exception", "product"], "operation": "dashboard", "filters": []},
+      "clarity": "clear",
+      "calls": [{"tool": "edhr.dashboard", "arguments": {}}]
+    },
+    "finish": true,
+    "note": "EDHR 全局概况 → dashboard，和 EAM 的 dashboard 用法一致"
+  },
+  {
+    "type": "single_round",
+    "query": "已完成工单中有多少质量异常？都是怎么处理的？",
+    "round0": {
+      "thought": "[意图] 跨两个域：order 查已完成工单 + exception 查异常处理方式 [候选] edhr.order.search, edhr.exception.search [审查] order.search(progressStatus=FINISHED) 查已完成工单数；exception.search(groupBy=exceptionDecisionType) 查各处理方式分布 [规划] 并行查两个域 [验证] 工单(order.search) + 异常处理(exception.search) = 覆盖两个域",
+      "intent": {"domains": ["order", "exception"], "operation": "search", "filters": ["progressStatus"]},
+      "clarity": "clear",
+      "calls": [
+        {"tool": "edhr.order.search", "arguments": {"progressStatus": "FINISHED"}},
+        {"tool": "edhr.exception.search", "arguments": {"groupBy": "exceptionDecisionType"}}
+      ]
+    },
+    "finish": true,
+    "note": "EDHR 跨域：每个域一个工具并行查，和 EAM 跨域模式相同"
   }
 ]

@@ -70,7 +70,14 @@ export function registerSpareSearch(server: McpServer) {
 
       // 模式2: 备件列表搜索
       const params: Record<string, unknown> = { pageNo: 1, pageSize: args.limit }
-      if (args.identifier) params.spareName = args.identifier
+      if (args.identifier) {
+        // 备件编号（如 SP-GY-005）和备件名称（如 UV氘灯）走不同搜索字段
+        if (/^[A-Za-z]{2,}[-]/.test(args.identifier) || /^[A-Za-z0-9-]+$/.test(args.identifier)) {
+          params.spareCode = args.identifier
+        } else {
+          params.spareName = args.identifier
+        }
+      }
       if (args.category) {
         if (/^\d+$/.test(args.category)) params.spareTypeIds = args.category
       }

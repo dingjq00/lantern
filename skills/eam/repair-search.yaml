@@ -52,10 +52,10 @@ input_schema:
     groupBy:
       type: string
       description: >
-        按维度聚合统计。
-        equipment=按设备统计维修次数（找维修高频设备），
+        按维度聚合统计（含成本汇总）。
+        equipment=按设备统计维修次数+成本（找维修频繁/昂贵设备），
         orderType=按维修类型分布（内修vs外协比例），
-        status=按状态分布，productionLine=按产线统计。
+        status=按状态分布，productionLine=按产线统计维修次数+成本。
       enum: [equipment, orderType, status, productionLine]
     format:
       type: string

@@ -81,8 +81,12 @@ export function assemblePrompt(
     const lines = [`**示例 ${i + 1}**: "${ex.query}"`]
     if (ex.note) lines.push(`说明: ${ex.note}`)
     lines.push(`首轮输出:\n\`\`\`json\n${JSON.stringify(ex.round0, null, 2)}\n\`\`\``)
-    if (ex.observation0) lines.push(`观察: ${ex.observation0}`)
-    if (ex.round1) lines.push(`追查轮输出:\n\`\`\`json\n${JSON.stringify(ex.round1, null, 2)}\n\`\`\``)
+    // 支持多轮: observation0 → round1 → observation1 → round2 → ...
+    for (let r = 0; ex[`observation${r}`]; r++) {
+      lines.push(`观察: ${ex[`observation${r}`]}`)
+      const next = ex[`round${r + 1}`]
+      if (next) lines.push(`追查轮输出:\n\`\`\`json\n${JSON.stringify(next, null, 2)}\n\`\`\``)
+    }
     return lines.join('\n')
   }).join('\n\n')
 

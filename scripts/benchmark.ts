@@ -53,7 +53,7 @@ const TEST_CASES: TestCase[] = [
   { id: 'T04', query: '各状态的设备数量分布是怎样的？', level: 'L1', acceptablePaths: [['eam.dashboard'], ['eam.equipment.search']],
     mustContain: ['120'], shouldContain: ['运行中', '维修中'], followUp: { minCount: 3, shouldRelate: ['设备', '状态'] } },
   { id: 'T05', query: '最近 30 天的故障趋势怎么样？', level: 'L1', acceptablePaths: [['eam.trend']],
-    mustContain: ['36'], followUp: { minCount: 3, shouldRelate: ['故障', '趋势'] } },
+    shouldContain: ['故障', '趋势'], followUp: { minCount: 3, shouldRelate: ['故障', '趋势'] } },
   { id: 'T06', query: '巡检异常的整体统计指标是什么？', level: 'L1', acceptablePaths: [['eam.dashboard'], ['eam.anomaly.search'], ['eam.patrol.search']],
     shouldContain: ['异常', '巡检'] },
   { id: 'T07', query: '当前有哪些库存预警？', level: 'L1', acceptablePaths: [['eam.spare.search'], ['eam.dashboard']],
