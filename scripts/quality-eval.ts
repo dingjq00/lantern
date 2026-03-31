@@ -37,15 +37,27 @@ interface QualityScore {
 
 // 数据摘要已复用 lib/brain/data-digest.ts 的 buildDigestForSummarize
 
-async function evaluateAnswer(query: string, answer: string, data: unknown, actualTools?: string[]): Promise<{
+async function evaluateAnswer(
+  query: string, answer: string, data: unknown,
+  actualTools?: string[], trace?: any,
+): Promise<{
   completeness: number; accuracy: number; usability: number; issues: string; suggestion: string
 }> {
-  // 复用 data-digest 通用引擎 + 领域公式，不再用独立的 summarizeData
-  const systemId = actualTools?.[0]?.split('.')[0]  // eam.xxx → eam, edhr.xxx → edhr
+  // 复用 data-digest 通用引擎 + 领域公式
+  const systemId = actualTools?.[0]?.split('.')[0]
   const toolResults = Array.isArray(data)
     ? data.map((d, i) => ({ tool: actualTools?.[i] || `tool${i}`, data: d }))
     : [{ tool: actualTools?.[0] || 'unknown', data }]
   const dataSummary = buildDigestForSummarize(toolResults, systemId)
+
+  // 从 trace 提取工具调用上下文（让评测 AI 理解数据是怎么来的）
+  const callContext = (trace?.rounds ?? []).flatMap((rd: any) =>
+    (rd.calls ?? []).map((c: any) => {
+      const argStr = JSON.stringify(c.arguments ?? {}, null, 0)
+      const status = c.status === 'error' ? ' [ERROR]' : ''
+      return `${c.tool}(${argStr.length > 200 ? argStr.slice(0, 200) + '...' : argStr})${status}`
+    })
+  ).join('\n')
 
   const response = await client.chat.completions.create({
     model: LLM_MODEL,
@@ -57,21 +69,22 @@ async function evaluateAnswer(query: string, answer: string, data: unknown, actu
 
 评分维度（每项 1-5 分）：
 - completeness（回答完整性）：是否完整回答了用户问题的所有部分。5=完美覆盖，1=完全没回答
-- accuracy（数据准确性）：回答中的数据是否有依据、有没有编造。说"数据不足无法回答"比编造数据好。5=数据准确有依据，1=明显编造
+- accuracy（数据准确性）：回答中的数据是否有依据、有没有编造。5=数据准确有依据，1=明显编造
 - usability（可用性）：用户看了这个回答能不能做决策/获得价值。5=直接可用，1=毫无价值
 
-注意：
-- 你收到的是**完整数据摘要**（包含总数、分布统计、样本），不是截断数据。用这些统计核对 AI 的数字
-- 如果回答说"无法统计""数据不完整"但实际数据确实不完整，accuracy 应该给高分（诚实）
-- 如果回答有具体数字但和返回数据对不上，accuracy 应该给低分。注意区分"数字完全错误"(1-2分) 和"数字有小偏差但方向正确"(3-4分)
-- 如果回答格式良好、有数据表格、有后续建议，usability 加分
-- AI 基于数据做推理分析（如从状态分布算完成率）是正常行为，不算编造
+重要 — 评估原则：
+- "调用过程"告诉你 AI 用了什么参数查询数据。数据是**过滤后的结果**（如有 dateRange 表示只查了该时间段）
+- 数据摘要是完整的预计算统计。AI 引用的数字应该和摘要对得上
+- AI 做推理分析（从分布算完成率、从数据推趋势）是正常行为，不算编造
+- AI 诚实说"数据均匀无法区分最高"比编造排名好 — accuracy 给高分
+- 数字有小偏差但方向正确 = 3-4分，数字完全错误 = 1-2分
+- 有行动建议、有关键发现、有后续方向 → usability 加分
 
 返回 JSON：{"completeness":N,"accuracy":N,"usability":N,"issues":"具体问题","suggestion":"改进建议"}`
       },
       {
         role: 'user',
-        content: `用户问题: ${query}\n\nAI 回答:\n${answer}\n\n返回数据摘要（完整统计，非截断）:\n${dataSummary}`
+        content: `用户问题: ${query}\n\n调用过程:\n${callContext || '无'}\n\nAI 回答:\n${answer}\n\n返回数据摘要:\n${dataSummary}`
       }
     ],
     response_format: { type: 'json_object' },
@@ -129,7 +142,7 @@ async function main() {
     }
 
     try {
-      const score = await evaluateAnswer(r.query, r.answer, r.data, r.actualTools)
+      const score = await evaluateAnswer(r.query, r.answer, r.data, r.actualTools, r.trace)
       const avg = Math.round((score.completeness + score.accuracy + score.usability) / 3 * 10) / 10
       scores.push({
         id: r.id, query: r.query, level: r.level, recall: r.recall,

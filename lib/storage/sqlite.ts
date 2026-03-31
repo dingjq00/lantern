@@ -33,9 +33,9 @@ export class SQLiteStorage implements StorageInterface {
   insertSession(session: MemorySession): void {
     const stmt = this.db.prepare(`
       INSERT INTO nl_memory_sessions
-        (session_id, user_id, tenant_id, query, intent_hash, tool_chain, result_summary, routing_decision, feedback, created_at, expires_at)
+        (session_id, user_id, tenant_id, query, intent_hash, tool_chain, result_summary, routing_decision, feedback, answer, rounds, latency_ms, created_at, expires_at)
       VALUES
-        (@sessionId, @userId, @tenantId, @query, @intentHash, @toolChain, @resultSummary, @routingDecision, @feedback, @createdAt, @expiresAt)
+        (@sessionId, @userId, @tenantId, @query, @intentHash, @toolChain, @resultSummary, @routingDecision, @feedback, @answer, @rounds, @latencyMs, @createdAt, @expiresAt)
     `)
     stmt.run({
       sessionId: session.sessionId,
@@ -47,6 +47,9 @@ export class SQLiteStorage implements StorageInterface {
       resultSummary: session.resultSummary,
       routingDecision: JSON.stringify(session.routingDecision),
       feedback: session.feedback ?? null,
+      answer: session.answer ?? null,
+      rounds: session.rounds ?? null,
+      latencyMs: session.latencyMs ?? null,
       createdAt: session.createdAt.toISOString(),
       expiresAt: session.expiresAt.toISOString(),
     })

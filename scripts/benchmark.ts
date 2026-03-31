@@ -124,8 +124,11 @@ const TEST_CASES: TestCase[] = [
 // 运行模式: --eam / --edhr / --only T09,T10,T13 / 默认全部
 const args = process.argv.slice(2)
 const runMode = args.find(a => a === '--eam' || a === '--edhr')?.slice(2) || 'all'
-const onlyIds = args.find(a => a.startsWith('--only'))?.split('=')[1]?.split(',')
-  ?? args[args.indexOf('--only') + 1]?.split(',')
+const onlyArg = args.find(a => a.startsWith('--only'))
+const onlyIdx = args.indexOf('--only')
+const onlyIds = onlyArg?.includes('=')
+  ? onlyArg.split('=')[1].split(',')
+  : onlyIdx >= 0 ? args[onlyIdx + 1]?.split(',') : undefined
 const ACTIVE_CASES = onlyIds
   ? TEST_CASES.filter(t => onlyIds.includes(t.id))
   : runMode === 'eam' ? TEST_CASES.filter(t => t.id.startsWith('T'))

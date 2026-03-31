@@ -163,6 +163,10 @@ export interface MemorySession {
   resultSummary: string
   routingDecision: Record<string, unknown>
   feedback?: string
+  // audit 增强（为自学习铺路）
+  answer?: string          // 完整回答文本
+  rounds?: number          // ReAct 循环轮次数
+  latencyMs?: number       // 总耗时（毫秒）
   createdAt: Date
   expiresAt: Date
 }

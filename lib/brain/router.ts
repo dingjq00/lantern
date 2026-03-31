@@ -383,18 +383,23 @@ export async function processQuery(
 
   // 写 session（异步，不阻塞响应）
   try {
+    const builtTrace = trace.build()
     const session: MemorySession = {
-      sessionId: trace.build().traceId,
+      sessionId: builtTrace.traceId,
       userId, tenantId, query,
       intentHash: intent?.intentHash ?? '',
       toolChain: allResults.map(r => r.tool),
       resultSummary: summary.answer.slice(0, 200),
       routingDecision: { rounds: round, confidence: finalConfidence },
+      // audit 增强（为自学习铺路）
+      answer: summary.answer,
+      rounds: round,
+      latencyMs: builtTrace.endTime ? builtTrace.endTime - builtTrace.startTime : undefined,
       createdAt: new Date(),
       expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
     }
     storage.insertSession(session)
-    storage.insertTrace(tenantId, trace.build(), session.sessionId)
+    storage.insertTrace(tenantId, builtTrace, session.sessionId)
   } catch (err) { console.warn('[Router] Session/trace 写入失败:', err) }
 
   const result = buildStructuredResult(
