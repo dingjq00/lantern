@@ -111,26 +111,29 @@ export async function eamSearch<T extends Record<string, unknown>>(
     groupKeyFn: (item: T, groupBy: string) => string  // 从记录中提取分组 key
     limit?: number
     fullScan?: boolean  // 无 groupBy 时也拉全量（用于统计类查询，确保 items 完整）
+    filterFn?: (item: T) => boolean  // 内存过滤（dateRange/scope/orderType），在聚合前执行确保 groups 一致
   },
 ): Promise<{ total: number; list: T[]; groups?: Array<{ group: string; count: number }> }> {
   if (options.groupBy) {
-    // groupBy 模式：拉全量 → 内存聚合
+    // groupBy 模式：拉全量 → 过滤 → 内存聚合（先过滤再聚合，确保 groups 和 list 一致）
     const all = await eamGetAll<T>(path, params)
+    const filtered = options.filterFn ? all.filter(options.filterFn) : all
     const groups = new Map<string, number>()
-    for (const item of all) {
+    for (const item of filtered) {
       const key = options.groupKeyFn(item, options.groupBy)
       groups.set(key, (groups.get(key) ?? 0) + 1)
     }
     const sorted = [...groups.entries()].sort((a, b) => b[1] - a[1])
     return {
-      total: all.length,
-      list: all,
+      total: filtered.length,
+      list: filtered,
       groups: sorted.map(([group, count]) => ({ group, count })),
     }
   } else if (options.fullScan) {
     // 全量拉取（统计类查询需要完整数据，不能只看一页）
     const all = await eamGetAll<T>(path, params)
-    return { total: all.length, list: all }
+    const filtered = options.filterFn ? all.filter(options.filterFn) : all
+    return { total: filtered.length, list: filtered }
   } else {
     // 普通分页
     const page = await eamGet<PageResult<T>>(path, { ...params, pageSize: options.limit ?? 20 })

@@ -61,13 +61,10 @@ export function registerAnomalySearch(server: McpServer) {
           : a.source ?? 'unknown',
         limit: args.limit,
         fullScan: !args.groupBy,
+        filterFn: scopeEquipmentIds ? (a => scopeEquipmentIds!.includes(a.equipmentId)) : undefined,
       })
 
-      let { list, total } = result
-      if (scopeEquipmentIds) {
-        list = list.filter(a => scopeEquipmentIds!.includes(a.equipmentId))
-        total = list.length
-      }
+      const { list, total } = result
 
       if (result.groups) {
         const groupResult: Record<string, unknown> = { total, groupBy: args.groupBy, groups: await enrichGroupNames(result.groups, args.groupBy!) }

@@ -62,14 +62,11 @@ export function registerFaultSearch(server: McpServer) {
           : gb === 'status' ? FAULT_STATUS[f.status] ?? String(f.status)
           : URGENCY_MAP[f.urgency] ?? String(f.urgency),
         limit: args.limit,
-        fullScan: !args.groupBy,  // 非 groupBy 查询也拉全量
+        fullScan: !args.groupBy,
+        filterFn: scopeEquipmentIds ? (f => scopeEquipmentIds!.includes(f.equipmentId)) : undefined,
       })
 
-      let { list, total } = result
-      if (scopeEquipmentIds) {
-        list = list.filter(f => scopeEquipmentIds!.includes(f.equipmentId))
-        total = list.length
-      }
+      const { list, total } = result
 
       if (result.groups) {
         const enrichedGroups = args.groupBy === 'productionLine' ? result.groups : await enrichGroupNames(result.groups, args.groupBy!)

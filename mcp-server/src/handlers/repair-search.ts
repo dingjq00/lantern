@@ -66,6 +66,18 @@ export function registerRepairSearch(server: McpServer) {
         // groupBy 模式或无内存过滤 — 使用 eamSearch（groupBy 时自动全量拉取）
         const eqToLine = args.groupBy === 'productionLine' ? await getEquipmentToLineMap() : null
 
+        // 构造 filterFn：在聚合前过滤，确保 groups 和 list 数据一致
+        const dateFrom = args.dateRange ? new Date(args.dateRange.from).getTime() : 0
+        const dateTo = args.dateRange ? new Date(args.dateRange.to).getTime() : 0
+        const filterFn = (scopeEquipmentIds || args.orderType || args.dateRange)
+          ? (r: RepairOrder) => {
+              if (scopeEquipmentIds && !scopeEquipmentIds.includes(r.equipmentId)) return false
+              if (args.orderType && r.orderType !== args.orderType) return false
+              if (args.dateRange) { const t = (r as any).createTime; if (!t || t < dateFrom || t > dateTo) return false }
+              return true
+            }
+          : undefined
+
         const result = await eamSearch<RepairOrder>('/eam/repair-order/page', params, {
           groupBy: args.groupBy,
           groupKeyFn: (r, gb) => gb === 'equipment' ? String(r.equipmentId)
@@ -73,19 +85,11 @@ export function registerRepairSearch(server: McpServer) {
             : gb === 'orderType' ? (r.orderType ?? '未知')
             : REPAIR_STATUS[r.status] ?? String(r.status),
           limit: args.limit,
+          filterFn,
         })
 
         list = result.list
         total = result.total
-        // groupBy + 内存过滤
-        if (scopeEquipmentIds) { list = list.filter(r => scopeEquipmentIds!.includes(r.equipmentId)); total = list.length }
-        if (args.orderType) { list = list.filter(r => r.orderType === args.orderType); total = list.length }
-        if (args.dateRange) {
-          const from = new Date(args.dateRange.from).getTime()
-          const to = new Date(args.dateRange.to).getTime()
-          list = list.filter(r => { const t = (r as any).createTime; return t >= from && t <= to })
-          total = list.length
-        }
 
         if (result.groups) {
           // 成本聚合必须在 enrichGroupNames 前执行
