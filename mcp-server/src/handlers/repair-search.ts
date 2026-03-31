@@ -3,6 +3,7 @@ import { z } from 'zod'
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { eamSearch, eamGet, eamGetAll, eamParallel, type RepairOrder } from '../eam-api.js'
 import { resolveEquipment, resolveScope, enrichGroupNames, getEquipmentToLineMap } from '../resolvers.js'
+import { enrichGroupsWithIntervals } from '../interval-utils.js'
 import { textResult } from '../shared.js'
 
 export function registerRepairSearch(server: McpServer) {
@@ -117,6 +118,10 @@ export function registerRepairSearch(server: McpServer) {
                 })
               }
             }
+          }
+          // 时间间隔预计算（MTBR）— 在 enrichGroupNames 之前执行（此时 key 仍为原始 ID）
+          if (args.groupBy === 'equipment') {
+            enrichGroupsWithIntervals(list, result.groups, 'equipmentId', 'createTime')
           }
           const enrichedGroups = args.groupBy === 'productionLine' ? result.groups : await enrichGroupNames(result.groups, args.groupBy!)
           const groupResult: Record<string, unknown> = { total, groupBy: args.groupBy, groups: enrichedGroups }

@@ -71,8 +71,95 @@ function computeMetric(
       return { value: count, unit: metric.unit || '', label: metric.label }
     }
 
+    case 'interval': {
+      // 通用时间间隔分析 — 计算同一实体的同类事件之间的平均间隔
+      // 用途: MTBR(维修间隔)、MTBF(故障间隔)、工单周期 等
+      if (!metric.groupByField || !metric.timeField) return null
+      if (!items.some(item => metric.timeField! in item)) return null
+
+      // 按实体分组，收集时间戳
+      const groups = new Map<string, number[]>()
+      for (const item of items) {
+        const key = String(item[metric.groupByField!] ?? '')
+        const time = item[metric.timeField!]
+        if (typeof time !== 'number' || !key) continue
+        if (!groups.has(key)) groups.set(key, [])
+        groups.get(key)!.push(time)
+      }
+
+      // 每组排序→计算相邻事件的时间差
+      const allIntervals: number[] = []
+      const perEntity: Array<{ id: string; count: number; avgDays: number }> = []
+
+      for (const [key, times] of groups) {
+        if (times.length < 2) continue  // 只出现1次，无法算间隔
+        times.sort((a, b) => a - b)
+        const diffs: number[] = []
+        for (let i = 1; i < times.length; i++) {
+          diffs.push((times[i] - times[i - 1]) / (1000 * 60 * 60 * 24))  // 毫秒→天
+        }
+        const avg = diffs.reduce((a, b) => a + b, 0) / diffs.length
+        allIntervals.push(...diffs)
+        perEntity.push({ id: key, count: times.length, avgDays: roundNum(avg) })
+      }
+
+      if (allIntervals.length === 0) return null
+      const globalAvg = roundNum(allIntervals.reduce((a, b) => a + b, 0) / allIntervals.length)
+
+      // 按频次降序排列，AI 直接引用 top5 回答"频次最高的设备"
+      perEntity.sort((a, b) => b.count - a.count)
+
+      return {
+        value: globalAvg, unit: metric.unit || '天',
+        label: metric.label,
+        entityCount: perEntity.length,
+        top5: perEntity.slice(0, 5),
+      }
+    }
+
     default:
       return null
+  }
+}
+
+/**
+ * 为 groupBy 结果注入时间间隔数据 — handler 在 enrichGroupNames 前调用
+ * 继承模式：handler 传数据，这里读 config 算间隔，新系统只加配置不写代码
+ */
+export function computeIntervalsForGroups(
+  list: Record<string, unknown>[],
+  groups: Array<{ group: string; count: number; [k: string]: unknown }>,
+  groupByField: string,
+  metrics: Record<string, ComputedMetric>,
+): void {
+  // 从 config 中找匹配的 interval 指标
+  const intervalMetrics = Object.entries(metrics).filter(
+    ([, m]) => m.formula === 'interval' && m.groupByField === groupByField,
+  )
+  if (intervalMetrics.length === 0) return
+
+  for (const [, metric] of intervalMetrics) {
+    // 按实体分组收集时间戳
+    const timesByGroup = new Map<string, number[]>()
+    for (const item of list) {
+      const key = String(item[groupByField] ?? '')
+      const time = item[metric.timeField!]
+      if (typeof time !== 'number' || !key) continue
+      if (!timesByGroup.has(key)) timesByGroup.set(key, [])
+      timesByGroup.get(key)!.push(time)
+    }
+
+    // 注入每个 group 的间隔数据
+    for (const g of groups) {
+      const times = timesByGroup.get(g.group)
+      if (!times || times.length < 2) continue
+      times.sort((a, b) => a - b)
+      const diffs: number[] = []
+      for (let i = 1; i < times.length; i++) {
+        diffs.push((times[i] - times[i - 1]) / (1000 * 60 * 60 * 24))
+      }
+      g.avgIntervalDays = roundNum(diffs.reduce((a, b) => a + b, 0) / diffs.length)
+    }
   }
 }
 

@@ -5,11 +5,14 @@
 /** 领域公式定义 — 基于 EN 15341(TPM) / FDA Quality Metrics 等行业标准 */
 export interface ComputedMetric {
   label: string                              // 显示名称
-  formula: 'rate' | 'avg' | 'sum' | 'count' // 计算类型
+  formula: 'rate' | 'avg' | 'sum' | 'count' | 'interval'  // 计算类型（interval=时间间隔分析）
   numerator?: string                         // rate: 分子 "field=value" 或 "field=*"(非空)
   denominator?: string                       // rate: 分母 "total" 或字段名
   field?: string                             // avg/sum/count: 目标字段
-  unit?: string                              // 单位（%、元、分钟）
+  unit?: string                              // 单位（%、元、分钟、天）
+  // interval 专用 — 计算同一实体的同类事件之间的时间间隔
+  groupByField?: string                      // 按什么实体分组（equipmentId）
+  timeField?: string                         // 时间字段（createTime、reportTime）
 }
 
 export interface SystemMeta {
@@ -35,8 +38,9 @@ export const SYSTEM_REGISTRY: Record<string, SystemMeta> = {
       'PM完成率': { label: '保养完成率', formula: 'rate', numerator: 'status=2', denominator: 'total', unit: '%' },
       '维修完成率': { label: '维修完成率', formula: 'rate', numerator: 'status=5', denominator: 'total', unit: '%' },
       '平均维修成本': { label: '平均维修成本', formula: 'avg', field: 'materialCost', unit: '元' },
-      '平均维修时长': { label: '平均维修时长', formula: 'avg', field: 'repairMinutes', unit: '分钟' },
+      '平均维修时长': { label: '平均维修时长(MTTR)', formula: 'avg', field: 'repairMinutes', unit: '分钟' },
       '紧急工单率': { label: '紧急工单率', formula: 'rate', numerator: 'urgency=1', denominator: 'total', unit: '%' },
+      '维修间隔': { label: '平均维修间隔(MTBR)', formula: 'interval', groupByField: 'equipmentId', timeField: 'createTime', unit: '天' },
     },
   },
   edhr: {
@@ -52,6 +56,7 @@ export const SYSTEM_REGISTRY: Record<string, SystemMeta> = {
       '工单完成率': { label: '工单完成率', formula: 'rate', numerator: 'progressStatus=FINISHED', denominator: 'total', unit: '%' },
       '批次合格率': { label: '批次合格率', formula: 'rate', numerator: 'validatedStatus=PASSED', denominator: 'total', unit: '%' },
       '异常率': { label: '异常率', formula: 'rate', numerator: 'decisionType=*', denominator: 'total', unit: '%' },
+      '工单生产周期': { label: '平均工单周期', formula: 'interval', groupByField: 'productId', timeField: 'createTime', unit: '天' },
     },
   },
 }
