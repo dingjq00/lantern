@@ -51,8 +51,9 @@ export function registerEdhrExceptionSearch(server: McpServer) {
       }
 
       const filter = conditions.length > 0 ? { conditions } : { conditions: [] }
+      // _base 含浅关联（order 引用），让返回数据能关联到工单
       const result = await jmixSearch('OrderException', filter, {
-        limit: args.limit, sort: '-createdDate', fetchPlan: '_local',
+        limit: args.limit, sort: '-createdDate', fetchPlan: '_base',
       })
 
       const items = result.items.map(e => ({
@@ -62,6 +63,9 @@ export function registerEdhrExceptionSearch(server: McpServer) {
         decisionMadeTime: e.decisionMadeTime,
         reworkComment: e.reworkComment,
         closedTime: e.closedTime,
+        // 关联工单信息 — 让 AI 能做工单×异常交叉分析
+        orderCode: (e as any).order?.code ?? null,
+        orderLotCode: (e as any).order?.lotCode ?? null,
       }))
 
       return textResult({ total: items.length, count: items.length, items })

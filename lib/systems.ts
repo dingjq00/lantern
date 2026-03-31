@@ -50,7 +50,8 @@ export const SYSTEM_REGISTRY: Record<string, SystemMeta> = {
 产品配方 ──定义→ 工序流程（Procedure→UnitProcedure→Operation→Phase）
 工单 ──关联→ 产品+批号 ──包含→ 检测项（PASSED/FAILED/INIT）
 工单 ──产生→ 质量异常 ──决策→ 重新操作/返修/重新测试
-关键指标: 工单完成率、检测合格率、异常率、各决策类型比例、产品间质量对比`,
+关键指标: 工单完成率、检测合格率、异常率、各决策类型比例、产品间质量对比
+⚠️ 数据时间范围: 2024-04 至 2024-08（不是当前年份）`,
     // EDHR KPI 公式 — 基于 FDA Quality Metrics (21 CFR Part 600/211) 质量指标标准
     computedMetrics: {
       '工单完成率': { label: '工单完成率', formula: 'rate', numerator: 'progressStatus=FINISHED', denominator: 'total', unit: '%' },
