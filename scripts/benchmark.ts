@@ -121,9 +121,14 @@ const TEST_CASES: TestCase[] = [
   ...EDHR_TEST_CASES,
 ]
 
-// 运行模式: --eam / --edhr / 默认全部
-const runMode = process.argv.find(a => a.startsWith('--'))?.slice(2) || 'all'
-const ACTIVE_CASES = runMode === 'eam' ? TEST_CASES.filter(t => t.id.startsWith('T'))
+// 运行模式: --eam / --edhr / --only T09,T10,T13 / 默认全部
+const args = process.argv.slice(2)
+const runMode = args.find(a => a === '--eam' || a === '--edhr')?.slice(2) || 'all'
+const onlyIds = args.find(a => a.startsWith('--only'))?.split('=')[1]?.split(',')
+  ?? args[args.indexOf('--only') + 1]?.split(',')
+const ACTIVE_CASES = onlyIds
+  ? TEST_CASES.filter(t => onlyIds.includes(t.id))
+  : runMode === 'eam' ? TEST_CASES.filter(t => t.id.startsWith('T'))
   : runMode === 'edhr' ? TEST_CASES.filter(t => t.id.startsWith('E'))
   : TEST_CASES
 
