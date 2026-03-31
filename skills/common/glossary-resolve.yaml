@@ -1,0 +1,41 @@
+# glossary.resolve — 业务术语解析（Concept Resolver）
+# 跨系统通用工具：AI 遇到不确定的业务指标词时按需查询
+
+name: glossary.resolve
+version: "1.0"
+system: common
+type: simple
+maps_to: glossary.resolve
+
+description: >
+  查询业务术语的精确定义和计算公式。避免AI对"积压""产能""故障率"等
+  业务指标词的理解偏差。返回术语定义、计算方法和推荐工具。
+
+domains:
+  - glossary
+
+operation: detail
+supports_filters: [term]
+returns: [definition, computation, relatedTools]
+feeds_into: []
+depends_on: []
+quality: 95
+cost: low
+
+input_schema:
+  type: object
+  required: [term]
+  properties:
+    term:
+      type: string
+      description: >
+        要查询的业务术语（如"积压""MTBF""良率"）
+
+when_to_use:
+  - 用户问题中包含业务指标词（积压、产能、故障率、良率、周转率、OEE、MTBF、MTTR 等）
+  - 不确定用户说的指标在系统中怎么算时，先查术语再选工具
+  - 用户用了术语的同义词或近义词（如"堆积"≈"积压"，"合格率"≈"良率"）
+
+when_not_to_use:
+  - 用户问的是具体数据查询（如"有多少工单"）不涉及派生指标
+  - 术语含义在上下文中已经明确

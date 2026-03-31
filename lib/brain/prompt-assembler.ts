@@ -120,7 +120,7 @@ export function assemblePrompt(
   const toolDescriptions = [...toolsBySystem.entries()].map(([sys, sysTools]) => {
     const meta = SYSTEM_REGISTRY[sys]
     const header = meta
-      ? `### ${meta.label}\n**涉及**: ${meta.scope}${meta.domainModel ? `\n${meta.domainModel}` : ''}`
+      ? `### ${meta.label}\n**涉及**: ${meta.scope}${meta.domainModel ? `\n${meta.domainModel}` : ''}${meta.businessGlossary ? `\n业务术语（遇到这些词或近义词时调 glossary.resolve 获取精确定义）: ${Object.keys(meta.businessGlossary).join('、')}` : ''}`
       : `### ${sys.toUpperCase()}`
     const toolsText = sysTools.map(formatTool).join('\n\n')
     return `${header}\n\n${toolsText}`

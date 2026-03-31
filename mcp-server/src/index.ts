@@ -19,6 +19,9 @@ import { registerSpareSearch } from './handlers/spare-search.js'
 import { registerDashboard } from './handlers/dashboard.js'
 import { registerTrend } from './handlers/trend.js'
 
+// === 跨系统工具 ===
+import { registerGlossaryResolve } from './handlers/glossary-resolve.js'
+
 // === EDHR 工具 (7) ===
 import { registerEdhrDashboard } from './handlers/edhr/dashboard.js'
 import { registerEdhrOrderProfile } from './handlers/edhr/order-profile.js'
@@ -60,10 +63,13 @@ registerEdhrExceptionSearch(server)
 registerEdhrProductSearch(server)
 registerEdhrTrend(server)
 
+// 跨系统: 业务术语解析 (1)
+registerGlossaryResolve(server)
+
 async function main() {
   const transport = new StdioServerTransport()
   await server.connect(transport)
-  console.error(`Insight68 MCP Server v3 running on stdio (${12 + 7} tools: EAM 12 + EDHR 7)`)
+  console.error(`Insight68 MCP Server v3 running on stdio (${12 + 7 + 1} tools: EAM 12 + EDHR 7 + Cross 1)`)
 }
 
 main().catch(console.error)

@@ -15,11 +15,19 @@ export interface ComputedMetric {
   timeField?: string                         // 时间字段（createTime、reportTime）
 }
 
+/** 业务术语定义 — AI 遇到不确定的业务概念时按需查询 */
+export interface GlossaryTerm {
+  definition: string       // 业务含义
+  computation: string      // 在本系统中怎么算
+  relatedTools?: string[]  // 推荐使用的工具
+}
+
 export interface SystemMeta {
   label: string         // 显示名称
   scope: string         // 业务关键词，AI 用来判断查询属于哪个系统
   domainModel?: string  // 业务关系链 — AI 用来理解实体间的关联，生成更好的跨域建议
   computedMetrics?: Record<string, ComputedMetric>  // 领域 KPI 公式（TPM/MES/FDA 标准）
+  businessGlossary?: Record<string, GlossaryTerm>   // 业务术语表 — glossary.resolve 按需查询
 }
 
 export const SYSTEM_REGISTRY: Record<string, SystemMeta> = {
@@ -42,6 +50,14 @@ export const SYSTEM_REGISTRY: Record<string, SystemMeta> = {
       '紧急工单率': { label: '紧急工单率', formula: 'rate', numerator: 'urgency=1', denominator: 'total', unit: '%' },
       '维修间隔': { label: '平均维修间隔(MTBR)', formula: 'interval', groupByField: 'equipmentId', timeField: 'createTime', unit: '天' },
     },
+    businessGlossary: {
+      '故障率': { definition: '设备发生故障的频率', computation: '故障次数 ÷ 设备总数（或运行时间）', relatedTools: ['eam.fault.search'] },
+      'MTBF': { definition: '平均故障间隔（Mean Time Between Failures）', computation: '同一设备相邻两次故障的时间差平均值', relatedTools: ['eam.fault.search'] },
+      'MTTR': { definition: '平均修复时间（Mean Time To Repair）', computation: '维修工单 repairMinutes 的平均值', relatedTools: ['eam.repair.search'] },
+      'OEE': { definition: '设备综合效率（Overall Equipment Effectiveness）', computation: '可用率 × 性能率 × 良率', relatedTools: ['eam.equipment.profile'] },
+      '保养完成率': { definition: '按计划完成的保养任务占比', computation: '状态=已完成的保养数 ÷ 保养总数', relatedTools: ['eam.maintenance.search'] },
+      '备件周转率': { definition: '备件消耗速度与库存的比值', computation: '一段时间内出库量 ÷ 平均库存量', relatedTools: ['eam.spare.search'] },
+    },
   },
   edhr: {
     label: 'EDHR（医疗器械检测流程管理）',
@@ -58,6 +74,12 @@ export const SYSTEM_REGISTRY: Record<string, SystemMeta> = {
       '批次合格率': { label: '批次合格率', formula: 'rate', numerator: 'validatedStatus=PASSED', denominator: 'total', unit: '%' },
       '异常率': { label: '异常率', formula: 'rate', numerator: 'decisionType=*', denominator: 'total', unit: '%' },
       '工单生产周期': { label: '平均工单周期', formula: 'interval', groupByField: 'productId', timeField: 'createTime', unit: '天' },
+    },
+    businessGlossary: {
+      '积压': { definition: '截至某时点未关闭的工单累积数', computation: '过滤状态为 WAITING/PENDING/INIT 的工单数，按月分析需看各月末快照', relatedTools: ['edhr.order.search'] },
+      '产能': { definition: '单位时间内完成的工单数', computation: '过滤 progressStatus=FINISHED，按月/周 groupBy 统计', relatedTools: ['edhr.order.search', 'edhr.trend'] },
+      '良率': { definition: '检测合格率', computation: '检测状态 PASSED 数 ÷ 总检测数', relatedTools: ['edhr.item.search'] },
+      '异常率': { definition: '产生质量异常的工单占比', computation: '有异常记录的工单数 ÷ 工单总数', relatedTools: ['edhr.exception.search', 'edhr.order.search'] },
     },
   },
 }
