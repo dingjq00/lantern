@@ -58,11 +58,13 @@ export async function processQuery(
   const { systemPrompt } = assemblePrompt(query, allTools, { memoryContext: historyContext })
 
   // 术语预匹配 — 扫描 query 命中术语表时自动注入定义（确定性，不靠 AI 判断）
+  // 同时检查主词和别名（如"堆积"命中"积压"的别名）
   const glossaryHints: string[] = []
   for (const [, meta] of Object.entries(SYSTEM_REGISTRY)) {
     if (!meta.businessGlossary) continue
     for (const [term, def] of Object.entries(meta.businessGlossary)) {
-      if (query.includes(term)) {
+      const allNames = [term, ...(def.aliases ?? [])]
+      if (allNames.some(name => query.includes(name))) {
         glossaryHints.push(`${term} = ${def.definition}。计算方式: ${def.computation}`)
       }
     }

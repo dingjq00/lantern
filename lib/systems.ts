@@ -17,6 +17,7 @@ export interface ComputedMetric {
 
 /** 业务术语定义 — AI 遇到不确定的业务概念时按需查询 */
 export interface GlossaryTerm {
+  aliases?: string[]       // 同义词/近义词（预匹配时也检查）
   definition: string       // 业务含义
   computation: string      // 在本系统中怎么算
   relatedTools?: string[]  // 推荐使用的工具
@@ -76,10 +77,10 @@ export const SYSTEM_REGISTRY: Record<string, SystemMeta> = {
       '工单生产周期': { label: '平均工单周期', formula: 'interval', groupByField: 'productId', timeField: 'createTime', unit: '天' },
     },
     businessGlossary: {
-      '积压': { definition: '截至某时点未关闭的工单累积数（不是创建量）', computation: '分别查 progressStatus=WAITING 和 progressStatus=PENDING 的工单数（必须传 progressStatus 参数过滤，不能拿全量自己算）', relatedTools: ['edhr.order.search'] },
-      '产能': { definition: '单位时间内完成的工单数', computation: '过滤 progressStatus=FINISHED，按月/周 groupBy 统计', relatedTools: ['edhr.order.search', 'edhr.trend'] },
-      '良率': { definition: '检测合格率', computation: '检测状态 PASSED 数 ÷ 总检测数', relatedTools: ['edhr.item.search'] },
-      '异常率': { definition: '产生质量异常的工单占比', computation: '有异常记录的工单数 ÷ 工单总数', relatedTools: ['edhr.exception.search', 'edhr.order.search'] },
+      '积压': { aliases: ['堆积', '待处理量', 'backlog'], definition: '截至某时点未关闭的工单累积数（不是创建量）', computation: '必须按状态过滤（等待中/暂停），不能拿全量自己算', relatedTools: ['edhr.order.search'] },
+      '产能': { aliases: ['产出', '产量', '吞吐量'], definition: '单位时间内完成的工单数', computation: '按已完成状态过滤，按时间维度统计', relatedTools: ['edhr.order.search', 'edhr.trend'] },
+      '良率': { aliases: ['合格率', '通过率'], definition: '检测合格率', computation: '合格数 ÷ 总检测数', relatedTools: ['edhr.item.search'] },
+      '异常率': { aliases: ['不良率', '缺陷率'], definition: '产生质量异常的工单占比', computation: '有异常记录的工单数 ÷ 工单总数', relatedTools: ['edhr.exception.search', 'edhr.order.search'] },
     },
   },
 }
