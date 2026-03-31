@@ -18,13 +18,21 @@ export class SQLiteStorage implements StorageInterface {
 
   initialize(): void {
     this.db.pragma('journal_mode = WAL')
-    // 按顺序加载所有 migration
+    // 按顺序加载所有 migration（ALTER TABLE 重复列会报错，安全跳过）
     const migrationsDir = path.join(process.cwd(), 'lib', 'storage', 'migrations')
     const files = fs.readdirSync(migrationsDir).filter(f => f.endsWith('.sql')).sort()
     for (const file of files) {
       const sql = fs.readFileSync(path.join(migrationsDir, file), 'utf-8')
-      const ddl = sql.replace(/^PRAGMA.*$/gm, '').trim()
-      this.db.exec(ddl)
+      // 逐条执行，ALTER TABLE 重复列时跳过而非整个 migration 中断
+      const stmts = sql.split(';').map(s => s.replace(/^PRAGMA.*$/gm, '').trim()).filter(Boolean)
+      for (const stmt of stmts) {
+        try {
+          this.db.exec(stmt)
+        } catch (err: unknown) {
+          const msg = err instanceof Error ? err.message : ''
+          if (!msg.includes('duplicate column')) throw err
+        }
+      }
     }
   }
 
