@@ -8,7 +8,7 @@
  */
 export function enrichGroupsWithIntervals(
   list: Record<string, unknown>[],
-  groups: Array<{ group: string; count: number; [k: string]: unknown }>,
+  groups: Array<{ group: string; [k: string]: unknown }>,
   groupByField: string,
   timeField: string,
 ): void {

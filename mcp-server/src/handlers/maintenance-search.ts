@@ -3,6 +3,7 @@ import { z } from 'zod'
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { eamSearch } from '../eam-api.js'
 import { resolveEquipment, resolveScope, enrichGroupNames, getEquipmentToLineMap } from '../resolvers.js'
+import { enrichGroupsWithIntervals } from '../interval-utils.js'
 import { textResult } from '../shared.js'
 
 interface MaintenanceTask {
@@ -94,6 +95,10 @@ export function registerMaintenanceSearch(server: McpServer) {
           group, total: g.total, completed: g.completed,
           completionRate: g.total > 0 ? `${Math.round(g.completed / g.total * 100)}%` : 'N/A',
         }))
+        // 保养间隔预计算 — 在 enrichGroupNames 之前执行
+        if (args.groupBy === 'equipment') {
+          enrichGroupsWithIntervals(list, rawGroups, 'equipmentId', 'plannedTime')
+        }
         // enrichGroupNames 只替换 group 字段（设备 ID→名称），productionLine 已是名称无需解析
         const enrichedGroups = args.groupBy === 'productionLine' ? rawGroups : await enrichGroupNames(rawGroups as any, args.groupBy!)
         const groupResult: Record<string, unknown> = { total, groupBy: args.groupBy, groups: enrichedGroups }
