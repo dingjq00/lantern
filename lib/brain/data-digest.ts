@@ -100,6 +100,27 @@ export function buildDigestForSummarize(
     if (Object.keys(kpiResults).length > 0) {
       digestObj['_领域指标'] = kpiResults
     }
+
+    // 推荐引擎 — 指标命中 pattern 时自动注入管理者建议（偷师 jenkins-mcp-enterprise）
+    const rules = SYSTEM_REGISTRY[systemId!]?.recommendations
+    if (rules && Object.keys(kpiResults).length > 0) {
+      const triggered: string[] = []
+      for (const rule of rules) {
+        // 在所有工具的 KPI 结果里找匹配的指标
+        for (const kpi of Object.values(kpiResults) as Record<string, any>[]) {
+          const metric = kpi[rule.metric]
+          if (!metric) continue
+          // 从 "75%" 或 75 提取数字
+          const val = typeof metric.value === 'string' ? parseFloat(metric.value) : metric.value
+          if (typeof val !== 'number' || isNaN(val)) continue
+          const hit = rule.condition === 'below' ? val < rule.threshold : val > rule.threshold
+          if (hit) triggered.push(rule.message)
+        }
+      }
+      if (triggered.length > 0) {
+        digestObj['_管理建议'] = triggered
+      }
+    }
   }
 
   // 单工具时简化结构

@@ -15,6 +15,14 @@ export interface ComputedMetric {
   timeField?: string                         // 时间字段（createTime、reportTime）
 }
 
+/** 推荐引擎规则 — 数据命中 pattern 时自动注入管理者建议（偷师 jenkins-mcp-enterprise） */
+export interface RecommendationRule {
+  metric: string             // 触发指标名（对应 computedMetrics 的 key）
+  condition: 'below' | 'above'  // 低于/高于阈值触发
+  threshold: number          // 阈值（百分比用数字如 80 表示 80%）
+  message: string            // 注入的推荐文本
+}
+
 /** 业务术语定义 — AI 遇到不确定的业务概念时按需查询 */
 export interface GlossaryTerm {
   aliases?: string[]       // 同义词/近义词（预匹配时也检查）
@@ -28,6 +36,7 @@ export interface SystemMeta {
   scope: string         // 业务关键词，AI 用来判断查询属于哪个系统
   domainModel?: string  // 业务关系链 — AI 用来理解实体间的关联，生成更好的跨域建议
   computedMetrics?: Record<string, ComputedMetric>  // 领域 KPI 公式（TPM/MES/FDA 标准）
+  recommendations?: RecommendationRule[]             // 推荐引擎 — pattern→action 配置化建议
   businessGlossary?: Record<string, GlossaryTerm>   // 业务术语表 — glossary.resolve 按需查询
 }
 
@@ -51,6 +60,10 @@ export const SYSTEM_REGISTRY: Record<string, SystemMeta> = {
       '紧急工单率': { label: '紧急工单率', formula: 'rate', numerator: 'urgency=1', denominator: 'total', unit: '%' },
       '维修间隔': { label: '平均维修间隔(MTBR)', formula: 'interval', groupByField: 'equipmentId', timeField: 'createTime', unit: '天' },
     },
+    recommendations: [
+      { metric: 'PM完成率', condition: 'below', threshold: 80, message: '⚠️ 保养完成率低于80%，立即检查逾期保养任务，制定补做计划' },
+      { metric: '紧急工单率', condition: 'above', threshold: 30, message: '🔴 紧急工单占比超30%，检查是否有系统性设备问题，评估预防性维护策略' },
+    ],
     businessGlossary: {
       '故障率': { aliases: ['故障频率', '报修率'], definition: '设备发生故障的频率', computation: '故障次数 ÷ 设备总数（或运行时间）', relatedTools: ['eam.fault.search'] },
       'MTBF': { aliases: ['故障间隔', '平均无故障时间'], definition: '平均故障间隔（Mean Time Between Failures）', computation: '同一设备相邻两次故障的时间差平均值', relatedTools: ['eam.fault.search'] },
@@ -76,6 +89,10 @@ export const SYSTEM_REGISTRY: Record<string, SystemMeta> = {
       '异常率': { label: '异常率', formula: 'rate', numerator: 'decisionType=*', denominator: 'total', unit: '%' },
       '工单生产周期': { label: '平均工单周期', formula: 'interval', groupByField: 'productId', timeField: 'createTime', unit: '天' },
     },
+    recommendations: [
+      { metric: '工单完成率', condition: 'below', threshold: 70, message: '⚠️ 工单完成率低于70%，排查积压原因：质量异常处理延迟 or 检测瓶颈' },
+      { metric: '异常率', condition: 'above', threshold: 50, message: '🔴 异常率超50%，过程控制存在系统性问题，建议立即审查工序流程和操作规范' },
+    ],
     businessGlossary: {
       '积压': { aliases: ['堆积', '待处理量', 'backlog'], definition: '截至某时点未关闭的工单累积数（不是创建量）', computation: '必须按状态过滤（等待中/暂停），不能拿全量自己算', relatedTools: ['edhr.order.search'] },
       '产能': { aliases: ['产出', '产量', '吞吐量'], definition: '单位时间内完成的工单数', computation: '按已完成状态过滤，按时间维度统计', relatedTools: ['edhr.order.search', 'edhr.trend'] },
