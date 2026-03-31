@@ -132,7 +132,8 @@ export function registerRepairSearch(server: McpServer) {
           count: list.length,
           items: list.map(r => ({
             code: r.orderCode, status: REPAIR_STATUS[r.status], type: r.orderType,
-            equipmentId: r.equipmentId, repairMinutes: r.repairMinutes,
+            equipmentId: r.equipmentId, createTime: (r as any).createTime ?? null,
+            repairMinutes: r.repairMinutes,
             laborCost: r.laborCost, materialCost: r.materialCost,
           })),
         }
@@ -162,6 +163,7 @@ export function registerRepairSearch(server: McpServer) {
         return {
           id: r.id, code: r.orderCode, status: r.status, statusText: REPAIR_STATUS[r.status],
           orderType: r.orderType, equipmentId: r.equipmentId,
+          createTime: (r as any).createTime ?? null,  // 暴露创建时间，让 AI 能算维修周期/间隔
           repairMinutes: r.repairMinutes, laborCost: r.laborCost, materialCost: r.materialCost,
           spareSummary: { count: spareCount, totalCost: spareCost, details: spareDetails },
           knowledgeRefs: knowledgeTitles,
