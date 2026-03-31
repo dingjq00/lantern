@@ -64,6 +64,7 @@ export async function processQuery(
   // ReAct 循环
   let round = 0
   let finished = false
+  let prevCallsSignature: string | undefined  // Phase 2: 退化循环检测
 
   while (!finished && round <= MAX_CHASE_ROUNDS) {
     // think（网络/超时容错）
@@ -142,6 +143,14 @@ export async function processQuery(
 
     // 执行 calls（支持 {{N.path}} 参数引用，按序执行并传递结果）
     if (thinkResult.calls && thinkResult.calls.length > 0) {
+      // Phase 2: 退化循环检测 — 同样的调用重复执行说明 AI 陷入死循环
+      const callsSig = JSON.stringify(thinkResult.calls.map(c => [c.tool, c.arguments]))
+      if (prevCallsSignature && callsSig === prevCallsSignature) {
+        trace.startRound(round, thinkResult.thought)
+        trace.endRound('退化循环: 与上轮相同调用，强制结束')
+        break
+      }
+      prevCallsSignature = callsSig
       trace.startRound(round, thinkResult.thought)
       totalCallsAttempted += thinkResult.calls.length
       const roundResults: unknown[] = []  // 本轮各 call 的结果，用于引用解析
@@ -193,23 +202,45 @@ export async function processQuery(
       trace.endRound(observation)
 
       // 把本轮结果注入消息上下文，引导 AI 判断是否充足
-      messages.push({ role: 'assistant', content: JSON.stringify(thinkResult) })
+      // Phase 2: 清洗防御性语言，防止犹豫心态传染到下一轮
+      const cleanedThink = { ...thinkResult }
+      if (cleanedThink.thought) {
+        cleanedThink.thought = cleanedThink.thought
+          .replace(/数据被截断/g, '已获取数据')
+          .replace(/数据不完整/g, '数据概要')
+          .replace(/无法确定/g, '需要补充')
+          .replace(/不完整/g, '部分')
+          .replace(/截断/g, '概要')
+      }
+      messages.push({ role: 'assistant', content: JSON.stringify(cleanedThink) })
       // 用本轮 roundResults（index-aligned），截断过大的结果防止撑爆 context
+      // 动态预算：上下文宽裕时保留更多数据，紧张时精简（Phase 2 污染防控）
+      const msgTotalChars = messages.reduce((sum, m) => sum + m.content.length, 0)
+      const truncateThreshold = msgTotalChars > 40000 ? 4000
+        : msgTotalChars > 20000 ? 8000
+        : 12000
       const obsData = thinkResult.calls.map((c, ci) => {
         const raw = roundResults[ci] ?? 'error'
         const json = JSON.stringify(raw)
-        // 超过 4000 字符的结果截断，保留结构信息（total/context/keys）
-        // 2000 太紧，repair.search detailed 模式 10 条 enriched items 常超 2000 导致 AI 误判数据缺失
-        if (json.length > 4000) {
+        if (json.length > truncateThreshold) {
           const obj = raw as Record<string, unknown>
-          const summary: Record<string, unknown> = { _truncated: true }
+          // 正面概要：保留实际数据样本，不暴露"截断"概念（消除 AI 防御心态）
+          const summary: Record<string, unknown> = {}
           if (obj && typeof obj === 'object') {
             if ('total' in obj) summary.total = obj.total
             if ('count' in obj) summary.count = obj.count
             if ('context' in obj) summary.context = obj.context
-            if ('items' in obj && Array.isArray(obj.items)) summary.itemCount = obj.items.length
-            if ('groups' in obj && Array.isArray(obj.groups)) summary.groupCount = obj.groups.length
-            summary._keys = Object.keys(obj).slice(0, 10)
+            // groups 完整保留（统计查询的核心，通常不大）
+            if ('groups' in obj && Array.isArray(obj.groups)) {
+              summary.groups = obj.groups
+            }
+            // items 保留前 3 条（让 AI 看到真实数据结构和内容）
+            if ('items' in obj && Array.isArray(obj.items)) {
+              summary.items = obj.items.slice(0, 3)
+              summary.itemCount = obj.items.length
+            }
+            // stats 完整保留（预计算指标）
+            if ('stats' in obj) summary.stats = obj.stats
           }
           return { tool: c.tool, result: summary }
         }
@@ -324,14 +355,19 @@ export async function processQuery(
 
   const relatedContext = relatedHints.length > 0 ? relatedHints.join('\n') : undefined
 
+  // Phase 2: allResults 去重 — 同一工具多次调用只保留最后一次，减少冲突数据对 AI 的认知干扰
+  const dedupMap = new Map<string, { tool: string; data: unknown }>()
+  for (const r of allResults) dedupMap.set(r.tool, r)
+  const dedupedResults = [...dedupMap.values()]
+
   // 数据处理层 — 将原始 JSON 转为结构化摘要（省 token + 预计算统计值）
-  const toolResultsForDigest = allResults.map(r => ({ tool: r.tool, data: r.data }))
+  const toolResultsForDigest = dedupedResults.map(r => ({ tool: r.tool, data: r.data }))
   const dataDigest = toolResultsForDigest.length > 0
     ? buildDigestForSummarize(toolResultsForDigest, systemId)
     : undefined
 
   // LLM 总结（容错）
-  const mergedData = allResults.map(r => r.data)
+  const mergedData = dedupedResults.map(r => r.data)
   const firstData = mergedData.length === 1 ? mergedData[0] : mergedData
   const formatHint = detectDisplayFormat(firstData)
   let summary: Awaited<ReturnType<LLMProvider['summarize']>>

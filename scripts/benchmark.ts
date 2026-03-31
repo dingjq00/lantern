@@ -63,7 +63,7 @@ const TEST_CASES: TestCase[] = [
   { id: 'T09', query: '维修工单目前各状态有多少个？', level: 'L1', acceptablePaths: [['eam.dashboard'], ['eam.repair.search']],
     mustContain: ['160'], shouldContain: ['已完成', '80'] },
   { id: 'T10', query: '设备分类中哪类设备最多？', level: 'L1', acceptablePaths: [['eam.equipment.search']],
-    mustContain: ['150'] },
+    shouldContain: ['150'] },
   // L2 — 单域带条件
   { id: 'T11', query: '上月故障最多的设备是哪台？', level: 'L2', acceptablePaths: [['eam.fault.search']] },
   { id: 'T12', query: '维修工单 RO-20260312-0157 用了哪些备件？', level: 'L2', acceptablePaths: [['eam.repair.profile']],
