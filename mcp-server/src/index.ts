@@ -37,6 +37,11 @@ import { registerMesOrderSearch } from './handlers/mes/order-search.js'
 import { registerMesOrderProfile } from './handlers/mes/order-profile.js'
 import { registerMesInventorySearch } from './handlers/mes/inventory-search.js'
 import { registerMesLotSearch } from './handlers/mes/lot-search.js'
+import { registerMesMaterialSearch } from './handlers/mes/material-search.js'
+import { registerMesRecipeProfile } from './handlers/mes/recipe-profile.js'
+import { registerMesSublotSearch } from './handlers/mes/sublot-search.js'
+import { registerMesTrend } from './handlers/mes/trend.js'
+import { registerMesLineOverview } from './handlers/mes/line-overview.js'
 
 const server = new McpServer({
   name: 'insight68-mcp-server',
@@ -70,12 +75,17 @@ registerEdhrExceptionSearch(server)
 registerEdhrProductSearch(server)
 registerEdhrTrend(server)
 
-// MES: 生产 + 仓库 (4)
+// MES: 生产 + 仓库 + 主数据 (10)
 registerMesDashboard(server)
 registerMesOrderSearch(server)
 registerMesOrderProfile(server)
 registerMesInventorySearch(server)
 registerMesLotSearch(server)
+registerMesMaterialSearch(server)
+registerMesRecipeProfile(server)
+registerMesSublotSearch(server)
+registerMesTrend(server)
+registerMesLineOverview(server)
 
 // 跨系统: 业务术语解析 (1)
 registerGlossaryResolve(server)
@@ -83,7 +93,7 @@ registerGlossaryResolve(server)
 async function main() {
   const transport = new StdioServerTransport()
   await server.connect(transport)
-  console.error(`Insight68 MCP Server v3 running on stdio (${12 + 7 + 5 + 1} tools: EAM 12 + EDHR 7 + MES 5 + Cross 1)`)
+  console.error(`Insight68 MCP Server v3 running on stdio (${12 + 7 + 10 + 1} tools: EAM 12 + EDHR 7 + MES 10 + Cross 1)`)
 }
 
 main().catch(console.error)
