@@ -31,6 +31,9 @@ import { registerEdhrExceptionSearch } from './handlers/edhr/exception-search.js
 import { registerEdhrProductSearch } from './handlers/edhr/product-search.js'
 import { registerEdhrTrend } from './handlers/edhr/trend.js'
 
+// === MES 工具 ===
+import { registerMesDashboard } from './handlers/mes/dashboard.js'
+
 const server = new McpServer({
   name: 'insight68-mcp-server',
   version: '3.0.0',
@@ -63,13 +66,16 @@ registerEdhrExceptionSearch(server)
 registerEdhrProductSearch(server)
 registerEdhrTrend(server)
 
+// MES: 全局分析 (1)
+registerMesDashboard(server)
+
 // 跨系统: 业务术语解析 (1)
 registerGlossaryResolve(server)
 
 async function main() {
   const transport = new StdioServerTransport()
   await server.connect(transport)
-  console.error(`Insight68 MCP Server v3 running on stdio (${12 + 7 + 1} tools: EAM 12 + EDHR 7 + Cross 1)`)
+  console.error(`Insight68 MCP Server v3 running on stdio (${12 + 7 + 1 + 1} tools: EAM 12 + EDHR 7 + MES 1 + Cross 1)`)
 }
 
 main().catch(console.error)
