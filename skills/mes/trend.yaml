@@ -1,0 +1,49 @@
+# MES 生产趋势分析
+name: mes.trend
+description: >
+  分析生产趋势。按月统计指定日期范围内的工单数量、计划产量、实际产量和完成率变化。
+  可限定特定状态的工单（如只看已完成的）。
+  适用于"最近半年产量趋势""各月工单数量对比""哪个月产量最高"等趋势分析问题。
+version: "1.0"
+system: mes
+type: simple
+maps_to: mes.trend
+
+domains:
+  - production
+
+operation: trend
+
+input_schema:
+  properties:
+    dateRange:
+      type: object
+      description: 分析日期范围（必填），格式 {from:"2024-01-01", to:"2024-12-31"}
+      required: true
+    dimension:
+      type: string
+      description: 分析维度。month=按月统计（默认），productionLine=按产线/类型统计
+      enum: [month, productionLine]
+      default: month
+    status:
+      type: string
+      description: 只统计特定状态的工单，如 FINISHED 只看已完成
+
+when_to_use:
+  - 用户问趋势/变化，如"最近半年产量趋势""工单数量在增长还是减少"
+  - 用户做同比/环比，如"这个月比上个月多了吗""哪个月产量最高"
+  - 用户做产量分析，如"已完成工单的产量趋势""完成率变化"
+
+when_not_to_use:
+  - 用户只想看当前状态不看趋势 → 使用 mes.dashboard
+  - 用户想看具体工单列表 → 使用 mes.order.search
+
+examples:
+  - query: "最近半年产量趋势"
+    arguments:
+      dateRange: {from: "2025-10-01", to: "2026-03-31"}
+      dimension: month
+  - query: "去年已完成工单各月对比"
+    arguments:
+      dateRange: {from: "2025-01-01", to: "2025-12-31"}
+      status: FINISHED

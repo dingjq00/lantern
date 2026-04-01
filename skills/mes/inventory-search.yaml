@@ -1,0 +1,64 @@
+# MES 库存单搜索（入库/出库/领料/仓库操作）
+name: mes.inventory.search
+description: >
+  按条件搜索库存单据。支持按单据类型（仓库操作/批次检验/生产入库/采购/领料等）、
+  状态、单据编号、供应商过滤，可按类型或状态聚合统计。
+  返回单据基本信息含供应商、目标仓库、执行人、明细行数。
+  适用于"有多少出库单""采购入库情况""各类型库存单分布"等仓库管理问题。
+version: "1.0"
+system: mes
+type: simple
+maps_to: mes.inventory.search
+
+domains:
+  - warehouse
+
+operation: search
+
+input_schema:
+  properties:
+    orderType:
+      type: string
+      description: >
+        单据类型:
+        WAREHOUSE_OPERATION=仓库操作, BATCH_INSPECTION=批次检验,
+        PRODUCTION_TO_WAREHOUSE_ORDER=生产入库, PRODUCTION_ORDER_EXECUTION=生产执行,
+        PURCHASE_ORDER=采购入库, WAREHOUSE_TO_PRODUCTION_ORDER=仓库出库到生产,
+        SPORADIC_ORDER=零星领料, SALE_ORDER=销售出库
+    orderStatus:
+      type: string
+      description: "单据状态: INIT/RUNNING/FINISHED/CLOSED"
+    orderCode:
+      type: string
+      description: 单据编号，模糊匹配
+    vendorName:
+      type: string
+      description: 供应商名称，模糊匹配
+    dateRange:
+      type: object
+      description: 创建日期范围
+    groupBy:
+      type: string
+      description: 按维度聚合。orderType=按类型，orderStatus=按状态
+      enum: [orderType, orderStatus]
+    limit:
+      type: integer
+      default: 20
+
+when_to_use:
+  - 用户查看库存单据列表，如"最近的出入库单""有多少采购单"
+  - 用户按类型筛选，如"仓库操作单有多少""零星领料情况"
+  - 用户按供应商查，如"供应商X的送货单"
+  - 用户统计库存单分布，如"各类型库存单数量""各状态分布"
+
+when_not_to_use:
+  - 用户想追溯具体批次/子批 → 使用 mes.lot.search 或 mes.sublot.search
+  - 用户想看全局仓库概况 → 使用 mes.dashboard
+
+examples:
+  - query: "各类型库存单的数量分布"
+    arguments:
+      groupBy: orderType
+  - query: "有多少采购入库单"
+    arguments:
+      orderType: PURCHASE_ORDER

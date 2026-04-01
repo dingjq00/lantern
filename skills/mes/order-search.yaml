@@ -1,0 +1,67 @@
+# MES 生产工单搜索
+name: mes.order.search
+description: >
+  按条件搜索生产工单列表。支持按状态、工单号、物料编号、工单类型、计划日期范围过滤，
+  可按状态/类型/月份聚合统计。返回工单基础信息含物料名称、计划/实际数量、计划/实际时间。
+  适用于"有多少工单在执行""上月完成了多少""各状态工单分布"等列表和统计类问题。
+version: "1.0"
+system: mes
+type: simple
+maps_to: mes.order.search
+
+domains:
+  - production
+
+operation: search
+
+input_schema:
+  properties:
+    status:
+      type: string
+      description: >
+        工单状态: INIT(初始化)/CONFIRMED(已确认)/RUNNING(执行中)/FINISHED(已完成)/CLOSED(已关闭)/CANCELED(已取消)/ABORTED(已中止)
+      enum: [INIT, CONFIRMED, RUNNING, FINISHED, CLOSED, CANCELED, ABORTED]
+    orderNo:
+      type: string
+      description: 工单号，模糊匹配。用户说"工单10015726"就传"10015726"
+    materialCode:
+      type: string
+      description: 物料编号，模糊匹配。用户说"110662这个物料的工单"就传"110662"
+    orderType:
+      type: string
+      description: 工单类型。STANDARD=标准工单，REWORK=返工工单
+      enum: [STANDARD, REWORK]
+    dateRange:
+      type: object
+      description: 计划开始日期范围，格式 {from:"2024-01-01", to:"2024-12-31"}
+    groupBy:
+      type: string
+      description: 按维度聚合统计。status=按状态，orderType=按类型，planMonth=按计划月份
+      enum: [status, orderType, planMonth]
+    limit:
+      type: integer
+      default: 20
+
+when_to_use:
+  - 用户查看生产工单列表，如"最近的工单""有哪些工单在执行"
+  - 用户按状态筛选，如"执行中的工单有多少""已完成的工单"
+  - 用户按物料查工单，如"这个物料有几个工单""110662的生产情况"
+  - 用户统计工单分布，如"各状态工单数量""各月工单对比"
+  - 用户按时间范围查，如"上月工单""今年的工单"
+
+when_not_to_use:
+  - 用户想看单个工单的完整详情 → 使用 mes.order.profile
+  - 用户想看全局概况而非搜索 → 使用 mes.dashboard
+  - 用户想看产量趋势 → 使用 mes.trend
+
+examples:
+  - query: "有多少工单在执行中？"
+    arguments:
+      status: RUNNING
+  - query: "上个月完成了多少工单"
+    arguments:
+      status: FINISHED
+      dateRange: {from: "2026-03-01", to: "2026-03-31"}
+  - query: "各状态的工单数量"
+    arguments:
+      groupBy: status

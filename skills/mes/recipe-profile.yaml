@@ -1,0 +1,46 @@
+# MES 配方/工艺详情
+name: mes.recipe.profile
+description: >
+  获取配方/工艺的完整详情。返回配方基本信息、关联物料和产线、
+  工艺层级结构(UnitProcedure→Operation→Phase)和配方组分(Component)列表。
+  支持按文档号、物料编号或ID查询。同物料多版本时返回最新的。
+  适用于"这个产品怎么做的""配方详情""工艺路线是什么"等工艺类问题。
+version: "1.0"
+system: mes
+type: simple
+maps_to: mes.recipe.profile
+
+domains:
+  - recipe
+
+operation: profile
+
+input_schema:
+  properties:
+    docNo:
+      type: string
+      description: 配方文档号
+    materialCode:
+      type: string
+      description: 物料编号，查该物料的配方（返回最新版本）
+    id:
+      type: string
+      description: 配方内部 ID（UUID）
+
+when_to_use:
+  - 用户问某个产品的工艺/配方，如"110662怎么生产的""这个产品的配方"
+  - 用户问工艺路线，如"工艺流程是什么""有几道工序"
+  - 用户问配方组分/原料，如"用了哪些原料""BOM是什么"
+  - 从 order.profile 深挖工单对应的工艺详情
+
+when_not_to_use:
+  - 用户想看配方列表而非详情 → 暂无 recipe.search，可用 line.overview 看产线配方数
+  - 用户想看生产工单执行情况 → 使用 mes.order.profile
+
+examples:
+  - query: "物料110662的配方是什么"
+    arguments:
+      materialCode: "110662"
+  - query: "这个产品的工艺流程"
+    arguments:
+      materialCode: "114428"

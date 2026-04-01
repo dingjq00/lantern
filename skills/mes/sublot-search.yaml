@@ -1,0 +1,57 @@
+# MES 子批次追踪（库位、质量状态）
+name: mes.sublot.search
+description: >
+  查询子批次(Sublot)信息（78K+条）。支持按子批号、批号、质量状态、托盘号过滤，
+  可按质量状态聚合。返回子批次编号、所属批号、质量状态、托盘号、库位、数量等。
+  适用于"这个子批在哪个库位""有多少不合格的子批""某批号下有几个子批"等追溯问题。
+version: "1.0"
+system: mes
+type: simple
+maps_to: mes.sublot.search
+
+domains:
+  - warehouse
+  - quality
+
+operation: search
+
+input_schema:
+  properties:
+    sublotCode:
+      type: string
+      description: 子批号，模糊匹配
+    lotCode:
+      type: string
+      description: 所属批号，模糊匹配。用户说"A012下面的子批"就传"A012"
+    qualityStatus:
+      type: string
+      description: "质量状态: VALID=合格, INVALID=不合格, BLOCKED=冻结, EXPIRED=过期"
+      enum: [VALID, INVALID, BLOCKED, EXPIRED]
+    palletCode:
+      type: string
+      description: 托盘号，模糊匹配
+    groupBy:
+      type: string
+      description: 按质量状态聚合
+      enum: [sublotQualityStatus]
+    limit:
+      type: integer
+      default: 20
+
+when_to_use:
+  - 用户追踪子批次，如"子批BT240505083707在哪""这个子批的质量状态"
+  - 用户按批号查子批，如"批号A012下有几个子批""这批料拆成了几个子批"
+  - 用户统计质量状态，如"有多少不合格的子批""各质量状态分布"
+  - 用户查库位，如"这个子批在哪个库位""仓库里有哪些冻结的子批"
+
+when_not_to_use:
+  - 用户想查批次（Lot）级别的信息 → 使用 mes.lot.search
+  - 用户想看库存单据 → 使用 mes.inventory.search
+
+examples:
+  - query: "各质量状态的子批数量"
+    arguments:
+      groupBy: sublotQualityStatus
+  - query: "批号A012下有几个子批"
+    arguments:
+      lotCode: "A012"

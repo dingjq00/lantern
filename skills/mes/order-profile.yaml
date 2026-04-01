@@ -1,0 +1,43 @@
+# MES 生产工单详情（含批次班次进度）
+name: mes.order.profile
+description: >
+  获取单个生产工单的完整详情。返回工单基本信息、物料、计划/实际数量与完成率、
+  批次(BatchOrder)列表及每个批次的班次(ShiftOrder)执行进度。
+  支持按工单号或ID查询，工单号不精确时自动模糊匹配并建议。
+  适用于"工单10015726什么情况""这个工单做到哪了""批次进度"等单工单深挖问题。
+version: "1.0"
+system: mes
+type: simple
+maps_to: mes.order.profile
+
+domains:
+  - production
+
+operation: profile
+
+input_schema:
+  properties:
+    orderNo:
+      type: string
+      description: 生产工单号，如"10015726"。精确匹配优先，失败时自动模糊匹配
+    id:
+      type: string
+      description: 工单内部 ID（UUID），从其他工具结果中获得时使用
+
+when_to_use:
+  - 用户问某个工单的详情，如"工单10015726什么情况""这个工单进展如何"
+  - 用户问工单的批次进度，如"批次做到哪了""班次完成了多少"
+  - 用户追踪工单完成率，如"这个工单完成了百分之多少"
+  - 从 order.search 结果中深挖单个工单
+
+when_not_to_use:
+  - 用户想看多个工单的列表 → 使用 mes.order.search
+  - 用户想看工单对应的配方/工艺 → 使用 mes.recipe.profile
+
+examples:
+  - query: "工单10015726做到哪了"
+    arguments:
+      orderNo: "10015726"
+  - query: "这个工单的批次进度"
+    arguments:
+      orderNo: "10015726"

@@ -1,0 +1,52 @@
+# MES 批次查询与追溯
+name: mes.lot.search
+description: >
+  查询批次(Lot)信息。支持按批号、物料编号、供应商、生产日期过滤。
+  返回批次基本信息含物料、供应商、生产/有效/复检日期、子批次数量。
+  适用于"这个批号的信息""物料A有哪些批次""供应商X供了多少批"等追溯问题。
+version: "1.0"
+system: mes
+type: simple
+maps_to: mes.lot.search
+
+domains:
+  - warehouse
+  - quality
+
+operation: search
+
+input_schema:
+  properties:
+    lotCode:
+      type: string
+      description: 批号，模糊匹配。用户说"批号A012"就传"A012"
+    materialCode:
+      type: string
+      description: 物料编号，模糊匹配
+    vendorName:
+      type: string
+      description: 供应商名称，模糊匹配
+    dateRange:
+      type: object
+      description: 生产日期范围
+    limit:
+      type: integer
+      default: 20
+
+when_to_use:
+  - 用户查某个批号的信息，如"批号A012是什么""这个批次的供应商"
+  - 用户按物料查批次，如"物料110662有哪些批次""这个物料进了几批"
+  - 用户按供应商查，如"供应商X供了多少批""这家供应商的批次"
+  - 用户做批次追溯，如"这批料什么时候到的""有效期到什么时候"
+
+when_not_to_use:
+  - 用户想看具体子批次的库位和质量状态 → 使用 mes.sublot.search
+  - 用户想看库存单据 → 使用 mes.inventory.search
+
+examples:
+  - query: "物料110662有哪些批次"
+    arguments:
+      materialCode: "110662"
+  - query: "批号A012的信息"
+    arguments:
+      lotCode: "A012"

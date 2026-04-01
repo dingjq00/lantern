@@ -1,0 +1,56 @@
+# MES 物料主数据查询
+name: mes.material.search
+description: >
+  搜索物料主数据（16K+条）。支持按编号、名称、类型过滤，可按类型聚合统计。
+  返回物料编号、名称、类型、单位、存储条件、有效期、复检期等信息。
+  适用于"系统有哪些物料""原材料有多少种""搜索某个物料"等主数据查询问题。
+version: "1.0"
+system: mes
+type: simple
+maps_to: mes.material.search
+
+domains:
+  - masterdata
+
+operation: search
+
+input_schema:
+  properties:
+    materialCode:
+      type: string
+      description: 物料编号，模糊匹配
+    materialName:
+      type: string
+      description: 物料名称，模糊匹配。用户说"乳霜"就传"乳霜"
+    materialType:
+      type: string
+      description: >
+        物料类型:
+        RAW_MATERIAL=原材料, SEMI_FINISHED_PRODUCT=半成品,
+        FINISHED_PRODUCT=成品, PACKAGING_MATERIAL=包装材料
+      enum: [RAW_MATERIAL, SEMI_FINISHED_PRODUCT, FINISHED_PRODUCT, PACKAGING_MATERIAL]
+    groupBy:
+      type: string
+      description: 按物料类型聚合统计
+      enum: [materialType]
+    limit:
+      type: integer
+      default: 20
+
+when_to_use:
+  - 用户搜索物料，如"有没有叫乳霜的物料""物料110662是什么"
+  - 用户统计物料分布，如"原材料有多少种""各类型物料数量"
+  - 用户查物料存储信息，如"这个物料怎么存放""有效期多长"
+
+when_not_to_use:
+  - 用户想看某个物料的生产工单 → 使用 mes.order.search（materialCode 参数）
+  - 用户想看某个物料的配方 → 使用 mes.recipe.profile（materialCode 参数）
+  - 用户想看某个物料的批次 → 使用 mes.lot.search（materialCode 参数）
+
+examples:
+  - query: "各类型物料有多少种"
+    arguments:
+      groupBy: materialType
+  - query: "搜索包含乳霜的物料"
+    arguments:
+      materialName: "乳霜"

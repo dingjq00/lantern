@@ -1,0 +1,40 @@
+# MES 全局仪表盘 — 生产+仓库全景概览
+name: mes.dashboard
+description: >
+  获取 MES 系统全局概览。返回生产工单状态分布（INIT/CONFIRMED/RUNNING/FINISHED/CLOSED等）、
+  19条产线列表、库存单类型分布（仓库操作/批次检验/生产入库/采购/领料等）、
+  主数据总量（物料16K+/批次86K+/子批次78K+）。
+  适用于管理层了解生产和仓库全貌的"生产怎么样""仓库概况"类问题。
+version: "1.0"
+system: mes
+type: simple
+maps_to: mes.dashboard
+
+domains:
+  - production
+  - warehouse
+
+operation: dashboard
+
+input_schema:
+  type: object
+  required: []
+  properties: {}
+
+when_to_use:
+  - 用户询问生产整体概况，如"生产情况怎么样""MES 概览""今天工单情况"
+  - 用户询问全局统计数字，如"有多少工单在执行""仓库单据有多少""物料有多少种"
+  - 用户询问产线列表，如"有哪些产线""系统里有几条线"
+  - 管理层需要快速了解生产+仓库健康度，如"日报数据""各项指标"
+  - 作为分析链的起点——先全局再深入某条产线或某个工单
+
+when_not_to_use:
+  - 用户询问某条产线的概况 → 使用 mes.line.overview
+  - 用户询问特定工单的详情 → 使用 mes.order.profile
+  - 用户需要时间趋势分析 → 使用 mes.trend
+
+examples:
+  - query: "MES 生产和仓库现在什么情况"
+    arguments: {}
+  - query: "有多少工单在执行？"
+    arguments: {}
