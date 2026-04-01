@@ -16,16 +16,62 @@ function getSummarizePrompt(): string {
   return summarizePromptText
 }
 
-/** 从 LLM 返回中提取纯 JSON — 兼容所有模型格式（纯JSON / ```json包裹 / 前后有文字） */
+/** 从 LLM 返回中提取纯 JSON — 三层容错：提取 → 控制字符修复 → 截断括号补全 */
 function extractJSON(content: string): string {
   let s = content.trim()
-  // 去掉 ```json ... ``` 或 ``` ... ``` 包裹
+
+  // Layer 1: 去掉 ```json ... ``` 或 ``` ... ``` 包裹
   const fenceMatch = s.match(/```(?:json)?\s*\n?([\s\S]*?)\n?\s*```/)
   if (fenceMatch) s = fenceMatch[1].trim()
-  // 提取第一个 { ... } 或 [ ... ]
-  const jsonMatch = s.match(/(\{[\s\S]*\}|\[[\s\S]*\])/)
-  if (jsonMatch) return jsonMatch[1]
-  return s
+
+  // 提取 JSON 主体 — 先尝试完整匹配（有闭合括号），再退化到截断匹配
+  const jsonMatchComplete = s.match(/(\{[\s\S]*\}|\[[\s\S]*\])/)
+  if (jsonMatchComplete) {
+    s = jsonMatchComplete[1]
+  } else {
+    const jsonMatchTruncated = s.match(/(\{[\s\S]+|\[[\s\S]+)/)
+    if (jsonMatchTruncated) s = jsonMatchTruncated[1]
+  }
+
+  // Layer 2: 裸控制字符修复 — JSON string 内不允许真实换行/制表符
+  // 只修复 string 值内部的裸控制字符，不影响 JSON 结构字符
+  s = s.replace(/"(?:[^"\\]|\\.)*"/g, (match) =>
+    match.replace(/[\x00-\x1f]/g, (ch) => {
+      const map: Record<number, string> = { 0x08: '\\b', 0x09: '\\t', 0x0a: '\\n', 0x0c: '\\f', 0x0d: '\\r' }
+      return map[ch.charCodeAt(0)] || `\\u${ch.charCodeAt(0).toString(16).padStart(4, '0')}`
+    })
+  )
+
+  // Layer 3: 截断括号补全 — token 限制导致 JSON 被截断时补上缺失的 } ]
+  try {
+    JSON.parse(s)
+    return s  // 已经是合法 JSON，直接返回
+  } catch {
+    // 扫描结构状态：用栈追踪嵌套顺序 + 检测未闭合字符串
+    const scan = (str: string) => {
+      const stack: string[] = []
+      let inStr = false, esc = false
+      for (const ch of str) {
+        if (esc) { esc = false; continue }
+        if (ch === '\\' && inStr) { esc = true; continue }
+        if (ch === '"') { inStr = !inStr; continue }
+        if (inStr) continue
+        if (ch === '{') stack.push('}')
+        else if (ch === '[') stack.push(']')
+        else if ((ch === '}' || ch === ']') && stack.length) stack.pop()
+      }
+      return { stack, inString: inStr }
+    }
+    // 修复截断残留 — 只在确实未闭合时才动字符串
+    const { inString } = scan(s)
+    if (inString) s = s.replace(/"[^"]*$/, '""')  // 闭合截断的字符串
+    s = s.replace(/,\s*$/, '')             // 尾部悬空逗号
+    s = s.replace(/:\s*$/, ': null')       // 悬空冒号补 null
+    // 重新扫描并按嵌套顺序补全括号
+    const { stack } = scan(s)
+    s += stack.reverse().join('')
+    return s
+  }
 }
 
 // ReAct 输出的 zod schema
