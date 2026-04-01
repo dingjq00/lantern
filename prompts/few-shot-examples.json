@@ -152,5 +152,45 @@
     },
     "finish": true,
     "note": "术语驱动：看到[术语提示]后按定义转化参数，不靠自己猜术语含义"
+  },
+  {
+    "type": "single_round",
+    "query": "MES 生产和仓库现在什么情况？",
+    "round0": {
+      "thought": "[意图] 查 MES 全局概况 [候选] mes.dashboard [审查] dashboard 返回工单状态分布+产线列表+库存单类型分布+主数据总量，一个工具搞定 [规划] 直接调用 [验证] 全局概况只需 dashboard",
+      "intent": {"domains": ["production", "warehouse"], "operation": "dashboard", "filters": []},
+      "clarity": "clear",
+      "calls": [{"tool": "mes.dashboard", "arguments": {}}]
+    },
+    "finish": true,
+    "note": "MES 全局概况 → mes.dashboard，和 EAM/EDHR 的 dashboard 用法一致"
+  },
+  {
+    "type": "multi_round",
+    "query": "批号A012在哪个库位？",
+    "round0": {
+      "thought": "[意图] 追溯批次存放位置，需要查子批次级别的库位信息 [候选] mes.lot.search, mes.sublot.search [审查] lot.search 返回批次信息但无库位；sublot.search 按批号查子批次含库位信息 [规划] 直接查 sublot.search(lotCode=A012) [验证] 子批次有库位信息，一个工具覆盖",
+      "intent": {"domains": ["warehouse"], "operation": "search", "filters": ["lotCode"]},
+      "clarity": "clear",
+      "calls": [{"tool": "mes.sublot.search", "arguments": {"lotCode": "A012"}}]
+    },
+    "observation0": "返回 5 个子批次，分布在 3 个库位，质量状态有 UNRESTRICTED 和 INVALID",
+    "round1": {
+      "thought": "[验证] 已有子批次的库位和质量状态信息，数据充足，直接结束",
+      "finish": true
+    },
+    "note": "批次库位 → 直接查 sublot（库位在子批次上），不需要先查 lot 再查 sublot"
+  },
+  {
+    "type": "single_round",
+    "query": "这个月各产线完成了多少工单？产量分别是多少？",
+    "round0": {
+      "thought": "[意图] 按月查工单产量趋势 [候选] mes.trend, mes.order.search [审查] trend(dimension=month) 按月统计工单数+计划产量+实际产量+完成率 [规划] 传本月时间范围 [验证] trend 直接返回产量统计，覆盖",
+      "intent": {"domains": ["production"], "operation": "trend", "filters": ["dateRange"]},
+      "clarity": "clear",
+      "calls": [{"tool": "mes.trend", "arguments": {"dateRange": {"from": "2026-04-01", "to": "2026-04-30"}, "dimension": "month"}}]
+    },
+    "finish": true,
+    "note": "MES 产量统计 → trend(dimension=month)，不需要 order.search(groupBy)"
   }
 ]

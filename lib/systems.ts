@@ -100,4 +100,40 @@ export const SYSTEM_REGISTRY: Record<string, SystemMeta> = {
       '异常率': { aliases: ['不良率', '缺陷率'], definition: '产生质量异常的工单占比', computation: '有异常记录的工单数 ÷ 工单总数', relatedTools: ['edhr.exception.search', 'edhr.order.search'] },
     },
   },
+  mes: {
+    label: 'MES（制造执行系统）',
+    scope: '生产工单、批次工单、班次工单、配方、工序、物料、批次、子批次、库存单、产线、称量、乳化',
+    domainModel: `核心关系链:
+配方(Recipe) ──定义→ 工艺路线(UnitProcedure→Operation→Phase) + 配方组分(Component)
+生产工单(ProductionOrder) ──拆分→ 批次工单(BatchOrder) ──拆分→ 班次工单(ShiftOrder)
+班次工单 ──关联→ 配方 + 产线(ProductionLine)
+物料(Material) ──对应→ 批次(Lot) ──拆分→ 子批次(Sublot) ──存放→ 库位(WarehouseLocation)
+库存单(InventoryOrder) ──包含→ 库存明细行(InventoryOrderLine) ──关联→ 物料+批次
+产线分类: 称量(3101) | 乳化(3102-3112) | 灌装/包装(3201-3288) | 检验(3301-3302)
+⚠️ 子批质量状态: INVALID=未放行(默认)、UNRESTRICTED=已放行、BLOCKED=冻结、INSPECTION=检验中
+⚠️ 配方状态枚举: INIT/EFFECITVE(注意拼写)/ARCHIVED
+⚠️ 数据时间范围: 2023-11 至 2025-04`,
+    // MES KPI 公式 — 基于 ISA-95 / 日化制造关键绩效指标
+    computedMetrics: {
+      '工单完成率': { label: '工单完成率', formula: 'rate', numerator: 'status=FINISHED', denominator: 'total', unit: '%' },
+      '产量完成率': { label: '产量完成率(计划达成)', formula: 'avg', field: '_completionRate', unit: '%' },
+      '批次放行率': { label: '批次放行率', formula: 'rate', numerator: 'sublotQualityStatus=UNRESTRICTED', denominator: 'total', unit: '%' },
+      '冻结批次率': { label: '冻结批次率', formula: 'rate', numerator: 'sublotQualityStatus=BLOCKED', denominator: 'total', unit: '%' },
+      '库存单完成率': { label: '库存单完成率', formula: 'rate', numerator: 'orderStatus=FINISHED', denominator: 'total', unit: '%' },
+    },
+    recommendations: [
+      { metric: '工单完成率', condition: 'below', threshold: 80, message: '⚠️ 工单完成率低于80%，检查产线瓶颈和物料齐套情况' },
+      { metric: '冻结批次率', condition: 'above', threshold: 5, message: '🔴 冻结批次超5%，立即排查质量异常原因，防止扩散' },
+    ],
+    businessGlossary: {
+      '产量完成率': { aliases: ['计划达成率', '完成率', '达成率'], definition: '实际产量 ÷ 计划产量，反映生产计划执行情况', computation: 'actualQuantity ÷ planQuantity × 100%', relatedTools: ['mes.order.search', 'mes.trend'] },
+      '批次放行率': { aliases: ['放行率', '合格率', '批次合格率'], definition: '质量检验通过后放行的子批次占比（日化行业批次默认INVALID=未放行，QC通过后UNRESTRICTED=已放行）', computation: 'UNRESTRICTED子批数 ÷ 总子批数（注意INVALID≠不合格，而是未验证）', relatedTools: ['mes.sublot.search'] },
+      '配方': { aliases: ['工艺', '处方', '配方版本'], definition: '产品的生产工艺定义，含工艺路线(UnitProcedure→Phase)和原料组分(Component)', computation: '按物料编号查配方，同物料可有多个版本（EFFECITVE=生效中/ARCHIVED=归档）', relatedTools: ['mes.recipe.profile'] },
+      '批次': { aliases: ['Lot', '批号', '生产批'], definition: '同一次入库或生产的同一物料集合，有唯一批号、供应商信息、有效期', computation: '按批号、物料、供应商搜索', relatedTools: ['mes.lot.search'] },
+      '子批次': { aliases: ['Sublot', '子批', '托盘', '小包'], definition: '批次拆分后的最小管理单元，有独立质量状态和库位', computation: '按子批号、批号、质量状态、托盘号搜索', relatedTools: ['mes.sublot.search'] },
+      '班次工单': { aliases: ['ShiftOrder', '班次', '排产单'], definition: '批次工单按班次拆分的执行单元，关联具体产线和配方', computation: '通过生产工单→批次工单→班次工单的层级查询', relatedTools: ['mes.order.profile'] },
+      '库存单': { aliases: ['出入库单', '仓库单据', '领料单'], definition: '所有物料出入库的凭证，含仓库操作、采购入库、生产入库、零星领料等类型', computation: '按类型、状态、供应商筛选', relatedTools: ['mes.inventory.search'] },
+      '产线': { aliases: ['生产线', '工位', '线体'], definition: '生产线体，分称量(3101)、乳化(3102-3112)、灌装包装(3201-3288)、检验(3301-3302)四大类', computation: '按编号或名称查产线概览', relatedTools: ['mes.line.overview'] },
+    },
+  },
 }
