@@ -56,9 +56,12 @@ export function registerEquipmentSearch(server: McpServer) {
         }
       }
 
+      // 防御: status 已指定具体值时，groupBy=status 是多余的（过滤后再分组=100%同状态）
+      const effectiveGroupBy = (args.groupBy === 'status' && args.status !== undefined) ? undefined : args.groupBy
+
       // 通用搜索（自动处理 groupBy 全量拉取 + 普通分页）
       const result = await eamSearch<Equipment>('/eam/equipment/page', params, {
-        groupBy: args.groupBy,
+        groupBy: effectiveGroupBy,
         groupKeyFn: (eq, gb) => gb === 'status' ? STATUS_MAP[eq.status] ?? String(eq.status)
           : gb === 'category' ? String(eq.categoryId ?? '未分类')
           : String(eq.deptId ?? '未分配'),

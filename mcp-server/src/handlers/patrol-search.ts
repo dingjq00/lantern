@@ -91,16 +91,20 @@ export function registerPatrolSearch(server: McpServer) {
         }
       }
 
+      // 防御: filter 已指定具体值时，groupBy 同维度是多余的
+      const effectiveGroupBy = (args.groupBy === 'status' && args.status !== undefined)
+        ? undefined : args.groupBy
+
       // groupBy
-      if (args.groupBy) {
+      if (effectiveGroupBy) {
         const groups = new Map<string, number>()
         for (const t of list) {
-          const key = args.groupBy === 'status' ? String(t.status) : String(t.planId)
+          const key = effectiveGroupBy === 'status' ? String(t.status) : String(t.planId)
           groups.set(key, (groups.get(key) ?? 0) + 1)
         }
         const rawGroups = [...groups.entries()].sort((a, b) => b[1] - a[1]).map(([group, count]) => ({ group, count }))
-        const enrichedGroups = await enrichGroupNames(rawGroups, args.groupBy)
-        return textResult({ total: list.length, groupBy: args.groupBy, groups: enrichedGroups })
+        const enrichedGroups = await enrichGroupNames(rawGroups, effectiveGroupBy!)
+        return textResult({ total: list.length, groupBy: effectiveGroupBy, groups: enrichedGroups })
       }
 
       const items = list.map(t => args.format === 'concise'

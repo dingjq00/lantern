@@ -1,0 +1,569 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lantern — 企业系统 AI 自然语言交互平台 · 架构总览</title>
+<style>
+  /* ── 全局 ── */
+  :root {
+    --bg: #f7f9f4;
+    --card: #ffffff;
+    --border: #d4ddc7;
+    --accent: #3a7d44;
+    --accent-light: #e8f0e4;
+    --text: #2c3e2d;
+    --text-muted: #6b7c6d;
+    --shadow: 0 2px 12px rgba(58,125,68,.08);
+    --radius: 10px;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, 'PingFang SC', 'Noto Sans SC', sans-serif; background: var(--bg); color: var(--text); line-height: 1.7; }
+  .container { max-width: 1120px; margin: 0 auto; padding: 40px 28px 60px; }
+
+  /* ── 标题区 ── */
+  header { text-align: center; margin-bottom: 48px; }
+  header h1 { font-size: 2.2rem; font-weight: 700; color: var(--accent); letter-spacing: 1px; }
+  header .subtitle { font-size: 1.05rem; color: var(--text-muted); margin-top: 8px; }
+  header .stats { display: flex; justify-content: center; gap: 32px; margin-top: 20px; flex-wrap: wrap; }
+  header .stat { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px 24px; text-align: center; min-width: 130px; box-shadow: var(--shadow); }
+  header .stat .num { font-size: 1.6rem; font-weight: 700; color: var(--accent); }
+  header .stat .label { font-size: .82rem; color: var(--text-muted); }
+
+  /* ── 通用 Section ── */
+  section { margin-bottom: 44px; }
+  section h2 { font-size: 1.35rem; color: var(--accent); border-left: 4px solid var(--accent); padding-left: 14px; margin-bottom: 18px; }
+  p, li { font-size: .95rem; }
+
+  /* ── 架构大图 ── */
+  .arch-diagram {
+    background: var(--card); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 32px 24px; box-shadow: var(--shadow); overflow-x: auto;
+  }
+  .arch-layer {
+    display: flex; align-items: stretch; gap: 0; margin-bottom: 2px; min-width: 820px;
+  }
+  .arch-layer .layer-label {
+    min-width: 100px; max-width: 100px; padding: 14px 10px; font-weight: 700; font-size: .82rem;
+    display: flex; align-items: center; justify-content: center; text-align: center;
+    color: #fff; border-radius: var(--radius) 0 0 var(--radius); writing-mode: horizontal-tb;
+  }
+  .arch-layer .layer-content {
+    flex: 1; display: flex; flex-wrap: wrap; gap: 6px; padding: 12px 16px;
+    border: 1px solid var(--border); border-left: none; border-radius: 0 var(--radius) var(--radius) 0;
+    background: var(--card); align-items: center;
+  }
+  .chip {
+    display: inline-block; padding: 5px 13px; border-radius: 6px; font-size: .8rem; font-weight: 500;
+    white-space: nowrap;
+  }
+  .arrow-down { text-align: center; font-size: 1.2rem; color: var(--accent); margin: 2px 0; min-width: 820px; letter-spacing: 14px; }
+
+  /* 层级颜色 */
+  .l-ui     .layer-label { background: #5b9bd5; }
+  .l-brain  .layer-label { background: #3a7d44; }
+  .l-prompt .layer-label { background: #6aaa6e; }
+  .l-tool   .layer-label { background: #e8a838; }
+  .l-mcp    .layer-label { background: #d16b3a; }
+  .l-data   .layer-label { background: #8b5fb0; }
+
+  .c-blue   { background: #e0eef9; color: #2a6496; }
+  .c-green  { background: #e8f0e4; color: #2d6a32; }
+  .c-lime   { background: #eef5e3; color: #4a7c30; }
+  .c-yellow { background: #fef6e0; color: #8a6d1b; }
+  .c-orange { background: #fdeee4; color: #a3522a; }
+  .c-purple { background: #f0e8f5; color: #6a3d8c; }
+  .c-gray   { background: #eef0ed; color: #4a5a4c; }
+
+  /* ── 工具列表 ── */
+  .tool-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 16px; }
+  .tool-system {
+    background: var(--card); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 20px; box-shadow: var(--shadow);
+  }
+  .tool-system h3 { font-size: 1rem; margin-bottom: 10px; display: flex; align-items: center; gap: 8px; }
+  .tool-system h3 .badge {
+    display: inline-block; font-size: .72rem; padding: 2px 8px; border-radius: 4px;
+    color: #fff; font-weight: 600;
+  }
+  .badge-eam  { background: #3a7d44; }
+  .badge-edhr { background: #5b9bd5; }
+  .badge-mes  { background: #e8a838; color: #fff; }
+  .badge-cross { background: #8b5fb0; }
+  .tool-system ul { list-style: none; padding: 0; }
+  .tool-system li { font-size: .85rem; padding: 3px 0; border-bottom: 1px dashed #e8ece4; display: flex; gap: 8px; }
+  .tool-system li:last-child { border-bottom: none; }
+  .tool-name { font-weight: 600; color: var(--accent); min-width: 170px; font-family: 'SF Mono', 'Fira Code', monospace; font-size: .8rem; }
+  .tool-desc { color: var(--text-muted); }
+
+  /* ── ReAct 流程 ── */
+  .react-flow {
+    display: flex; align-items: center; gap: 0; flex-wrap: wrap; justify-content: center;
+    background: var(--card); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 24px 16px; box-shadow: var(--shadow); overflow-x: auto;
+  }
+  .react-step {
+    text-align: center; padding: 12px 18px; border-radius: 8px; font-size: .82rem;
+    min-width: 120px; position: relative;
+  }
+  .react-step .step-title { font-weight: 700; margin-bottom: 4px; }
+  .react-step .step-detail { font-size: .75rem; color: var(--text-muted); }
+  .react-arrow { font-size: 1.4rem; color: var(--accent); margin: 0 2px; }
+
+  /* ── 6 层 Context ── */
+  .ctx-layers {
+    background: var(--card); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 20px; box-shadow: var(--shadow);
+  }
+  .ctx-row {
+    display: flex; align-items: center; gap: 12px; padding: 8px 12px;
+    border-bottom: 1px solid #f0f2ed;
+  }
+  .ctx-row:last-child { border-bottom: none; }
+  .ctx-num { font-weight: 700; font-size: .85rem; color: #fff; background: var(--accent); width: 26px; height: 26px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .ctx-name { font-weight: 600; min-width: 140px; font-size: .88rem; }
+  .ctx-desc { color: var(--text-muted); font-size: .84rem; }
+  .ctx-tag  { font-size: .7rem; padding: 1px 7px; border-radius: 3px; font-weight: 600; flex-shrink: 0; }
+  .tag-static  { background: #e8f0e4; color: #3a7d44; }
+  .tag-dynamic { background: #fef6e0; color: #8a6d1b; }
+
+  /* ── 设计原则 ── */
+  .principles {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 14px;
+  }
+  .principle {
+    background: var(--card); border: 1px solid var(--border); border-radius: 8px;
+    padding: 14px 16px; box-shadow: var(--shadow);
+  }
+  .principle .p-id { font-weight: 700; color: var(--accent); font-size: .82rem; }
+  .principle .p-text { font-size: .88rem; margin-top: 4px; }
+
+  /* ── 指标卡片 ── */
+  .metrics {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 14px;
+  }
+  .metric-card {
+    background: var(--card); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 18px; text-align: center; box-shadow: var(--shadow);
+  }
+  .metric-card .m-value { font-size: 2rem; font-weight: 700; color: var(--accent); }
+  .metric-card .m-label { font-size: .85rem; color: var(--text-muted); margin-top: 4px; }
+  .metric-card .m-sub   { font-size: .78rem; color: var(--text-muted); margin-top: 2px; }
+
+  /* ── Footer ── */
+  footer { text-align: center; color: var(--text-muted); font-size: .82rem; margin-top: 40px; padding-top: 20px; border-top: 1px solid var(--border); }
+
+  /* ── 描述段落 ── */
+  .desc { font-size: .92rem; color: var(--text); margin-bottom: 16px; line-height: 1.8; }
+  .highlight { background: #e8f0e4; padding: 2px 6px; border-radius: 3px; font-weight: 600; }
+
+  @media (max-width: 640px) {
+    .container { padding: 20px 12px; }
+    header h1 { font-size: 1.5rem; }
+    .arch-layer { flex-direction: column; min-width: unset; }
+    .arch-layer .layer-label { min-width: unset; max-width: unset; border-radius: var(--radius) var(--radius) 0 0; }
+    .arch-layer .layer-content { border-left: 1px solid var(--border); border-radius: 0 0 var(--radius) var(--radius); }
+    .arrow-down { min-width: unset; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+<!-- ========== 标题 ========== -->
+<header>
+  <h1>Lantern</h1>
+  <div class="subtitle">企业系统 AI 自然语言交互平台 &mdash; 一个输入框，操作所有企业系统</div>
+  <div class="stats">
+    <div class="stat"><div class="num">30</div><div class="label">MCP 工具</div></div>
+    <div class="stat"><div class="num">3</div><div class="label">企业系统</div></div>
+    <div class="stat"><div class="num">100%</div><div class="label">工具召回率</div></div>
+    <div class="stat"><div class="num">4.85</div><div class="label">质量评分 /5</div></div>
+  </div>
+</header>
+
+<!-- ========== 核心理念 ========== -->
+<section>
+  <h2>核心理念</h2>
+  <p class="desc">
+    用户面对<span class="highlight">一个输入框</span>，用自然语言查询、分析、操作企业数据。
+    背后是 <span class="highlight">LLM 路由 + MCP 确定性执行 + ReAct 推理循环</span> 的混合架构 ——
+    AI 负责理解意图和跨域推理，MCP 工具负责确定性的数据获取和聚合。
+    不走 Text-to-SQL 路线，而是通过声明式工具描述（YAML）让 AI "选对工具、传对参数"。
+  </p>
+</section>
+
+<!-- ========== 架构大图 ========== -->
+<section>
+  <h2>架构全景</h2>
+  <div class="arch-diagram">
+
+    <!-- 接入层 -->
+    <div class="arch-layer l-ui">
+      <div class="layer-label">接入层<br>Web UI</div>
+      <div class="layer-content">
+        <span class="chip c-blue">Next.js App</span>
+        <span class="chip c-blue">Chat 对话界面</span>
+        <span class="chip c-blue">Benchmark Dashboard</span>
+        <span class="chip c-blue">会话管理</span>
+        <span class="chip c-gray">POST /api/chat</span>
+      </div>
+    </div>
+    <div class="arrow-down">▼ ▼ ▼</div>
+
+    <!-- 智能层 -->
+    <div class="arch-layer l-brain">
+      <div class="layer-label">智能层<br>Brain</div>
+      <div class="layer-content">
+        <span class="chip c-green">Router（ReAct 循环）</span>
+        <span class="chip c-green">3 步 Think（规划→审查→finish）</span>
+        <span class="chip c-green">Observation 注入</span>
+        <span class="chip c-green">Data Digest（预计算）</span>
+        <span class="chip c-green">Concept Resolver（术语解析）</span>
+        <span class="chip c-green">Summarize（结果总结）</span>
+        <span class="chip c-green">Validator（结果校验）</span>
+        <span class="chip c-green">Confidence（置信度）</span>
+      </div>
+    </div>
+    <div class="arrow-down">▼ ▼ ▼</div>
+
+    <!-- Prompt 层 -->
+    <div class="arch-layer l-prompt">
+      <div class="layer-label">Prompt层<br>6层Context</div>
+      <div class="layer-content">
+        <span class="chip c-lime">System Prompt</span>
+        <span class="chip c-lime">Rules</span>
+        <span class="chip c-lime">ReAct Instructions（5步思考模板）</span>
+        <span class="chip c-lime">Few-shot Examples</span>
+        <span class="chip c-lime">Dynamic Context（工具YAML + 术语注入）</span>
+        <span class="chip c-lime">User Input</span>
+      </div>
+    </div>
+    <div class="arrow-down">▼ ▼ ▼</div>
+
+    <!-- 工具声明层 -->
+    <div class="arch-layer l-tool">
+      <div class="layer-label">工具声明<br>Skill YAML</div>
+      <div class="layer-content">
+        <span class="chip c-yellow">EAM &times; 12</span>
+        <span class="chip c-yellow">EDHR &times; 7</span>
+        <span class="chip c-yellow">MES &times; 10</span>
+        <span class="chip c-yellow">Common &times; 1</span>
+        <span class="chip c-gray">name / description / when_to_use / when_not_to_use / inputSchema / domains / operation</span>
+      </div>
+    </div>
+    <div class="arrow-down">▼ ▼ ▼</div>
+
+    <!-- MCP 执行层 -->
+    <div class="arch-layer l-mcp">
+      <div class="layer-label">执行层<br>MCP Server</div>
+      <div class="layer-content">
+        <span class="chip c-orange">Handler &times; 30（确定性执行）</span>
+        <span class="chip c-orange">Resolver（ID/名称智能解析）</span>
+        <span class="chip c-orange">Jmix API Client（工厂模式，多实例）</span>
+        <span class="chip c-orange">Interval Utils（通用时间间隔）</span>
+        <span class="chip c-gray">MCP 协议 (stdio)</span>
+      </div>
+    </div>
+    <div class="arrow-down">▼ ▼ ▼</div>
+
+    <!-- 数据层 -->
+    <div class="arch-layer l-data">
+      <div class="layer-label">数据层<br>企业后端</div>
+      <div class="layer-content">
+        <span class="chip c-purple">EAM (Jmix · :48080)</span>
+        <span class="chip c-purple">EDHR (Jmix · :8443)</span>
+        <span class="chip c-purple">MES (Jmix · :443)</span>
+        <span class="chip c-gray">OAuth2 认证 · REST entities API · 权限透传</span>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- ========== ReAct 推理流程 ========== -->
+<section>
+  <h2>ReAct 推理流程</h2>
+  <p class="desc">每个用户查询经历最多 3 轮 Think，简单题 2 轮完成，复杂跨系统题 3 轮。</p>
+  <div class="react-flow">
+    <div class="react-step c-blue">
+      <div class="step-title">用户查询</div>
+      <div class="step-detail">+ 术语预注入</div>
+    </div>
+    <div class="react-arrow">&rarr;</div>
+    <div class="react-step c-green">
+      <div class="step-title">Think &①; 规划</div>
+      <div class="step-detail">意图 &rarr; 候选 &rarr; 审查<br>&rarr; 规划 &rarr; 验证</div>
+    </div>
+    <div class="react-arrow">&rarr;</div>
+    <div class="react-step c-yellow">
+      <div class="step-title">MCP 执行</div>
+      <div class="step-detail">调用工具获取数据<br>{{N.path}} 参数引用</div>
+    </div>
+    <div class="react-arrow">&rarr;</div>
+    <div class="react-step c-green">
+      <div class="step-title">Think &②; 审查</div>
+      <div class="step-detail">够了 &rarr; finish<br>不够 &rarr; 补查</div>
+    </div>
+    <div class="react-arrow">&rarr;</div>
+    <div class="react-step c-yellow">
+      <div class="step-title">补充执行</div>
+      <div class="step-detail">跨系统/放宽条件</div>
+    </div>
+    <div class="react-arrow">&rarr;</div>
+    <div class="react-step c-green">
+      <div class="step-title">Think &③; finish</div>
+      <div class="step-detail">数据完整确认</div>
+    </div>
+    <div class="react-arrow">&rarr;</div>
+    <div class="react-step c-purple" style="min-width:140px;">
+      <div class="step-title">Summarize</div>
+      <div class="step-detail">Data Digest + 领域公式<br>&rarr; 结构化回答</div>
+    </div>
+  </div>
+</section>
+
+<!-- ========== 6 层 Context ========== -->
+<section>
+  <h2>6 层 Context 架构</h2>
+  <p class="desc">静态内容在前（LLM cache friendly），动态内容在后。</p>
+  <div class="ctx-layers">
+    <div class="ctx-row">
+      <span class="ctx-num">1</span>
+      <span class="ctx-name">System Prompt</span>
+      <span class="ctx-desc">角色定义、基本行为规则</span>
+      <span class="ctx-tag tag-static">静态</span>
+    </div>
+    <div class="ctx-row">
+      <span class="ctx-num">2</span>
+      <span class="ctx-name">Rules</span>
+      <span class="ctx-desc">架构原则、禁止事项（底线约束）</span>
+      <span class="ctx-tag tag-static">静态</span>
+    </div>
+    <div class="ctx-row">
+      <span class="ctx-num">3</span>
+      <span class="ctx-name">Task Instructions</span>
+      <span class="ctx-desc">5 步结构化思考模板（ToolGT / Step-Back / Reflexion）</span>
+      <span class="ctx-tag tag-static">静态</span>
+    </div>
+    <div class="ctx-row">
+      <span class="ctx-num">4</span>
+      <span class="ctx-name">Few-shot Examples</span>
+      <span class="ctx-desc">示例对话 — AI 从模式延续比从规则学习更稳定</span>
+      <span class="ctx-tag tag-static">静态</span>
+    </div>
+    <div class="ctx-row">
+      <span class="ctx-num">5</span>
+      <span class="ctx-name">Dynamic Context</span>
+      <span class="ctx-desc">工具 YAML 描述、术语注入、领域模型、会话记忆</span>
+      <span class="ctx-tag tag-dynamic">动态</span>
+    </div>
+    <div class="ctx-row">
+      <span class="ctx-num">6</span>
+      <span class="ctx-name">User Input</span>
+      <span class="ctx-desc">当前查询 + Concept Resolver 术语提示</span>
+      <span class="ctx-tag tag-dynamic">动态</span>
+    </div>
+  </div>
+</section>
+
+<!-- ========== 30 个工具 ========== -->
+<section>
+  <h2>30 个 MCP 工具</h2>
+  <p class="desc">按用户意图粒度设计，不按 API 粒度。AI 传名称，MCP 内部 Resolver 自动解析 ID。</p>
+  <div class="tool-grid">
+
+    <!-- EAM -->
+    <div class="tool-system">
+      <h3><span class="badge badge-eam">EAM</span> 设备资产管理 &mdash; 12 工具</h3>
+      <ul>
+        <li><span class="tool-name">eam.dashboard</span><span class="tool-desc">全局指标快照</span></li>
+        <li><span class="tool-name">eam.equipment.profile</span><span class="tool-desc">设备全景画像</span></li>
+        <li><span class="tool-name">eam.equipment.search</span><span class="tool-desc">设备搜索 + 分组</span></li>
+        <li><span class="tool-name">eam.fault.search</span><span class="tool-desc">故障报修搜索</span></li>
+        <li><span class="tool-name">eam.repair.profile</span><span class="tool-desc">维修工单详情</span></li>
+        <li><span class="tool-name">eam.repair.search</span><span class="tool-desc">维修工单搜索</span></li>
+        <li><span class="tool-name">eam.maintenance.search</span><span class="tool-desc">保养任务搜索</span></li>
+        <li><span class="tool-name">eam.patrol.search</span><span class="tool-desc">巡检任务搜索</span></li>
+        <li><span class="tool-name">eam.anomaly.search</span><span class="tool-desc">异常记录搜索</span></li>
+        <li><span class="tool-name">eam.spare.search</span><span class="tool-desc">备件/库存搜索</span></li>
+        <li><span class="tool-name">eam.scope.overview</span><span class="tool-desc">车间/产线范围概览</span></li>
+        <li><span class="tool-name">eam.trend</span><span class="tool-desc">时间趋势分析</span></li>
+      </ul>
+    </div>
+
+    <!-- EDHR -->
+    <div class="tool-system">
+      <h3><span class="badge badge-edhr">EDHR</span> 医疗器械检测 &mdash; 7 工具</h3>
+      <ul>
+        <li><span class="tool-name">edhr.dashboard</span><span class="tool-desc">检测全景看板</span></li>
+        <li><span class="tool-name">edhr.order.search</span><span class="tool-desc">工单搜索 + 聚合</span></li>
+        <li><span class="tool-name">edhr.order.profile</span><span class="tool-desc">工单全景详情</span></li>
+        <li><span class="tool-name">edhr.product.search</span><span class="tool-desc">产品搜索</span></li>
+        <li><span class="tool-name">edhr.item.search</span><span class="tool-desc">检测项搜索</span></li>
+        <li><span class="tool-name">edhr.exception.search</span><span class="tool-desc">质量异常搜索</span></li>
+        <li><span class="tool-name">edhr.trend</span><span class="tool-desc">检测趋势分析</span></li>
+      </ul>
+    </div>
+
+    <!-- MES -->
+    <div class="tool-system">
+      <h3><span class="badge badge-mes">MES</span> 生产执行系统 &mdash; 10 工具</h3>
+      <ul>
+        <li><span class="tool-name">mes.dashboard</span><span class="tool-desc">生产 + 仓库全景</span></li>
+        <li><span class="tool-name">mes.order.search</span><span class="tool-desc">生产工单搜索</span></li>
+        <li><span class="tool-name">mes.order.profile</span><span class="tool-desc">工单详情 + 批次进度</span></li>
+        <li><span class="tool-name">mes.inventory.search</span><span class="tool-desc">库存单搜索</span></li>
+        <li><span class="tool-name">mes.lot.search</span><span class="tool-desc">批次查询</span></li>
+        <li><span class="tool-name">mes.sublot.search</span><span class="tool-desc">子批次追踪</span></li>
+        <li><span class="tool-name">mes.material.search</span><span class="tool-desc">物料查询</span></li>
+        <li><span class="tool-name">mes.recipe.profile</span><span class="tool-desc">配方详情</span></li>
+        <li><span class="tool-name">mes.trend</span><span class="tool-desc">产量趋势分析</span></li>
+        <li><span class="tool-name">mes.line.overview</span><span class="tool-desc">产线概览</span></li>
+      </ul>
+    </div>
+
+    <!-- Common -->
+    <div class="tool-system">
+      <h3><span class="badge badge-cross">Cross</span> 跨系统 &mdash; 1 工具</h3>
+      <ul>
+        <li><span class="tool-name">glossary.resolve</span><span class="tool-desc">业务术语解析（兜底）</span></li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ========== 关键设计原则 ========== -->
+<section>
+  <h2>核心设计原则</h2>
+  <div class="principles">
+    <div class="principle">
+      <div class="p-id">#1 MCP 是动作，AI 是能力</div>
+      <div class="p-text">确定性逻辑 MCP 做（ID 解析、聚合），分析推理 AI 做（意图判断、跨域编排）</div>
+    </div>
+    <div class="principle">
+      <div class="p-id">#2 Resolver 模式（独创）</div>
+      <div class="p-text">AI 传名称不传 ID，MCP 内部 Resolver 自动模糊匹配。AI 决策空间从"30 工具 + ID 解析"缩小到"30 工具 + 传字符串"</div>
+    </div>
+    <div class="principle">
+      <div class="p-id">#3 上层泛化，下层具象</div>
+      <div class="p-text">Prompt / Instructions 是方法论层，必须跨系统通用。YAML 是配置层，可以写具体业务</div>
+    </div>
+    <div class="principle">
+      <div class="p-id">#4 Few-shot > 规则</div>
+      <div class="p-text">AI 从示例延续模式比从规则学习更稳定。规则精简 44% 不退化</div>
+    </div>
+    <div class="principle">
+      <div class="p-id">#5 预计算是辅助不是替代</div>
+      <div class="p-text">Data Digest 预算统计引导 AI 引用正确数字，但原始数据必须保留</div>
+    </div>
+    <div class="principle">
+      <div class="p-id">#6 上下文情绪色彩</div>
+      <div class="p-text">正向环境出自信推理，防御环境（如 _truncated）出犹豫输出。注入到上下文的任何标记都要审视其情绪影响</div>
+    </div>
+    <div class="principle">
+      <div class="p-id">#7 Handler 决定 AI 能力上限</div>
+      <div class="p-text">AI 再聪明也分析不了 Handler 没返回的字段。数据完整性在 Handler 层保证</div>
+    </div>
+    <div class="principle">
+      <div class="p-id">#8 确定性逻辑不靠 AI 判断</div>
+      <div class="p-text">术语匹配、数数、周期计算都在 Router / Digest 层预处理，不留给 AI</div>
+    </div>
+  </div>
+</section>
+
+<!-- ========== Benchmark 成绩 ========== -->
+<section>
+  <h2>Benchmark 成绩</h2>
+  <p class="desc">平台级三层测试：不只测"工具选对没有"，更测"系统选对没有"和"跨系统推理能力"。</p>
+  <div class="metrics">
+    <div class="metric-card">
+      <div class="m-value">30/30</div>
+      <div class="m-label">测试用例通过</div>
+      <div class="m-sub">L1 路由 + L2 跨系统 + L3 单系统</div>
+    </div>
+    <div class="metric-card">
+      <div class="m-value">100%</div>
+      <div class="m-label">L1 系统路由准确率</div>
+      <div class="m-sub">歧义词消歧（工单/完成率/趋势）</div>
+    </div>
+    <div class="metric-card">
+      <div class="m-value">91.7%</div>
+      <div class="m-label">L2 跨系统推理</div>
+      <div class="m-sub">一个问题需要多系统数据</div>
+    </div>
+    <div class="metric-card">
+      <div class="m-value">100%</div>
+      <div class="m-label">L3 单系统准确率</div>
+      <div class="m-sub">工具选择 + 参数 + 数据</div>
+    </div>
+    <div class="metric-card">
+      <div class="m-value">4.85</div>
+      <div class="m-label">综合质量 / 5 分</div>
+      <div class="m-sub">EAM 4.9 + EDHR 4.8</div>
+    </div>
+  </div>
+</section>
+
+<!-- ========== 技术栈 ========== -->
+<section>
+  <h2>技术栈</h2>
+  <div style="display:flex; flex-wrap:wrap; gap:8px;">
+    <span class="chip c-blue">Next.js 15</span>
+    <span class="chip c-blue">React 19</span>
+    <span class="chip c-blue">TypeScript</span>
+    <span class="chip c-green">DeepSeek Chat (LLM)</span>
+    <span class="chip c-yellow">MCP Protocol (stdio)</span>
+    <span class="chip c-orange">Jmix REST API</span>
+    <span class="chip c-purple">SQLite (会话存储)</span>
+    <span class="chip c-gray">YAML (工具声明)</span>
+    <span class="chip c-lime">OAuth2 (认证)</span>
+  </div>
+</section>
+
+<!-- ========== 项目结构 ========== -->
+<section>
+  <h2>项目结构</h2>
+  <div style="background:var(--card); border:1px solid var(--border); border-radius:var(--radius); padding:20px 24px; box-shadow:var(--shadow); font-family:'SF Mono','Fira Code',monospace; font-size:.82rem; line-height:2;">
+    <div><strong>lantern/</strong></div>
+    <div>&nbsp;&nbsp;app/&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:var(--text-muted);"># Next.js 页面 — Chat UI + Benchmark Dashboard</span></div>
+    <div>&nbsp;&nbsp;lib/brain/&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:var(--text-muted);"># 智能层 — Router / Think / Digest / Summarize / Observation</span></div>
+    <div>&nbsp;&nbsp;lib/llm/&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:var(--text-muted);"># LLM 提供商适配（DeepSeek / OpenAI 兼容）</span></div>
+    <div>&nbsp;&nbsp;lib/tools/&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:var(--text-muted);"># 工具层 — YAML Loader + Registry + MCP Client</span></div>
+    <div>&nbsp;&nbsp;lib/storage/&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:var(--text-muted);"># SQLite 持久化（会话 / Benchmark 结果 / Lesson）</span></div>
+    <div>&nbsp;&nbsp;lib/systems.ts&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:var(--text-muted);"># 系统注册表 — 领域公式 / 术语表 / 推荐规则</span></div>
+    <div>&nbsp;&nbsp;prompts/&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:var(--text-muted);"># 6 层 Prompt（system / rules / instructions / few-shot / summarize）</span></div>
+    <div>&nbsp;&nbsp;skills/eam/&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:var(--text-muted);"># EAM 12 个 YAML 工具声明</span></div>
+    <div>&nbsp;&nbsp;skills/edhr/&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:var(--text-muted);"># EDHR 7 个 YAML 工具声明</span></div>
+    <div>&nbsp;&nbsp;skills/mes/&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:var(--text-muted);"># MES 10 个 YAML 工具声明</span></div>
+    <div>&nbsp;&nbsp;skills/common/&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:var(--text-muted);"># 跨系统工具（glossary.resolve）</span></div>
+    <div>&nbsp;&nbsp;mcp-server/src/&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:var(--text-muted);"># MCP Server — Handlers + Resolvers + Jmix API Client</span></div>
+    <div>&nbsp;&nbsp;scripts/&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:var(--text-muted);"># Benchmark 脚本（单系统 + 平台级三层）</span></div>
+    <div>&nbsp;&nbsp;data/&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:var(--text-muted);"># 测试用例 + Ground Truth + 评估报告</span></div>
+  </div>
+</section>
+
+<!-- ========== 接入新系统 ========== -->
+<section>
+  <h2>接入新系统的标准流程</h2>
+  <div style="background:var(--card); border:1px solid var(--border); border-radius:var(--radius); padding:20px 24px; box-shadow:var(--shadow);">
+    <ol style="padding-left:20px; font-size:.9rem;">
+      <li style="margin-bottom:10px;"><strong>systems.ts 注册</strong> &mdash; 加一条系统元数据（label / scope / domainModel / 术语表 / 领域公式）</li>
+      <li style="margin-bottom:10px;"><strong>mcp-server/src/jmix-api.ts</strong> &mdash; createJmixClient(config) 创建新系统的 API 客户端实例</li>
+      <li style="margin-bottom:10px;"><strong>mcp-server/src/handlers/</strong> &mdash; 编写 Handler（数据获取 + Resolver + 聚合）</li>
+      <li style="margin-bottom:10px;"><strong>skills/&lt;system&gt;/</strong> &mdash; 编写 YAML 工具声明（when_to_use 是最重要的字段）</li>
+      <li style="margin-bottom:10px;"><strong>few-shot-examples.json</strong> &mdash; 补充 1-2 个新系统示例</li>
+      <li style="margin-bottom:10px;"><strong>data/platform-test-cases.ts</strong> &mdash; 加 L1 路由消歧题 + L2 跨系统题 + L3 单系统题</li>
+      <li><strong>跑 Benchmark 验证</strong> &mdash; npx tsx scripts/benchmark-platform.ts</li>
+    </ol>
+    <p style="margin-top:14px; font-size:.85rem; color:var(--text-muted);">MES 系统从零到全栈落地（10 工具 + Benchmark 通过）仅用一个下午完成，验证了这套标准流程的可复制性。</p>
+  </div>
+</section>
+
+<footer>
+  Lantern &mdash; 上海麒至智能科技 &copy; 2026 &nbsp;|&nbsp; 让每个企业系统都能被自然语言操作
+</footer>
+
+</div>
+</body>
+</html>

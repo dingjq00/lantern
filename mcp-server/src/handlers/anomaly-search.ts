@@ -54,8 +54,13 @@ export function registerAnomalySearch(server: McpServer) {
       if (scope.type === 'error') return textResult(scope.response)
       const scopeEquipmentIds = scope.type === 'ids' ? scope.ids : null
 
+      // 防御: filter 已指定具体值时，groupBy 同维度是多余的
+      const effectiveGroupBy = (args.groupBy === 'severity' && args.severity !== undefined)
+        || (args.groupBy === 'source' && args.source !== undefined)
+        ? undefined : args.groupBy
+
       const result = await eamSearch<AnomalyRecord>('/eam/anomaly/page', params, {
-        groupBy: args.groupBy,
+        groupBy: effectiveGroupBy,
         groupKeyFn: (a, gb) => gb === 'equipment' ? String(a.equipmentId)
           : gb === 'severity' ? SEVERITY_MAP[a.severity] ?? String(a.severity)
           : a.source ?? 'unknown',

@@ -53,8 +53,12 @@ export function registerMaintenanceSearch(server: McpServer) {
       // productionLine groupBy 需要 eq→line 映射
       const eqToLine = args.groupBy === 'productionLine' ? await getEquipmentToLineMap() : null
 
+      // 防御: filter 已指定具体值时，groupBy 同维度是多余的
+      const effectiveGroupBy = (args.groupBy === 'status' && args.status !== undefined)
+        ? undefined : args.groupBy
+
       const result = await eamSearch<MaintenanceTask>('/eam/maintenance/task/page', params, {
-        groupBy: args.groupBy,
+        groupBy: effectiveGroupBy,
         groupKeyFn: (t, gb) => gb === 'equipment' ? String(t.equipmentId)
           : gb === 'productionLine' ? (eqToLine?.get(t.equipmentId) ?? '未分配产线')
           : MAINT_STATUS[t.status] ?? String(t.status),

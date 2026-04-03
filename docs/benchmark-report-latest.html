@@ -1,0 +1,1266 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lantern 平台级 Benchmark 报告 — 2026-04-03</title>
+<style>
+  :root {
+    --bg: #f7f9f4; --card: #ffffff; --border: #d4ddc7;
+    --accent: #3a7d44; --accent-light: #e8f0e4;
+    --text: #2c3e2d; --text-muted: #6b7c6d;
+    --pass: #2d8a3e; --warn: #c68b1e; --fail: #c0392b;
+    --shadow: 0 2px 12px rgba(58,125,68,.08);
+    --radius: 10px;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, 'PingFang SC', 'Noto Sans SC', sans-serif; background: var(--bg); color: var(--text); line-height: 1.7; }
+  .container { max-width: 1100px; margin: 0 auto; padding: 36px 24px 60px; }
+
+  /* 标题区 */
+  .report-header { text-align: center; margin-bottom: 40px; }
+  .report-header h1 { font-size: 1.8rem; color: var(--accent); font-weight: 700; margin-bottom: 6px; }
+  .report-header .subtitle { color: var(--text-muted); font-size: 0.95rem; }
+  .report-header .run-id { font-family: monospace; font-size: 0.82rem; color: #999; margin-top: 4px; }
+
+  /* KPI 卡片 */
+  .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 36px; }
+  .kpi-card {
+    background: var(--card); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 20px 16px; text-align: center; box-shadow: var(--shadow);
+  }
+  .kpi-card .kpi-value { font-size: 2rem; font-weight: 800; color: var(--accent); line-height: 1.2; }
+  .kpi-card .kpi-label { font-size: 0.85rem; color: var(--text-muted); margin-top: 4px; }
+  .kpi-card.kpi-warn .kpi-value { color: var(--warn); }
+
+  /* 层级筛选 */
+  .level-filter { display: flex; gap: 10px; margin-bottom: 24px; flex-wrap: wrap; }
+  .level-filter button {
+    padding: 6px 18px; border-radius: 20px; border: 1px solid var(--border);
+    background: var(--card); color: var(--text-muted); cursor: pointer;
+    font-size: 0.88rem; transition: all .2s;
+  }
+  .level-filter button:hover, .level-filter button.active {
+    background: var(--accent); color: #fff; border-color: var(--accent);
+  }
+
+  /* 题目卡片 */
+  .card {
+    background: var(--card); border: 1px solid var(--border); border-radius: var(--radius);
+    margin-bottom: 18px; box-shadow: var(--shadow); overflow: hidden;
+    transition: box-shadow .2s;
+  }
+  .card:hover { box-shadow: 0 4px 20px rgba(58,125,68,.12); }
+  .card-warn { border-left: 4px solid var(--warn); }
+
+  .card-header { padding: 16px 20px 10px; }
+  .card-title-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 8px; }
+  .case-id { font-weight: 700; font-size: 1.05rem; color: var(--accent); }
+  .level-badge {
+    font-size: 0.75rem; padding: 2px 10px; border-radius: 12px; font-weight: 600;
+  }
+  .warn-badge {
+    font-size: 0.78rem; padding: 2px 10px; border-radius: 12px;
+    background: #fef3c7; color: var(--warn); border: 1px solid #f59e0b30;
+  }
+  .status-badge { margin-left: auto; font-size: 0.85rem; font-weight: 600; }
+  .query-text { font-size: 1.05rem; font-weight: 600; color: var(--text); }
+
+  .card-meta { padding: 0 20px 12px; }
+  .meta-row { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-bottom: 4px; }
+  .meta-label { font-size: 0.78rem; color: var(--text-muted); min-width: 60px; }
+  .meta-value { font-size: 0.85rem; color: var(--text); }
+  .meta-value.mono { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.8rem; color: #4a6b4e; }
+  .meta-value.expected { color: #888; }
+
+  .answer-section { border-top: 1px solid var(--border); padding: 14px 20px 18px; }
+  .answer-label { font-size: 0.78rem; color: var(--text-muted); margin-bottom: 8px; font-weight: 600; letter-spacing: 0.5px; text-transform: uppercase; }
+  .answer-content {
+    font-size: 0.92rem; line-height: 1.75; color: #333;
+    max-height: 300px; overflow-y: auto;
+    padding-right: 8px;
+  }
+  .answer-content::-webkit-scrollbar { width: 5px; }
+  .answer-content::-webkit-scrollbar-track { background: #f0f0f0; border-radius: 3px; }
+  .answer-content::-webkit-scrollbar-thumb { background: #c5d4c7; border-radius: 3px; }
+  .answer-content strong { color: var(--accent); font-weight: 600; }
+  .answer-content code { background: #e8f0e4; padding: 1px 4px; border-radius: 3px; font-size: 0.9em; }
+
+  /* 底部说明 */
+  .methodology {
+    margin-top: 48px; padding: 24px; background: var(--card);
+    border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow);
+  }
+  .methodology h3 { color: var(--accent); font-size: 1.1rem; margin-bottom: 12px; }
+  .methodology p, .methodology li { font-size: 0.88rem; color: var(--text-muted); line-height: 1.8; }
+  .methodology ul { padding-left: 20px; }
+
+  .footer { text-align: center; margin-top: 32px; font-size: 0.78rem; color: #aaa; }
+
+  @media (max-width: 640px) {
+    .kpi-grid { grid-template-columns: repeat(2, 1fr); }
+    .container { padding: 20px 12px 40px; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <!-- 标题 -->
+  <div class="report-header">
+    <h1>Lantern 平台级 Benchmark 报告</h1>
+    <div class="subtitle">EAM 青川制药 + EDHR 医疗器械 + MES 克丽缇娜 &mdash; 三层评测</div>
+    <div class="run-id">运行 ID: platform-v1-2026-04-03T07-58-55 &nbsp;|&nbsp; 模型: deepseek-chat &nbsp;|&nbsp; 2026-04-03</div>
+  </div>
+
+  <!-- KPI 总览 -->
+  <div class="kpi-grid">
+    <div class="kpi-card">
+      <div class="kpi-value">30/30</div>
+      <div class="kpi-label">总题数 / 通过</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-value">12/12</div>
+      <div class="kpi-label">L1 系统路由 (100%)</div>
+    </div>
+    <div class="kpi-card kpi-warn">
+      <div class="kpi-value">5/6</div>
+      <div class="kpi-label">L2 跨系统推理 (91.7%)</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-value">12/12</div>
+      <div class="kpi-label">L3 MES 单系统 (100%)</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-value">31.7s</div>
+      <div class="kpi-label">平均耗时</div>
+    </div>
+  </div>
+
+  <!-- 层级筛选 -->
+  <div class="level-filter">
+    <button class="active" onclick="filterCards('all')">全部 (30)</button>
+    <button onclick="filterCards('routing')">L1 路由 (12)</button>
+    <button onclick="filterCards('cross-system')">L2 跨系统 (6)</button>
+    <button onclick="filterCards('single-system')">L3 MES (12)</button>
+  </div>
+
+  <!-- 题目卡片 -->
+  <div id="cards-container">
+    
+    <div class="card " id="case-P01">
+      <div class="card-header">
+        <div class="card-title-row">
+          <span class="case-id">P01</span>
+          <span class="level-badge" style="background:#eff6ff;color:#2563eb;border:1px solid #2563eb30">L1 路由</span>
+          
+          <span class="status-badge" style="color:var(--fail)">&#10008; 未通过</span>
+        </div>
+        <div class="query-text">有多少工单在执行中？</div>
+      </div>
+
+      <div class="card-meta">
+        <div class="meta-row">
+          <span class="meta-label">调用工具</span>
+          <span class="meta-value mono">eam.repair.search, edhr.order.search, mes.order.search</span>
+        </div>
+        <div class="meta-row">
+          <span class="meta-label">期望工具</span>
+          <span class="meta-value mono expected">eam.dashboard</span>
+        </div>
+        <div class="meta-row">
+          <span class="meta-label">Recall</span>
+          <span class="meta-value">0%</span>
+          <span class="meta-label" style="margin-left:20px">耗时</span>
+          <span class="meta-value">24.8s</span>
+          <span class="meta-label" style="margin-left:20px">轮次</span>
+          <span class="meta-value">2</span>
+        </div>
+      </div>
+
+      <div class="answer-section">
+        <div class="answer-label">AI 回答</div>
+        <div class="answer-content">目前共有 <strong>67 张工单在执行中</strong>，分布在两个业务领域：<br><br><strong>1. 维修工单（EAM 系统）</strong><br><span style="color:#3a7d44;margin-right:4px">&#8226;</span><strong>数量</strong>：10 张（预计算统计显示 <code style="background:#e8f0e4;padding:1px 4px;border-radius:3px;font-size:0.9em">statusText</code> 为“维修中”的工单共 10 张，占比 100%）<br><span style="color:#3a7d44;margin-right:4px">&#8226;</span><strong>类型</strong>：全部为“纠正性维修”（<code style="background:#e8f0e4;padding:1px 4px;border-radius:3px;font-size:0.9em">orderType</code> 均为 <code style="background:#e8f0e4;padding:1px 4px;border-radius:3px;font-size:0.9em">corrective</code>）<br><span style="color:#3a7d44;margin-right:4px">&#8226;</span><strong>关键发现</strong>：所有维修工单均处于“维修中”状态，且维修完成率为 0%（预计算指标显示）。这意味着近期没有维修工单被关闭，可能存在维修积压或流程卡滞。<br><br><strong>2. 生产工单（MES 系统）</strong><br><span style="color:#3a7d44;margin-right:4px">&#8226;</span><strong>数量</strong>：55 张（预计算统计显示 <code style="background:#e8f0e4;padding:1px 4px;border-radius:3px;font-size:0.9em">status</code> 为 <code style="background:#e8f0e4;padding:1px 4px;border-radius:3px;font-size:0.9em">RUNNING</code> 的工单共 55 张，占比 100%）<br><span style="color:#3a7d44;margin-right:4px">&#8226;</span><strong>类型分布</strong>：<br>  <span style="color:#3a7d44;margin-right:4px">&#8226;</span>标准生产工单（<code style="background:#e8f0e4;padding:1px 4px;border-radius:3px;font-size:0.9em">STANDARD</code>）：47 张（占 85.5%）<br>  <span style="color:#3a7d44;margin-right:4px">&#8226;</span>试产工单（<code style="background:#e8f0e4;padding:1px 4px;border-radius:3px;font-size:0.9em">TRIAL_PRODUCTION</code>）：6 张（占 10.9%）<br>  <span style="color:#3a7d44;margin-right:4px">&#8226;</span>拆解工单（<code style="background:#e8f0e4;padding:1px 4px;border-radius:3px;font-size:0.9em">DISASSEMBLY</code>）：2 张（占 3.6%）<br><span style="color:#3a7d44;margin-right:4px">&#8226;</span><strong>生产进度</strong>：计划总产量 93,334 件，实际完成 60,113 件，整体完成率约 64.4%。但请注意，有大量工单（如 <code style="background:#e8f0e4;padding:1px 4px;border-radius:3px;font-size:0.9em">10016819TEST1</code>）实际完成量为 0，可能处于等待或停滞状态。<br><br><strong>综合洞察</strong>：<br><span style="color:#3a7d44;margin-right:4px">&#8226;</span>执行中工单总量为 67 张，其中生产工单占主体（82%）。<br><span style="color:#3a7d44;margin-right:4px">&#8226;</span><strong>维修领域存在明显瓶颈</strong>：10 张维修工单全部未完成，且维修完成率为 0%，需立即关注维修效率。<br><span style="color:#3a7d44;margin-right:4px">&#8226;</span><strong>生产领域进度不均</strong>：虽然所有生产工单都在运行中，但实际产量完成率仅 64%，且许多工单实际产量为 0，可能存在资源调度或工序阻塞问题。<br><br><strong>行动建议</strong>：立即优先排查那 10 张长期处于“维修中”状态的工单，查明卡滞原因（如备件短缺、人力不足或技术难题），并推动关闭，以释放维修资源并降低设备停机风险。</div>
+      </div>
+    </div>
+
+    <div class="card " id="case-P02">
+      <div class="card-header">
+        <div class="card-title-row">
+          <span class="case-id">P02</span>
+          <span class="level-badge" style="background:#eff6ff;color:#2563eb;border:1px solid #2563eb30">L1 路由</span>
+          
+          <span class="status-badge" style="color:var(--fail)">&#10008; 未通过</span>
+        </div>
+        <div class="query-text">生产工单完成率是多少？</div>
+      </div>
+
+      <div class="card-meta">
+        <div class="meta-row">
+          <span class="meta-label">调用工具</span>
+          <span class="meta-value mono">mes.trend</span>
+        </div>
+        <div class="meta-row">
+          <span class="meta-label">期望工具</span>
+          <span class="meta-value mono expected">mes.order.search</span>
+        </div>
+        <div class="meta-row">
+          <span class="meta-label">Recall</span>
+          <span class="meta-value">0%</span>
+          <span class="meta-label" style="margin-left:20px">耗时</span>
+          <span class="meta-value">18.8s</span>
+          <span class="meta-label" style="margin-left:20px">轮次</span>
+          <span class="meta-value">2</span>
+        </div>
+      </div>
+
+      <div class="answer-section">
+        <div class="answer-label">AI 回答</div>
+        <div class="answer-content">目前没有生产工单的记录，无法直接计算完成率。<br><br>不过，从业务关系链来看，生产工单会拆分为批次工单和班次工单，班次工单关联配方和产线。系统中有产线分类（如称量、乳化、灌装/包装、检验），配方状态包括INIT、EFFECITVE（注意拼写）、ARCHIVED，数据时间范围从2023年11月到2025年4月。<br><br>建议：立即检查生产工单模块的数据连接或录入情况，确保生产计划能正常跟踪。</div>
+      </div>
+    </div>
+
+    <div class="card " id="case-P03">
+      <div class="card-header">
+        <div class="card-title-row">
+          <span class="case-id">P03</span>
+          <span class="level-badge" style="background:#eff6ff;color:#2563eb;border:1px solid #2563eb30">L1 路由</span>
+          
+          <span class="status-badge" style="color:var(--pass)">&#10004; 通过</span>
+        </div>
+        <div class="query-text">设备故障率最高的是哪台？</div>
+      </div>
+
+      <div class="card-meta">
+        <div class="meta-row">
+          <span class="meta-label">调用工具</span>
+          <span class="meta-value mono">common.glossary.resolve, eam.fault.search, eam.dashboard</span>
+        </div>
+        <div class="meta-row">
+          <span class="meta-label">期望工具</span>
+          <span class="meta-value mono expected">eam.fault.search</span>
+        </div>
+        <div class="meta-row">
+          <span class="meta-label">Recall</span>
+          <span class="meta-value">100%</span>
+          <span class="meta-label" style="margin-left:20px">耗时</span>
+          <span class="meta-value">32.8s</span>
+          <span class="meta-label" style="margin-left:20px">轮次</span>
+          <span class="meta-value">2</span>
+        </div>
+      </div>
+
+      <div class="answer-section">
+        <div class="answer-label">AI 回答</div>
+        <div class="answer-content">根据现有数据，无法直接回答“设备故障率最高的是哪台”，因为数据中没有提供每台设备的运行时长或使用频率来计算故障率（故障次数/运行时间）。不过，我可以从故障次数这个角度，帮你找出故障最频繁的设备。<br><br><strong>核心发现：</strong><br><span style="color:#3a7d44;margin-right:4px">&#8226;</span><strong>故障总览：</strong> 系统中共有150台设备，当前有8台处于故障状态。故障报修记录共200条，涉及120台不同的设备。<br><span style="color:#3a7d44;margin-right:4px">&#8226;</span><strong>故障次数分布：</strong> 大部分设备（80台）有2次故障记录，占比1.0%；另有40台设备有1次故障记录，占比0.5%。<br><span style="color:#3a7d44;margin-right:4px">&#8226;</span><strong>故障最频繁的设备（按次数）：</strong> 有80台设备并列故障次数最高，均为2次。这些设备覆盖了生产、公用工程和包装等多个环节，例如：<br>  <span style="color:#3a7d44;margin-right:4px">&#8226;</span><strong>生产设备：</strong> 湿法制粒机、高速压片机、胶囊充填机、铝塑包装机等<br>  <span style="color:#3a7d44;margin-right:4px">&#8226;</span><strong>公用工程：</strong> 纯化水制备系统、组合式空调机组、冷水机组等<br>  <span style="color:#3a7d44;margin-right:4px">&#8226;</span><strong>包装设备：</strong> 装盒机、贴标机、自动瓶装线等<br><span style="color:#3a7d44;margin-right:4px">&#8226;</span><strong>关键异常：</strong> 所有故障次数为2次的设备，平均故障间隔均为87天，这表明这些设备的故障模式可能具有周期性或系统性原因，值得重点关注。<br><br><strong>行动建议：</strong><br>立即对这80台故障次数为2次且平均间隔87天的设备进行专项排查，优先检查其保养记录和维修历史，找出共性问题（如特定部件磨损、操作规范问题或环境因素），制定预防性维护计划，避免故障再次发生。<br><br><strong>后续探索方向：</strong><br><span style="color:#3a7d44;margin-right:4px">1.</span>查看这80台设备中任意一台（如EQ-A101-001湿法制粒机 #1）的详细维修历史，分析故障原因是否重复<br><span style="color:#3a7d44;margin-right:4px">2.</span>按产线（如A线生产设备）聚合故障数据，找出故障高发的产线环节<br><span style="color:#3a7d44;margin-right:4px">3.</span>关联维修工单数据，分析这80台设备的平均维修成本和耗时<br><span style="color:#3a7d44;margin-right:4px">4.</span>检查这些设备的保养完成情况，确认是否因保养缺失导致故障频发<br><span style="color:#3a7d44;margin-right:4px">5.</span>对比故障间隔87天的设备与单次故障设备，分析其备件消耗差异</div>
+      </div>
+    </div>
+
+    <div class="card " id="case-P04">
+      <div class="card-header">
+        <div class="card-title-row">
+          <span class="case-id">P04</span>
+          <span class="level-badge" style="background:#eff6ff;color:#2563eb;border:1px solid #2563eb30">L1 路由</span>
+          
+          <span class="status-badge" style="color:var(--fail)">&#10008; 未通过</span>
+        </div>
+        <div class="query-text">完成率是多少？</div>
+      </div>
+
+      <div class="card-meta">
+        <div class="meta-row">
+          <span class="meta-label">调用工具</span>
+          <span class="meta-value mono">mes.trend, mes.order.search</span>
+        </div>
+        <div class="meta-row">
+          <span class="meta-label">期望工具</span>
+          <span class="meta-value mono expected">eam.dashboard</span>
+        </div>
+        <div class="meta-row">
+          <span class="meta-label">Recall</span>
+          <span class="meta-value">0%</span>
+          <span class="meta-label" style="margin-left:20px">耗时</span>
+          <span class="meta-value">34.1s</span>
+          <span class="meta-label" style="margin-left:20px">轮次</span>
+          <span class="meta-value">3</span>
+        </div>
+      </div>
+
+      <div class="answer-section">
+        <div class="answer-label">AI 回答</div>
+        <div class="answer-content">根据预计算统计，工单完成率是 <strong>29%</strong>（29条已完成工单 / 100条样本工单）。这个数字远低于80%的常规目标，说明生产进度严重滞后。<br><br><strong>关键发现：</strong><br><span style="color:#3a7d44;margin-right:4px">1.</span><strong>工单状态分布</strong>：在100条样本工单中，只有29%已完成（FINISHED），32%还在生产中（RUNNING），24%尚未开始（INIT），还有10%已确认但未开工（CONFIRMED）。这意味着超过一半的工单（66%）都处于未完成状态。<br><span style="color:#3a7d44;margin-right:4px">2.</span><strong>数量完成率更低</strong>：从数量角度看，计划总产量是272,141.8，实际完成82,122.7，数量完成率只有 <strong>30.2%</strong>（82,122.7 ÷ 272,141.8），与工单完成率基本一致，说明不仅是进度慢，产量也严重不足。<br><span style="color:#3a7d44;margin-right:4px">3.</span><strong>异常情况</strong>：有2条工单被取消（CANCELED），3条已关闭（CLOSED）但实际产量为0，这可能意味着生产中断或计划变更。<br><br><strong>行动建议</strong>：立即检查产线瓶颈和物料齐套情况，特别是那些已确认但未开工（CONFIRMED）和已开始但进度缓慢（RUNNING）的工单，优先解决物料短缺或设备故障问题。</div>
+      </div>
+    </div>
+
+    <div class="card " id="case-P05">
+      <div class="card-header">
+        <div class="card-title-row">
+          <span class="case-id">P05</span>
+          <span class="level-badge" style="background:#eff6ff;color:#2563eb;border:1px solid #2563eb30">L1 路由</span>
+          
+          <span class="status-badge" style="color:var(--pass)">&#10004; 通过</span>
+        </div>
+        <div class="query-text">仓库里有多少冻结的批次？</div>
+      </div>
+
+      <div class="card-meta">
+        <div class="meta-row">
+          <span class="meta-label">调用工具</span>
+          <span class="meta-value mono">mes.sublot.search</span>
+        </div>
+        <div class="meta-row">
+          <span class="meta-label">期望工具</span>
+          <span class="meta-value mono expected">mes.sublot.search</span>
+        </div>
+        <div class="meta-row">
+          <span class="meta-label">Recall</span>
+          <span class="meta-value">100%</span>
+          <span class="meta-label" style="margin-left:20px">耗时</span>
+          <span class="meta-value">22.4s</span>
+          <span class="meta-label" style="margin-left:20px">轮次</span>
+          <span class="meta-value">3</span>
+        </div>
+      </div>
+
+      <div class="answer-section">
+        <div class="answer-label">AI 回答</div>
+        <div class="answer-content">仓库里目前有1232个冻结的批次，占所有批次记录的100%。这意味着所有批次都处于冻结状态，没有已放行或检验中的批次。<br><br><strong>关键发现</strong>：<br><span style="color:#3a7d44;margin-right:4px">&#8226;</span>所有批次都被冻结，这可能意味着近期生产或检验流程出现了系统性问题，导致批次无法正常流转。<br><span style="color:#3a7d44;margin-right:4px">&#8226;</span>冻结批次无法用于后续生产或发货，可能影响订单交付和库存周转。<br><br><strong>行动建议</strong>：立即检查批次冻结的原因（如质量检验未通过、系统设置问题或流程卡顿），并优先处理高优先级批次以恢复生产。</div>
+      </div>
+    </div>
+
+    <div class="card " id="case-P06">
+      <div class="card-header">
+        <div class="card-title-row">
+          <span class="case-id">P06</span>
+          <span class="level-badge" style="background:#eff6ff;color:#2563eb;border:1px solid #2563eb30">L1 路由</span>
+          
+          <span class="status-badge" style="color:var(--pass)">&#10004; 通过</span>
+        </div>
+        <div class="query-text">压片线最近怎么样？</div>
+      </div>
+
+      <div class="card-meta">
+        <div class="meta-row">
+          <span class="meta-label">调用工具</span>
+          <span class="meta-value mono">eam.scope.overview, mes.line.overview</span>
+        </div>
+        <div class="meta-row">
+          <span class="meta-label">期望工具</span>
+          <span class="meta-value mono expected">eam.scope.overview, mes.line.overview</span>
+        </div>
+        <div class="meta-row">
+          <span class="meta-label">Recall</span>
+          <span class="meta-value">100%</span>
+          <span class="meta-label" style="margin-left:20px">耗时</span>
+          <span class="meta-value">26.6s</span>
+          <span class="meta-label" style="margin-left:20px">轮次</span>
+          <span class="meta-value">2</span>
+        </div>
+      </div>
+
+      <div class="answer-section">
+        <div class="answer-label">AI 回答</div>
+        <div class="answer-content">压片线目前整体运行平稳，但设备维护压力较大。核心数据如下：<br><br><strong>设备状态</strong>：共16台设备，其中15台是关键设备（占比93.8%）。当前13台运行中（81.3%），2台维修中（高速压片机 #4、旋转压片机 #4），1台状态为“其他”（高速压片机 #7）。<br><br><strong>维护情况</strong>：<br><span style="color:#3a7d44;margin-right:4px">&#8226;</span><strong>故障</strong>：累计30次，无待处理故障。<br><span style="color:#3a7d44;margin-right:4px">&#8226;</span><strong>维修</strong>：累计24次，无进行中的维修。<br><span style="color:#3a7d44;margin-right:4px">&#8226;</span><strong>保养</strong>：累计42次保养任务，完成37次，完成率88%，无逾期任务。<br><span style="color:#3a7d44;margin-right:4px">&#8226;</span><strong>异常</strong>：累计15条异常记录。<br><br><strong>关键发现</strong>：<br><span style="color:#3a7d44;margin-right:4px">1.</span><strong>设备可用性高</strong>：81.3%的设备在运行，但2台关键压片机正在维修，可能影响产能。<br><span style="color:#3a7d44;margin-right:4px">2.</span><strong>维护活动频繁</strong>：故障、维修、保养、异常合计111次，平均每台设备近7次，说明维护负担较重。<br><span style="color:#3a7d44;margin-right:4px">3.</span><strong>保养完成率良好</strong>：88%的完成率显示保养计划执行到位，但仍有5次未完成。<br><span style="color:#3a7d44;margin-right:4px">4.</span><strong>MES数据缺失</strong>：系统未找到压片线的生产数据（如产量、OEE），无法评估生产效率。<br><br><strong>行动建议</strong>：优先检查2台维修中的压片机（高速压片机 #4、旋转压片机 #4）的维修进度，确保尽快恢复生产，并排查高速压片机 #7的“其他”状态原因。</div>
+      </div>
+    </div>
+
+    <div class="card " id="case-P07">
+      <div class="card-header">
+        <div class="card-title-row">
+          <span class="case-id">P07</span>
+          <span class="level-badge" style="background:#eff6ff;color:#2563eb;border:1px solid #2563eb30">L1 路由</span>
+          
+          <span class="status-badge" style="color:var(--pass)">&#10004; 通过</span>
+        </div>
+        <div class="query-text">检测不合格率是多少？</div>
+      </div>
+
+      <div class="card-meta">
+        <div class="meta-row">
+          <span class="meta-label">调用工具</span>
+          <span class="meta-value mono">edhr.item.search</span>
+        </div>
+        <div class="meta-row">
+          <span class="meta-label">期望工具</span>
+          <span class="meta-value mono expected">edhr.item.search</span>
+        </div>
+        <div class="meta-row">
+          <span class="meta-label">Recall</span>
+          <span class="meta-value">100%</span>
+          <span class="meta-label" style="margin-left:20px">耗时</span>
+          <span class="meta-value">21.4s</span>
+          <span class="meta-label" style="margin-left:20px">轮次</span>
+          <span class="meta-value">2</span>
+        </div>
+      </div>
+
+      <div class="answer-section">
+        <div class="answer-label">AI 回答</div>
+        <div class="answer-content">目前没有检测记录，无法计算不合格率。<br><br>从业务关系链看，检测不合格率是质量管理的核心指标，通常基于工单产生的检测项（PASSED/FAILED/INIT）来计算。但当前数据中，无论是预计算统计还是原始数据，都只返回了OAuth2认证失败的错误信息（401 invalid_client），这意味着系统未能成功获取到任何检测相关的数据。<br><br><strong>关键发现</strong>：<br><span style="color:#3a7d44;margin-right:4px">&#8226;</span>数据查询失败，可能由于认证配置问题或数据源不可用。<br><span style="color:#3a7d44;margin-right:4px">&#8226;</span>根据提示，数据时间范围是2024年4月至8月，但当前无法访问。<br><br><strong>行动建议</strong>：立即检查系统认证配置（如OAuth2客户端ID和密钥），确保能正常访问数据源，然后重新查询检测记录。</div>
+      </div>
+    </div>
+
+    <div class="card " id="case-P08">
+      <div class="card-header">
+        <div class="card-title-row">
+          <span class="case-id">P08</span>
+          <span class="level-badge" style="background:#eff6ff;color:#2563eb;border:1px solid #2563eb30">L1 路由</span>
+          
+          <span class="status-badge" style="color:var(--pass)">&#10004; 通过</span>
+        </div>
+        <div class="query-text">最近有多少异常？</div>
+      </div>
+
+      <div class="card-meta">
+        <div class="meta-row">
+          <span class="meta-label">调用工具</span>
+          <span class="meta-value mono">eam.anomaly.search, edhr.exception.search</span>
+        </div>
+        <div class="meta-row">
+          <span class="meta-label">期望工具</span>
+          <span class="meta-value mono expected">eam.anomaly.search</span>
+        </div>
+        <div class="meta-row">
+          <span class="meta-label">Recall</span>
+          <span class="meta-value">100%</span>
+          <span class="meta-label" style="margin-left:20px">耗时</span>
+          <span class="meta-value">30.7s</span>
+          <span class="meta-label" style="margin-left:20px">轮次</span>
+          <span class="meta-value">3</span>
+        </div>
+      </div>
+
+      <div class="answer-section">
+        <div class="answer-label">AI 回答</div>
+        <div class="answer-content">目前没有异常记录。从预计算统计看，异常搜索返回 total=0，说明近期没有巡检发现的异常。但系统返回了 OAuth2 认证失败的错误（401 invalid_client），这属于系统层面的异常，可能影响数据查询。<br><br>从业务角度看，异常通常来自巡检任务。虽然没有异常记录，但我们可以关注相关环节：<br><span style="color:#3a7d44;margin-right:4px">&#8226;</span>设备巡检任务是否正常执行？<br><span style="color:#3a7d44;margin-right:4px">&#8226;</span>故障报修是否有新增？异常可能直接升级为故障<br><span style="color:#3a7d44;margin-right:4px">&#8226;</span>系统认证问题是否导致数据无法正常上报？<br><br>建议：立即检查系统认证配置，确保数据采集正常；同时查看最近一周的巡检任务完成情况，确认是否因系统问题导致异常漏报。</div>
+      </div>
+    </div>
+
+    <div class="card " id="case-P09">
+      <div class="card-header">
+        <div class="card-title-row">
+          <span class="case-id">P09</span>
+          <span class="level-badge" style="background:#eff6ff;color:#2563eb;border:1px solid #2563eb30">L1 路由</span>
+          
+          <span class="status-badge" style="color:var(--pass)">&#10004; 通过</span>
+        </div>
+        <div class="query-text">乳霜的配方是什么？</div>
+      </div>
+
+      <div class="card-meta">
+        <div class="meta-row">
+          <span class="meta-label">调用工具</span>
+          <span class="meta-value mono">mes.recipe.profile</span>
+        </div>
+        <div class="meta-row">
+          <span class="meta-label">期望工具</span>
+          <span class="meta-value mono expected">mes.recipe.profile</span>
+        </div>
+        <div class="meta-row">
+          <span class="meta-label">Recall</span>
+          <span class="meta-value">100%</span>
+          <span class="meta-label" style="margin-left:20px">耗时</span>
+          <span class="meta-value">16.1s</span>
+          <span class="meta-label" style="margin-left:20px">轮次</span>
+          <span class="meta-value">2</span>
+        </div>
+      </div>
+
+      <div class="answer-section">
+        <div class="answer-label">AI 回答</div>
+        <div class="answer-content">目前没有乳霜的配方记录。系统查询未找到匹配的配方，这可能意味着：1. 配方尚未录入系统；2. 配方名称不匹配（例如，可能叫“润肤霜”或“保湿霜”而非“乳霜”）；3. 配方状态为已归档（ARCHIVED），不在当前有效范围内。<br><br>从业务关系链看，配方是生产的基础，定义了工艺路线和组分。既然没有配方记录，建议立即检查配方管理模块，确保所有产品配方都已正确录入并设置为有效状态（EFFECITVE），以避免影响后续生产工单的创建和执行。<br><br>行动建议：联系配方管理员，核实乳霜配方的录入情况，并确保其状态为有效，以便顺利关联到生产工单。</div>
+      </div>
+    </div>
+
+    <div class="card " id="case-P10">
+      <div class="card-header">
+        <div class="card-title-row">
+          <span class="case-id">P10</span>
+          <span class="level-badge" style="background:#eff6ff;color:#2563eb;border:1px solid #2563eb30">L1 路由</span>
+          
+          <span class="status-badge" style="color:var(--pass)">&#10004; 通过</span>
+        </div>
+        <div class="query-text">工厂今天整体怎么样？</div>
+      </div>
+
+      <div class="card-meta">
+        <div class="meta-row">
+          <span class="meta-label">调用工具</span>
+          <span class="meta-value mono">eam.dashboard, edhr.dashboard, mes.dashboard, eam.scope.overview, edhr.order.search, edhr.product.search</span>
+        </div>
+        <div class="meta-row">
+          <span class="meta-label">期望工具</span>
+          <span class="meta-value mono expected">eam.dashboard, mes.dashboard</span>
+        </div>
+        <div class="meta-row">
+          <span class="meta-label">Recall</span>
+          <span class="meta-value">100%</span>
+          <span class="meta-label" style="margin-left:20px">耗时</span>
+          <span class="meta-value">50.2s</span>
+          <span class="meta-label" style="margin-left:20px">轮次</span>
+          <span class="meta-value">3</span>
+        </div>
+      </div>
+
+      <div class="answer-section">
+        <div class="answer-label">AI 回答</div>
+        <div class="answer-content">工厂今天整体运行平稳，生产任务完成度高，但设备维护和故障处理方面存在积压，需要重点关注。<br><br><strong>核心数据概览：</strong><br><span style="color:#3a7d44;margin-right:4px">&#8226;</span><strong>设备运行：</strong> 150台设备中，120台正常运行，8台故障，设备运行率为80%。<br><span style="color:#3a7d44;margin-right:4px">&#8226;</span><strong>生产订单：</strong> 1757个订单中，1613个已完成，完成率高达91.8%。目前有55个订单正在生产中。<br><span style="color:#3a7d44;margin-right:4px">&#8226;</span><strong>维护积压：</strong> 有10个故障报修待处理、30个维修工单待完成、18个保养任务待执行，还有13个备件库存预警和15个待办事项。<br><span style="color:#3a7d44;margin-right:4px">&#8226;</span><strong>仓库与物料：</strong> 库存订单总量44434条，物料主数据16195种，批次86437个，子批次77983个。<br><br><strong>关键发现：</strong><br><span style="color:#3a7d44;margin-right:4px">1.</span><strong>生产高效但设备压力大：</strong> 订单完成率很高，但设备故障率（5.3%）和待处理维护任务（共71项）表明设备负荷较重，可能影响后续生产稳定性。<br><span style="color:#3a7d44;margin-right:4px">2.</span><strong>维护响应滞后：</strong> 故障报修有200条记录，但待处理仅10条，说明大部分已响应，但维修工单仍有30条待完成，维修效率有待提升。保养任务积压18条，预防性维护可能不足。<br><span style="color:#3a7d44;margin-right:4px">3.</span><strong>产线多样化：</strong> 共有19条产线，包括乳化机、搅拌锅、手工线、自动线等，生产布局复杂。<br><span style="color:#3a7d44;margin-right:4px">4.</span><strong>仓库操作繁忙：</strong> 库存订单以仓库操作（10000条）和批次检验（5730条）为主，物料流转活跃。<br><span style="color:#3a7d44;margin-right:4px">5.</span><strong>数据系统部分异常：</strong> EDHR（电子设备历史记录）系统因认证失败无法访问，可能影响质量追溯；EAM（企业资产管理）的范围查询需指定产线或部门。<br><br><strong>行动建议：</strong> 立即安排人员优先处理那8台故障设备和30个待完成维修工单，并检查13个备件预警是否影响维修，确保生产设备尽快恢复全负荷运行。</div>
+      </div>
+    </div>
+
+    <div class="card " id="case-P11">
+      <div class="card-header">
+        <div class="card-title-row">
+          <span class="case-id">P11</span>
+          <span class="level-badge" style="background:#eff6ff;color:#2563eb;border:1px solid #2563eb30">L1 路由</span>
+          
+          <span class="status-badge" style="color:var(--pass)">&#10004; 通过</span>
+        </div>
+        <div class="query-text">原材料有多少种？</div>
+      </div>
+
+      <div class="card-meta">
+        <div class="meta-row">
+          <span class="meta-label">调用工具</span>
+          <span class="meta-value mono">mes.material.search</span>
+        </div>
+        <div class="meta-row">
+          <span class="meta-label">期望工具</span>
+          <span class="meta-value mono expected">mes.material.search</span>
+        </div>
+        <div class="meta-row">
+          <span class="meta-label">Recall</span>
+          <span class="meta-value">100%</span>
+          <span class="meta-label" style="margin-left:20px">耗时</span>
+          <span class="meta-value">24.7s</span>
+          <span class="meta-label" style="margin-left:20px">轮次</span>
+          <span class="meta-value">2</span>
+        </div>
+      </div>
+
+      <div class="answer-section">
+        <div class="answer-label">AI 回答</div>
+        <div class="answer-content">原材料共有8种类型，总计16195条物料记录。具体分布如下：包装材料（PACKAGE_MATERIAL）最多，有7277条，占44.9%；其次是零部件（PARTS）3040条，占18.8%；成品（FINISHED_PRODUCT）2719条，占16.8%；原材料（RAW_MATERIAL）1336条，占8.2%；半成品（SEMI_PRODUCT）1278条，占7.9%；半成品（SEMI_FINISHED_PRODUCT）503条，占3.1%；未知类型41条，占0.3%；水（WATER）1条，占0.0%。<br><br>关键发现：包装材料是物料管理中的主要类型，占比近一半，这可能与生产流程中的包装环节密切相关。同时，存在少量未知类型物料（41条），建议核实其分类以避免管理漏洞。<br><br>行动建议：优先清理未知类型物料，确保物料分类准确，以优化库存管理和生产计划。</div>
+      </div>
+    </div>
+
+    <div class="card " id="case-P12">
+      <div class="card-header">
+        <div class="card-title-row">
+          <span class="case-id">P12</span>
+          <span class="level-badge" style="background:#eff6ff;color:#2563eb;border:1px solid #2563eb30">L1 路由</span>
+          
+          <span class="status-badge" style="color:var(--pass)">&#10004; 通过</span>
+        </div>
+        <div class="query-text">最近半年趋势怎么样？</div>
+      </div>
+
+      <div class="card-meta">
+        <div class="meta-row">
+          <span class="meta-label">调用工具</span>
+          <span class="meta-value mono">eam.trend, edhr.trend, mes.trend, edhr.dashboard, mes.dashboard</span>
+        </div>
+        <div class="meta-row">
+          <span class="meta-label">期望工具</span>
+          <span class="meta-value mono expected">eam.trend</span>
+        </div>
+        <div class="meta-row">
+          <span class="meta-label">Recall</span>
+          <span class="meta-value">100%</span>
+          <span class="meta-label" style="margin-left:20px">耗时</span>
+          <span class="meta-value">56.1s</span>
+          <span class="meta-label" style="margin-left:20px">轮次</span>
+          <span class="meta-value">3</span>
+        </div>
+      </div>
+
+      <div class="answer-section">
+        <div class="answer-label">AI 回答</div>
+        <div class="answer-content">最近半年（2025年10月至2026年3月）的整体趋势显示，故障数量在下降，生产订单完成率高，但部分系统数据获取失败。具体来看：<br><br><span style="color:#3a7d44;margin-right:4px">1.</span><strong>故障趋势（EAM）</strong>：共200条故障记录，月均40次。从2025年11月到2026年3月，故障数从41次降至34次，呈下降趋势，表明设备维护可能有所改善。<br><span style="color:#3a7d44;margin-right:4px">2.</span><strong>生产趋势（MES）</strong>：生产订单共1757个，其中已完成（FINISHED）1613个，占比92%，完成率很高；运行中（RUNNING）55个，占3%，说明生产流程顺畅。产线有19条，包括乳化机、手工线等，设备类型多样。<br><span style="color:#3a7d44;margin-right:4px">3.</span><strong>库存趋势（MES）</strong>：库存订单共44434个，以仓库操作（10000个）和批次检验（5730个）为主，反映库存管理活动频繁。物料、批次和子批次数据量较大（物料16195种，批次86437个），说明生产复杂度高。<br><span style="color:#3a7d44;margin-right:4px">4.</span><strong>数据缺失</strong>：EDHR（人事/质量）和部分MES趋势数据因系统错误（如OAuth2失败、服务器错误）无法获取，可能影响全面分析。<br><br><strong>行动建议</strong>：优先排查EDHR和MES的系统错误，确保数据完整；同时，利用故障下降趋势，加强预防性维护，减少停机时间。</div>
+      </div>
+    </div>
+
+    <div class="card " id="case-P13">
+      <div class="card-header">
+        <div class="card-title-row">
+          <span class="case-id">P13</span>
+          <span class="level-badge" style="background:#f5f3ff;color:#9333ea;border:1px solid #9333ea30">L2 跨系统</span>
+          
+          <span class="status-badge" style="color:var(--pass)">&#10004; 通过</span>
+        </div>
+        <div class="query-text">这个工厂的设备管理和生产执行整体情况</div>
+      </div>
+
+      <div class="card-meta">
+        <div class="meta-row">
+          <span class="meta-label">调用工具</span>
+          <span class="meta-value mono">eam.dashboard, mes.dashboard</span>
+        </div>
+        <div class="meta-row">
+          <span class="meta-label">期望工具</span>
+          <span class="meta-value mono expected">eam.dashboard, mes.dashboard</span>
+        </div>
+        <div class="meta-row">
+          <span class="meta-label">Recall</span>
+          <span class="meta-value">100%</span>
+          <span class="meta-label" style="margin-left:20px">耗时</span>
+          <span class="meta-value">40.0s</span>
+          <span class="meta-label" style="margin-left:20px">轮次</span>
+          <span class="meta-value">3</span>
+        </div>
+      </div>
+
+      <div class="answer-section">
+        <div class="answer-label">AI 回答</div>
+        <div class="answer-content">工厂整体情况：设备运行良好，但维修和保养积压较多；生产执行高效，订单完成率高，但仓库操作量大，物料管理复杂。<br><br><strong>设备管理情况</strong>：<br><span style="color:#3a7d44;margin-right:4px">&#8226;</span><strong>设备状态</strong>：共150台设备，其中120台正常运行（80%），8台故障（5.3%），22台待机或停机（14.7%）。<br><span style="color:#3a7d44;margin-right:4px">&#8226;</span><strong>维修积压</strong>：故障报修待处理10条，维修工单待处理30条，保养任务待处理18项，备件预警13条，待办事项15项。维修工单已完成110条，故障报修累计200条，维修完成率约55%（110/200）。<br><span style="color:#3a7d44;margin-right:4px">&#8226;</span><strong>关键发现</strong>：维修和保养积压较多（共58项待处理），可能影响设备稳定运行。<br><br><strong>生产执行情况</strong>：<br><span style="color:#3a7d44;margin-right:4px">&#8226;</span><strong>生产订单</strong>：累计1757个订单，其中1613个已完成（91.8%），55个进行中（3.1%），38个待确认（2.2%），29个已关闭（1.7%），异常订单（取消+中止）8个（0.5%）。<br><span style="color:#3a7d44;margin-right:4px">&#8226;</span><strong>产线分布</strong>：共19条产线，包括乳化机、手工线、自动线、检验线等，其中乳化机类最多（如连续式乳化机、300L乳化机等）。<br><span style="color:#3a7d44;margin-right:4px">&#8226;</span><strong>仓库操作</strong>：库存订单累计44434条，以仓库操作（10000条）和批次检验（5730条）为主，生产相关订单（生产到仓库+仓库到生产）共5191条。<br><span style="color:#3a7d44;margin-right:4px">&#8226;</span><strong>物料管理</strong>：物料16195种，批次86437个，子批次77983个，物料管理复杂度高。<br><br><strong>交叉分析</strong>：<br><span style="color:#3a7d44;margin-right:4px">&#8226;</span>设备故障率（5.3%）较低，但维修积压可能拖累生产效率，需关注维修响应速度。<br><span style="color:#3a7d44;margin-right:4px">&#8226;</span>生产订单完成率高（91.8%），但仓库操作量大，可能增加物料流转成本。<br><br><strong>行动建议</strong>：优先处理维修和保养积压（共58项），特别是30条待处理维修工单，以减少设备停机风险。</div>
+      </div>
+    </div>
+
+    <div class="card " id="case-P14">
+      <div class="card-header">
+        <div class="card-title-row">
+          <span class="case-id">P14</span>
+          <span class="level-badge" style="background:#f5f3ff;color:#9333ea;border:1px solid #9333ea30">L2 跨系统</span>
+          
+          <span class="status-badge" style="color:var(--pass)">&#10004; 通过</span>
+        </div>
+        <div class="query-text">维修中的设备，有没有影响到正在执行的生产工单？</div>
+      </div>
+
+      <div class="card-meta">
+        <div class="meta-row">
+          <span class="meta-label">调用工具</span>
+          <span class="meta-value mono">eam.equipment.search, mes.order.search, eam.scope.overview, mes.line.overview, mes.dashboard</span>
+        </div>
+        <div class="meta-row">
+          <span class="meta-label">期望工具</span>
+          <span class="meta-value mono expected">eam.equipment.search, mes.order.search</span>
+        </div>
+        <div class="meta-row">
+          <span class="meta-label">Recall</span>
+          <span class="meta-value">100%</span>
+          <span class="meta-label" style="margin-left:20px">耗时</span>
+          <span class="meta-value">53.3s</span>
+          <span class="meta-label" style="margin-left:20px">轮次</span>
+          <span class="meta-value">3</span>
+        </div>
+      </div>
+
+      <div class="answer-section">
+        <div class="answer-label">AI 回答</div>
+        <div class="answer-content">维修中的设备确实影响了正在执行的生产工单，但影响程度需要具体分析。<br><br><strong>核心数据：</strong><br><span style="color:#3a7d44;margin-right:4px">&#8226;</span><strong>维修中设备：</strong> 共8台，其中7台是关键设备（占比87.5%），包括湿法制粒机、高速压片机、旋转压片机、薄膜包衣机、铝塑包装机等核心生产设备。<br><span style="color:#3a7d44;margin-right:4px">&#8226;</span><strong>执行中工单：</strong> 共55个，全部处于“运行中”状态，计划总产量93,334件，实际完成60,113件，完成率约64.4%。<br><br><strong>影响分析：</strong><br><span style="color:#3a7d44;margin-right:4px">1.</span><strong>关键设备停摆：</strong> 7台关键设备维修中，直接影响依赖这些设备的产线（如压片线）。从“压片线”概览看，该产线16台设备中有2台维修中，13台运行中，1台其他状态，说明部分设备停运但产线仍在运行。<br><span style="color:#3a7d44;margin-right:4px">2.</span><strong>工单进度滞后：</strong> 55个运行工单中，大部分实际产量为0或远低于计划。例如，工单“10015917T3”计划400件，实际0件；“10015879”计划49,466件，实际46,940件，虽完成较多但仍有缺口。整体实际产量比计划少33,221件，滞后明显。<br><span style="color:#3a7d44;margin-right:4px">3.</span><strong>产线匹配缺失：</strong> 数据中未直接关联设备与工单的产线信息，但维修设备多属压片、包衣、包装等工序，而运行工单多为精华液、面膜、面霜等化妆品，推测部分工单可能因设备维修而转移或等待。<br><br><strong>更值得关注的信号：</strong><br><span style="color:#3a7d44;margin-right:4px">&#8226;</span><strong>保养完成率低：</strong> 预计算显示工单的“保养完成率”为0%，设备“维修完成率”为0%，说明维修保养任务积压，可能加剧设备故障影响。<br><span style="color:#3a7d44;margin-right:4px">&#8226;</span><strong>压片线状态：</strong> 压片线有2台设备维修中，但该产线故障报修30条、维修工单24条、异常15条，显示历史问题较多，需警惕连锁影响。<br><br><strong>行动建议：</strong><br>立即排查这7台关键维修设备的预计修复时间，并评估其对55个运行工单的优先级影响，调整生产排程或启用备用设备。</div>
+      </div>
+    </div>
+
+    <div class="card " id="case-P15">
+      <div class="card-header">
+        <div class="card-title-row">
+          <span class="case-id">P15</span>
+          <span class="level-badge" style="background:#f5f3ff;color:#9333ea;border:1px solid #9333ea30">L2 跨系统</span>
+          
+          <span class="status-badge" style="color:var(--pass)">&#10004; 通过</span>
+        </div>
+        <div class="query-text">保养完成率低的产线，生产产量受影响了吗？</div>
+      </div>
+
+      <div class="card-meta">
+        <div class="meta-row">
+          <span class="meta-label">调用工具</span>
+          <span class="meta-value mono">eam.maintenance.search, mes.trend, mes.line.overview, mes.dashboard</span>
+        </div>
+        <div class="meta-row">
+          <span class="meta-label">期望工具</span>
+          <span class="meta-value mono expected">eam.maintenance.search, mes.trend</span>
+        </div>
+        <div class="meta-row">
+          <span class="meta-label">Recall</span>
+          <span class="meta-value">100%</span>
+          <span class="meta-label" style="margin-left:20px">耗时</span>
+          <span class="meta-value">40.4s</span>
+          <span class="meta-label" style="margin-left:20px">轮次</span>
+          <span class="meta-value">3</span>
+        </div>
+      </div>
+
+      <div class="answer-section">
+        <div class="answer-label">AI 回答</div>
+        <div class="answer-content">保养完成率低的产线，目前无法直接判断生产产量是否受影响，因为数据中缺少产线维度的产量统计。但我们可以从保养完成率分布和生产订单状态两个角度进行关联分析。<br><br><strong>保养完成率情况</strong>：<br><span style="color:#3a7d44;margin-right:4px">&#8226;</span>共有6条产线有保养记录，总计180个保养任务。<br><span style="color:#3a7d44;margin-right:4px">&#8226;</span>完成率最低的是“未分配产线”（80%），其次是“包装线”（86%）。<br><span style="color:#3a7d44;margin-right:4px">&#8226;</span>完成率最高的是“公用工程线”（100%），但任务量最少（仅5个）。<br><br><strong>生产订单状态</strong>：<br><span style="color:#3a7d44;margin-right:4px">&#8226;</span>生产订单总计1757个，其中已完成（FINISHED）1613个，占比91.8%。<br><span style="color:#3a7d44;margin-right:4px">&#8226;</span>当前正在运行（RUNNING）的订单有55个，占比3.1%。<br><span style="color:#3a7d44;margin-right:4px">&#8226;</span>有38个订单处于初始（INIT）状态，14个已确认（CONFIRMED）。<br><span style="color:#3a7d44;margin-right:4px">&#8226;</span>异常订单（CANCELED+ABORTED）共8个，占比0.5%。<br><br><strong>关键发现</strong>：<br><span style="color:#3a7d44;margin-right:4px">1.</span>保养完成率低的产线（如未分配产线80%、包装线86%）与生产订单的异常率（0.5%）没有直接对应关系，因为订单异常率很低。<br><span style="color:#3a7d44;margin-right:4px">2.</span>但保养完成率低可能意味着设备健康度不足，长期来看会影响生产效率和设备寿命。<br><span style="color:#3a7d44;margin-right:4px">3.</span>数据中保养产线名称（如制粒线、压片线）与生产订单的产线名称（如连续式乳化机、手工线）不匹配，无法直接关联分析产量影响。<br><br><strong>行动建议</strong>：立即检查“未分配产线”和“包装线”的保养任务未完成原因，并建立产线保养完成率与生产订单产量的关联报表，以便后续监控。</div>
+      </div>
+    </div>
+
+    <div class="card " id="case-P16">
+      <div class="card-header">
+        <div class="card-title-row">
+          <span class="case-id">P16</span>
+          <span class="level-badge" style="background:#f5f3ff;color:#9333ea;border:1px solid #9333ea30">L2 跨系统</span>
+          
+          <span class="status-badge" style="color:var(--pass)">&#10004; 通过</span>
+        </div>
+        <div class="query-text">备件库存预警涉及的设备，它们在 MES 里有多少生产工单？</div>
+      </div>
+
+      <div class="card-meta">
+        <div class="meta-row">
+          <span class="meta-label">调用工具</span>
+          <span class="meta-value mono">eam.spare.search, mes.dashboard, eam.dashboard, mes.order.search</span>
+        </div>
+        <div class="meta-row">
+          <span class="meta-label">期望工具</span>
+          <span class="meta-value mono expected">eam.spare.search, mes.order.search</span>
+        </div>
+        <div class="meta-row">
+          <span class="meta-label">Recall</span>
+          <span class="meta-value">100%</span>
+          <span class="meta-label" style="margin-left:20px">耗时</span>
+          <span class="meta-value">64.7s</span>
+          <span class="meta-label" style="margin-left:20px">轮次</span>
+          <span class="meta-value">3</span>
+        </div>
+      </div>
+
+      <div class="answer-section">
+        <div class="answer-label">AI 回答</div>
+        <div class="answer-content">目前无法直接统计备件库存预警涉及的设备在MES里的生产工单数量，因为数据中没有建立备件与设备、设备与生产工单的直接关联。但我们可以从现有数据中分析相关情况，并给出替代视角。<br><br><strong>核心发现：</strong><br><span style="color:#3a7d44;margin-right:4px">1.</span><strong>备件预警概况</strong>：共有8种备件库存预警，涉及34台设备（预计算统计中equipmentCount.sum=34）。其中7种备件（如标准湿度发生器、标准电阻箱等）的equipmentCount为0，意味着这些备件未关联到具体设备；只有“UV氘灯”关联了34台设备，且当前库存为0，是最紧急的缺货项。<br><span style="color:#3a7d44;margin-right:4px">2.</span><strong>生产工单全局</strong>：MES中当前共有1757张生产工单（预计算统计中mes.dashboard.production.orders.total=1757），其中55张正在运行（RUNNING状态），38张待启动（INIT状态）。<br><span style="color:#3a7d44;margin-right:4px">3.</span><strong>关键缺口</strong>：由于数据未打通备件→设备→工单的链路，我们无法精确回答“这些设备有多少工单”。但可以推断：如果那34台使用UV氘灯的设备出现故障，可能影响其所在产线的生产任务。<br><br><strong>行动建议</strong>：立即采购UV氘灯（库存为0，关联34台设备），并检查这34台设备当前是否在生产线上运行——优先查看运行中的55张工单所用设备清单。</div>
+      </div>
+    </div>
+
+    <div class="card " id="case-P17">
+      <div class="card-header">
+        <div class="card-title-row">
+          <span class="case-id">P17</span>
+          <span class="level-badge" style="background:#f5f3ff;color:#9333ea;border:1px solid #9333ea30">L2 跨系统</span>
+          
+          <span class="status-badge" style="color:var(--pass)">&#10004; 通过</span>
+        </div>
+        <div class="query-text">帮我做一个完整的运营日报：设备、生产、仓库都要有</div>
+      </div>
+
+      <div class="card-meta">
+        <div class="meta-row">
+          <span class="meta-label">调用工具</span>
+          <span class="meta-value mono">eam.dashboard, mes.dashboard, edhr.dashboard, eam.scope.overview</span>
+        </div>
+        <div class="meta-row">
+          <span class="meta-label">期望工具</span>
+          <span class="meta-value mono expected">eam.dashboard, mes.dashboard, edhr.dashboard</span>
+        </div>
+        <div class="meta-row">
+          <span class="meta-label">Recall</span>
+          <span class="meta-value">100%</span>
+          <span class="meta-label" style="margin-left:20px">耗时</span>
+          <span class="meta-value">58.4s</span>
+          <span class="meta-label" style="margin-left:20px">轮次</span>
+          <span class="meta-value">3</span>
+        </div>
+      </div>
+
+      <div class="answer-section">
+        <div class="answer-label">AI 回答</div>
+        <div class="answer-content">以下是今日运营日报，涵盖设备、生产、仓库三大板块：<br><br><strong>一、设备运营状况</strong><br><span style="color:#3a7d44;margin-right:4px">&#8226;</span><strong>设备总数</strong>：150台，其中运行中120台（80%），维修中8台（5.3%），停机/封存/闲置等非运行状态共22台（14.7%）。<br><span style="color:#3a7d44;margin-right:4px">&#8226;</span><strong>关键产线（压片线）</strong>：16台设备，13台运行中，2台维修中，1台其他状态；保养完成率88%（37/42），无逾期保养。<br><span style="color:#3a7d44;margin-right:4px">&#8226;</span><strong>故障与维修</strong>：<br>  <span style="color:#3a7d44;margin-right:4px">&#8226;</span>故障报修：累计200条，待审核10条（占5%），已关闭140条（70%）。<br>  <span style="color:#3a7d44;margin-right:4px">&#8226;</span>维修工单：累计140条（待处理30条+已完成110条），待接单10条，待处理中20条（状态1-4合计）。<br><span style="color:#3a7d44;margin-right:4px">&#8226;</span><strong>保养与巡检</strong>：<br>  <span style="color:#3a7d44;margin-right:4px">&#8226;</span>保养任务：待执行18条，已完成157条（状态2）。<br>  <span style="color:#3a7d44;margin-right:4px">&#8226;</span>巡检任务：共258条，逾期233条（90.3%），仅完成12条（4.7%），巡检执行率极低。<br><span style="color:#3a7d44;margin-right:4px">&#8226;</span><strong>备件库存预警</strong>：13条低库存警报，涉及UV氘灯（库存0）、V带（库存2缺口3）等关键备件，建议采购总量17个/支/副。<br><span style="color:#3a7d44;margin-right:4px">&#8226;</span><strong>待办事项</strong>：15条，均匀分布在待审核报修、待接单工单、待执行保养三类。<br><br><strong>二、生产运营状况</strong><br><span style="color:#3a7d44;margin-right:4px">&#8226;</span><strong>生产订单</strong>：累计1757单，其中已完成1613单（91.8%），运行中55单（3.1%），初始/确认中52单（3.0%），取消/中止8单（0.5%）。<br><span style="color:#3a7d44;margin-right:4px">&#8226;</span><strong>产线分布</strong>：19条产线，包括乳化机、手工线、自动线、检验线等，以连续式乳化机（3110）、300L乳化机（3105）等为主。<br><span style="color:#3a7d44;margin-right:4px">&#8226;</span><strong>主数据规模</strong>：物料16195种，批次86437个，子批次77983个。<br><br><strong>三、仓库运营状况</strong><br><span style="color:#3a7d44;margin-right:4px">&#8226;</span><strong>库存操作单</strong>：累计44434单，主要类型为仓库操作（10000单，22.5%）、批次检验（5730单，12.9%）、生产入库（3697单，8.3%）。<br><span style="color:#3a7d44;margin-right:4px">&#8226;</span><strong>关联生产</strong>：生产领料1494单，生产执行2353单，显示仓库与生产联动频繁。<br><br><strong>关键发现与风险</strong>：<br><span style="color:#3a7d44;margin-right:4px">1.</span><strong>巡检逾期严重</strong>：233条逾期巡检（90.3%），可能漏检设备隐患，需立即排查。<br><span style="color:#3a7d44;margin-right:4px">2.</span><strong>备件短缺</strong>：13种备件低于安全库存，UV氘灯已断货（库存0），影响设备维修。<br><span style="color:#3a7d44;margin-right:4px">3.</span><strong>维修积压</strong>：30条待处理维修工单，加上10条待审核报修，设备停机风险增加。<br><span style="color:#3a7d44;margin-right:4px">4.</span><strong>生产订单健康</strong>：完成率高（91.8%），但运行中订单仅55单，产能利用率可能偏低。<br><br><strong>行动建议</strong>：<br>优先处理巡检逾期问题，今日安排人员完成至少50条逾期巡检；同时审批积压的10条报修并采购短缺备件，特别是UV氘灯和V带，以避免维修延误。</div>
+      </div>
+    </div>
+
+    <div class="card card-warn" id="case-P18">
+      <div class="card-header">
+        <div class="card-title-row">
+          <span class="case-id">P18</span>
+          <span class="level-badge" style="background:#f5f3ff;color:#9333ea;border:1px solid #9333ea30">L2 跨系统</span>
+          <span class="warn-badge">&#9888;&#65039; 部分通过</span>
+          <span class="status-badge" style="color:var(--warn)">&#9888; 部分通过</span>
+        </div>
+        <div class="query-text">故障频率最高的设备所在产线，生产趋势是上升还是下降？</div>
+      </div>
+
+      <div class="card-meta">
+        <div class="meta-row">
+          <span class="meta-label">调用工具</span>
+          <span class="meta-value mono">eam.fault.search, eam.equipment.profile, eam.equipment.search</span>
+        </div>
+        <div class="meta-row">
+          <span class="meta-label">期望工具</span>
+          <span class="meta-value mono expected">eam.fault.search, mes.trend</span>
+        </div>
+        <div class="meta-row">
+          <span class="meta-label">Recall</span>
+          <span class="meta-value">50%</span>
+          <span class="meta-label" style="margin-left:20px">耗时</span>
+          <span class="meta-value">33.8s</span>
+          <span class="meta-label" style="margin-left:20px">轮次</span>
+          <span class="meta-value">3</span>
+        </div>
+      </div>
+
+      <div class="answer-section">
+        <div class="answer-label">AI 回答</div>
+        <div class="answer-content">根据故障数据，故障频率最高的设备是“螺杆空压机 #1”（EQ-B103-001），它属于公用工程产线（B区）。但数据中没有直接的生产趋势记录，无法直接判断该产线的生产趋势是上升还是下降。<br><br>不过，我们可以从设备运行状态和故障模式中挖掘有价值的信息：<br><br><span style="color:#3a7d44;margin-right:4px">1.</span><strong>故障频率分析</strong>：螺杆空压机 #1 在过去一年发生了2次故障，平均间隔87天。虽然故障次数在120台设备中并列最高（共80台设备都是2次故障），但故障间隔较长，说明故障频率并不算特别高。<br><br><span style="color:#3a7d44;margin-right:4px">2.</span><strong>设备运行状况</strong>：该设备目前“运行中”，健康评分87分，OEE（设备综合效率）91.3%，属于良好水平。维修成本1507.26元，在一年内属于可控范围。<br><br><span style="color:#3a7d44;margin-right:4px">3.</span><strong>产线整体情况</strong>：B区（公用工程）的设备大部分运行正常，但保养完成率为0%，这是一个严重问题。没有保养记录意味着设备可能缺乏预防性维护，这会增加未来故障风险。<br><br><span style="color:#3a7d44;margin-right:4px">4.</span><strong>替代分析</strong>：虽然没有生产趋势数据，但从设备OEE（91.3%）和健康评分（87分）来看，该设备的生产效率保持在高位，间接说明产线运行稳定。<br><br><strong>行动建议</strong>：立即检查B区所有设备的保养计划，特别是螺杆空压机 #1，制定并执行预防性保养任务，避免因保养缺失导致突发故障影响生产。</div>
+      </div>
+    </div>
+
+    <div class="card " id="case-M01">
+      <div class="card-header">
+        <div class="card-title-row">
+          <span class="case-id">M01</span>
+          <span class="level-badge" style="background:#f0fdfa;color:#0d9488;border:1px solid #0d948830">L3 MES</span>
+          
+          <span class="status-badge" style="color:var(--pass)">&#10004; 通过</span>
+        </div>
+        <div class="query-text">MES 生产和仓库现在什么情况？</div>
+      </div>
+
+      <div class="card-meta">
+        <div class="meta-row">
+          <span class="meta-label">调用工具</span>
+          <span class="meta-value mono">mes.dashboard</span>
+        </div>
+        <div class="meta-row">
+          <span class="meta-label">期望工具</span>
+          <span class="meta-value mono expected">mes.dashboard</span>
+        </div>
+        <div class="meta-row">
+          <span class="meta-label">Recall</span>
+          <span class="meta-value">100%</span>
+          <span class="meta-label" style="margin-left:20px">耗时</span>
+          <span class="meta-value">36.4s</span>
+          <span class="meta-label" style="margin-left:20px">轮次</span>
+          <span class="meta-value">2</span>
+        </div>
+      </div>
+
+      <div class="answer-section">
+        <div class="answer-label">AI 回答</div>
+        <div class="answer-content">MES生产和仓库的整体情况如下：<br><br><strong>生产方面</strong>：<br><span style="color:#3a7d44;margin-right:4px">&#8226;</span><strong>工单总量</strong>：共1757个生产工单，其中已完成（FINISHED）1613个，占比91.8%，说明大部分生产任务已结束。<br><span style="color:#3a7d44;margin-right:4px">&#8226;</span><strong>当前状态</strong>：正在运行（RUNNING）的工单有55个，占3.1%，是当前的生产负荷；另有38个工单处于初始（INIT）状态，占2.2%，可能等待启动。<br><span style="color:#3a7d44;margin-right:4px">&#8226;</span><strong>产线分布</strong>：系统中有19条产线，覆盖称量、乳化、灌装/包装、检验等环节，其中乳化类设备最多（如连续式乳化机、300L乳化机等），灌装/包装线包括手工线和自动线。<br><span style="color:#3a7d44;margin-right:4px">&#8226;</span><strong>异常情况</strong>：有5个工单已取消（CANCELED），3个已中止（ABORTED），合计8个异常终止，占0.5%，需关注原因以避免重复发生。<br><br><strong>仓库方面</strong>：<br><span style="color:#3a7d44;margin-right:4px">&#8226;</span><strong>库存单总量</strong>：共44434个库存单，其中仓库操作（WAREHOUSE_OPERATION）最多，有10000个，占22.5%，反映仓库日常活动频繁。<br><span style="color:#3a7d44;margin-right:4px">&#8226;</span><strong>业务类型分布</strong>：批次检验（BATCH_INSPECTION）5730个，占12.9%，说明质量检验环节较多；生产入库单（PRODUCTION_TO_WAREHOUSE_ORDER）3697个，生产领料单（WAREHOUSE_TO_PRODUCTION_ORDER）1494个，合计5191个，占11.7%，是生产与仓库交互的主要部分。<br><span style="color:#3a7d44;margin-right:4px">&#8226;</span><strong>采购单</strong>：有1535个采购单，占3.5%，涉及物料补充。<br><br><strong>主数据概览</strong>：<br><span style="color:#3a7d44;margin-right:4px">&#8226;</span>物料（Material）16195种，批次（Lot）86437个，子批次（Sublot）77983个，显示物料管理规模较大，批次和子批次数量多，可能增加库存复杂度。<br><br><strong>关键发现</strong>：<br><span style="color:#3a7d44;margin-right:4px">1.</span>生产工单完成率高（91.8%），但仍有55个运行中工单，需监控进度以确保按时交付。<br><span style="color:#3a7d44;margin-right:4px">2.</span>仓库操作单量最大，可能反映库存调整频繁，建议优化流程以减少不必要的移动。<br><span style="color:#3a7d44;margin-right:4px">3.</span>批次和子批次数量远高于物料种类，提示批次管理可能较分散，需关注子批次质量状态（如未放行、冻结等）。<br><br><strong>行动建议</strong>：立即检查那55个运行中工单的进度和产线分配，确保资源高效利用，同时审核仓库操作单的合理性，减少非增值活动。</div>
+      </div>
+    </div>
+
+    <div class="card " id="case-M02">
+      <div class="card-header">
+        <div class="card-title-row">
+          <span class="case-id">M02</span>
+          <span class="level-badge" style="background:#f0fdfa;color:#0d9488;border:1px solid #0d948830">L3 MES</span>
+          
+          <span class="status-badge" style="color:var(--pass)">&#10004; 通过</span>
+        </div>
+        <div class="query-text">有多少生产工单在执行中？</div>
+      </div>
+
+      <div class="card-meta">
+        <div class="meta-row">
+          <span class="meta-label">调用工具</span>
+          <span class="meta-value mono">mes.order.search</span>
+        </div>
+        <div class="meta-row">
+          <span class="meta-label">期望工具</span>
+          <span class="meta-value mono expected">mes.order.search</span>
+        </div>
+        <div class="meta-row">
+          <span class="meta-label">Recall</span>
+          <span class="meta-value">100%</span>
+          <span class="meta-label" style="margin-left:20px">耗时</span>
+          <span class="meta-value">16.5s</span>
+          <span class="meta-label" style="margin-left:20px">轮次</span>
+          <span class="meta-value">2</span>
+        </div>
+      </div>
+
+      <div class="answer-section">
+        <div class="answer-label">AI 回答</div>
+        <div class="answer-content">目前有55个生产工单在执行中，全部处于RUNNING状态。从类型看，标准工单（STANDARD）占85.5%（47个），试产工单（TRIAL_PRODUCTION）占10.9%（6个），拆解工单（DISASSEMBLY）占3.6%（2个）。计划总产量93,334件，实际已完成60,113件，完成率约64.4%，但工单完成率为0%（因为没有一个工单完全结束）。关键发现：大部分工单实际产量为0，只有少数几个有产出，例如订单10015879（计划49,466件，实际46,940件）和10016067（计划13,846件，实际7,905件）。另外，多个工单的实际开始时间晚于计划结束时间，如订单10015917T3计划2024年7月10日结束，但实际2024年12月25日才开始，这可能影响生产进度和资源调度。建议立即检查这些延迟工单的优先级和资源分配，确保关键订单能按时完成。</div>
+      </div>
+    </div>
+
+    <div class="card " id="case-M03">
+      <div class="card-header">
+        <div class="card-title-row">
+          <span class="case-id">M03</span>
+          <span class="level-badge" style="background:#f0fdfa;color:#0d9488;border:1px solid #0d948830">L3 MES</span>
+          
+          <span class="status-badge" style="color:var(--pass)">&#10004; 通过</span>
+        </div>
+        <div class="query-text">各状态的生产工单数量分布</div>
+      </div>
+
+      <div class="card-meta">
+        <div class="meta-row">
+          <span class="meta-label">调用工具</span>
+          <span class="meta-value mono">mes.order.search</span>
+        </div>
+        <div class="meta-row">
+          <span class="meta-label">期望工具</span>
+          <span class="meta-value mono expected">mes.order.search</span>
+        </div>
+        <div class="meta-row">
+          <span class="meta-label">Recall</span>
+          <span class="meta-value">100%</span>
+          <span class="meta-label" style="margin-left:20px">耗时</span>
+          <span class="meta-value">19.2s</span>
+          <span class="meta-label" style="margin-left:20px">轮次</span>
+          <span class="meta-value">2</span>
+        </div>
+      </div>
+
+      <div class="answer-section">
+        <div class="answer-label">AI 回答</div>
+        <div class="answer-content">根据预计算统计，目前共有1757个生产工单，按状态分布如下：<br><span style="color:#3a7d44;margin-right:4px">&#8226;</span>已完成（FINISHED）：1613个，占91.8%，是绝对主力状态<br><span style="color:#3a7d44;margin-right:4px">&#8226;</span>运行中（RUNNING）：55个，占3.1%<br><span style="color:#3a7d44;margin-right:4px">&#8226;</span>初始（INIT）：38个，占2.2%<br><span style="color:#3a7d44;margin-right:4px">&#8226;</span>已关闭（CLOSED）：29个，占1.7%<br><span style="color:#3a7d44;margin-right:4px">&#8226;</span>已确认（CONFIRMED）：14个，占0.8%<br><span style="color:#3a7d44;margin-right:4px">&#8226;</span>已取消（CANCELED）：5个，占0.3%<br><span style="color:#3a7d44;margin-right:4px">&#8226;</span>已中止（ABORTED）：3个，占0.2%<br><br>关键发现：<br><span style="color:#3a7d44;margin-right:4px">1.</span>绝大多数工单（91.8%）已完成，说明生产流程整体顺畅，但需关注少量异常状态（如中止、取消）以防潜在问题。<br><span style="color:#3a7d44;margin-right:4px">2.</span>运行中工单有55个，占3.1%，结合初始状态38个（2.2%），当前活跃工单约93个（5.3%），可评估产线负载。<br><span style="color:#3a7d44;margin-right:4px">3.</span>异常状态（中止、取消）共8个，虽占比小（0.5%），但可能反映质量问题或计划变更，值得深挖。<br><br>行动建议：立即检查这8个异常状态工单（3个中止、5个取消）的详情，分析原因并优化流程，减少未来发生。</div>
+      </div>
+    </div>
+
+    <div class="card " id="case-M04">
+      <div class="card-header">
+        <div class="card-title-row">
+          <span class="case-id">M04</span>
+          <span class="level-badge" style="background:#f0fdfa;color:#0d9488;border:1px solid #0d948830">L3 MES</span>
+          
+          <span class="status-badge" style="color:var(--pass)">&#10004; 通过</span>
+        </div>
+        <div class="query-text">工单10015726的详细进度</div>
+      </div>
+
+      <div class="card-meta">
+        <div class="meta-row">
+          <span class="meta-label">调用工具</span>
+          <span class="meta-value mono">mes.order.profile</span>
+        </div>
+        <div class="meta-row">
+          <span class="meta-label">期望工具</span>
+          <span class="meta-value mono expected">mes.order.profile</span>
+        </div>
+        <div class="meta-row">
+          <span class="meta-label">Recall</span>
+          <span class="meta-value">100%</span>
+          <span class="meta-label" style="margin-left:20px">耗时</span>
+          <span class="meta-value">20.9s</span>
+          <span class="meta-label" style="margin-left:20px">轮次</span>
+          <span class="meta-value">2</span>
+        </div>
+      </div>
+
+      <div class="answer-section">
+        <div class="answer-label">AI 回答</div>
+        <div class="answer-content">工单10015726的详细进度如下：<br><br><strong>核心信息</strong><br><span style="color:#3a7d44;margin-right:4px">&#8226;</span><strong>状态</strong>：已完成（FINISHED）<br><span style="color:#3a7d44;margin-right:4px">&#8226;</span><strong>完成率</strong>：99%（计划1160件，实际完成1148件，差12件）<br><span style="color:#3a7d44;margin-right:4px">&#8226;</span><strong>物料</strong>：花精部络花君子梦悦精油10ml（成品，单位：件）<br><span style="color:#3a7d44;margin-right:4px">&#8226;</span><strong>计划时间</strong>：2024-06-05至2024-06-10（共6天）<br><span style="color:#3a7d44;margin-right:4px">&#8226;</span><strong>实际时间</strong>：2024-06-05 16:08:45开始，2024-06-06 14:56:18结束（用时约23小时）<br><span style="color:#3a7d44;margin-right:4px">&#8226;</span><strong>物料准备</strong>：已就绪<br><br><strong>生产分解</strong><br><span style="color:#3a7d44;margin-right:4px">&#8226;</span><strong>批次工单</strong>：1个（PBO18310，批次号A012，状态已完成）<br><span style="color:#3a7d44;margin-right:4px">&#8226;</span><strong>班次工单</strong>：1个（PSO21230，状态已完成）<br><br><strong>关键发现</strong><br><span style="color:#3a7d44;margin-right:4px">1.</span><strong>效率较高</strong>：实际用时（约23小时）远短于计划时间（6天），提前完成。<br><span style="color:#3a7d44;margin-right:4px">2.</span><strong>产量略低</strong>：实际产量比计划少12件（完成率99%），需关注损耗原因。<br><span style="color:#3a7d44;margin-right:4px">3.</span><strong>流程简洁</strong>：工单只拆分为1个批次和1个班次，说明生产流程相对简单或集中。<br><br><strong>行动建议</strong>：检查这12件差异的原因（如物料损耗、设备误差），优化生产参数以减少未来类似偏差。</div>
+      </div>
+    </div>
+
+    <div class="card " id="case-M05">
+      <div class="card-header">
+        <div class="card-title-row">
+          <span class="case-id">M05</span>
+          <span class="level-badge" style="background:#f0fdfa;color:#0d9488;border:1px solid #0d948830">L3 MES</span>
+          
+          <span class="status-badge" style="color:var(--pass)">&#10004; 通过</span>
+        </div>
+        <div class="query-text">各类型库存单的数量分布</div>
+      </div>
+
+      <div class="card-meta">
+        <div class="meta-row">
+          <span class="meta-label">调用工具</span>
+          <span class="meta-value mono">mes.inventory.search</span>
+        </div>
+        <div class="meta-row">
+          <span class="meta-label">期望工具</span>
+          <span class="meta-value mono expected">mes.inventory.search</span>
+        </div>
+        <div class="meta-row">
+          <span class="meta-label">Recall</span>
+          <span class="meta-value">100%</span>
+          <span class="meta-label" style="margin-left:20px">耗时</span>
+          <span class="meta-value">31.1s</span>
+          <span class="meta-label" style="margin-left:20px">轮次</span>
+          <span class="meta-value">2</span>
+        </div>
+      </div>
+
+      <div class="answer-section">
+        <div class="answer-label">AI 回答</div>
+        <div class="answer-content">根据预计算统计，系统中共有44,434条库存单记录，分为15种类型。数量分布如下：<br><span style="color:#3a7d44;margin-right:4px">&#8226;</span>仓库操作单（WAREHOUSE_OPERATION）最多，有27,901条，占62.8%，是库存活动的主要类型。<br><span style="color:#3a7d44;margin-right:4px">&#8226;</span>批次检验单（BATCH_INSPECTION）次之，有5,730条，占12.9%，显示检验环节频繁。<br><span style="color:#3a7d44;margin-right:4px">&#8226;</span>生产入库单（PRODUCTION_TO_WAREHOUSE_ORDER）有3,697条，占8.3%，反映生产到仓库的流转。<br><span style="color:#3a7d44;margin-right:4px">&#8226;</span>生产工单执行单（PRODUCTION_ORDER_EXECUTION）有2,353条，占5.3%。<br><span style="color:#3a7d44;margin-right:4px">&#8226;</span>采购单（PURCHASE_ORDER）有1,535条，占3.5%。<br><span style="color:#3a7d44;margin-right:4px">&#8226;</span>仓库到生产单（WAREHOUSE_TO_PRODUCTION_ORDER）有1,494条，占3.4%。<br><span style="color:#3a7d44;margin-right:4px">&#8226;</span>零星单（SPORADIC_ORDER）有448条，占1.0%。<br><span style="color:#3a7d44;margin-right:4px">&#8226;</span>其他类型（如制造仓库操作、销售单、损失单等）数量较少，合计占约2.8%，其中设备单（EQUIPMENT_ORDER）最少，仅6条，占0.0%。<br><br>关键发现：仓库操作单占主导，可能涉及大量日常库存调整；检验和生产相关单次之，显示质量控制和生产流程活跃；设备单极少，可能设备相关库存活动较少或记录不完整。<br><br>行动建议：优先优化仓库操作流程以提升效率，同时检查设备单记录是否需补充，确保库存管理全面覆盖。</div>
+      </div>
+    </div>
+
+    <div class="card " id="case-M06">
+      <div class="card-header">
+        <div class="card-title-row">
+          <span class="case-id">M06</span>
+          <span class="level-badge" style="background:#f0fdfa;color:#0d9488;border:1px solid #0d948830">L3 MES</span>
+          
+          <span class="status-badge" style="color:var(--pass)">&#10004; 通过</span>
+        </div>
+        <div class="query-text">物料110662有哪些批次？</div>
+      </div>
+
+      <div class="card-meta">
+        <div class="meta-row">
+          <span class="meta-label">调用工具</span>
+          <span class="meta-value mono">mes.lot.search</span>
+        </div>
+        <div class="meta-row">
+          <span class="meta-label">期望工具</span>
+          <span class="meta-value mono expected">mes.lot.search</span>
+        </div>
+        <div class="meta-row">
+          <span class="meta-label">Recall</span>
+          <span class="meta-value">100%</span>
+          <span class="meta-label" style="margin-left:20px">耗时</span>
+          <span class="meta-value">22.9s</span>
+          <span class="meta-label" style="margin-left:20px">轮次</span>
+          <span class="meta-value">2</span>
+        </div>
+      </div>
+
+      <div class="answer-section">
+        <div class="answer-label">AI 回答</div>
+        <div class="answer-content">物料110662共有14个批次，批次代码分别为：A012、A010、A004BK、A005K、A004A、A007K、A004、A011、A003、A009、A008、A001、A002、A006K。<br><br>关键发现：<br><span style="color:#3a7d44;margin-right:4px">1.</span>生产日期跨度大：从2020年5月到2024年6月，说明该物料有长期库存，最早批次已超过4年。<br><span style="color:#3a7d44;margin-right:4px">2.</span>过期风险：最早批次A001和A002已于2023年5月过期，需立即处理；A003也于2023年6月过期。<br><span style="color:#3a7d44;margin-right:4px">3.</span>复检安排：大部分批次已安排复检，但最早批次复检日期已过（如A001、A002复检在2022年11月）。<br><span style="color:#3a7d44;margin-right:4px">4.</span>批次结构：所有批次均无子批次（sublotCount均为0），说明未进一步拆分。<br><br>行动建议：立即检查并处理已过期的批次（A001、A002、A003），避免使用过期物料影响产品质量。</div>
+      </div>
+    </div>
+
+    <div class="card " id="case-M07">
+      <div class="card-header">
+        <div class="card-title-row">
+          <span class="case-id">M07</span>
+          <span class="level-badge" style="background:#f0fdfa;color:#0d9488;border:1px solid #0d948830">L3 MES</span>
+          
+          <span class="status-badge" style="color:var(--pass)">&#10004; 通过</span>
+        </div>
+        <div class="query-text">各质量状态的子批次数量分布</div>
+      </div>
+
+      <div class="card-meta">
+        <div class="meta-row">
+          <span class="meta-label">调用工具</span>
+          <span class="meta-value mono">mes.sublot.search</span>
+        </div>
+        <div class="meta-row">
+          <span class="meta-label">期望工具</span>
+          <span class="meta-value mono expected">mes.sublot.search</span>
+        </div>
+        <div class="meta-row">
+          <span class="meta-label">Recall</span>
+          <span class="meta-value">100%</span>
+          <span class="meta-label" style="margin-left:20px">耗时</span>
+          <span class="meta-value">48.6s</span>
+          <span class="meta-label" style="margin-left:20px">轮次</span>
+          <span class="meta-value">3</span>
+        </div>
+      </div>
+
+      <div class="answer-section">
+        <div class="answer-label">AI 回答</div>
+        <div class="answer-content">根据预计算统计，当前共有50,500个子批次，按质量状态分布如下：<br><span style="color:#3a7d44;margin-right:4px">&#8226;</span>未放行（INVALID）：43,801个，占比86.7%，这是默认状态，数量最多。<br><span style="color:#3a7d44;margin-right:4px">&#8226;</span>已放行（UNRESTRICTED）：5,716个，占比11.3%，表示已通过质量检查可正常使用。<br><span style="color:#3a7d44;margin-right:4px">&#8226;</span>冻结（BLOCKED）：789个，占比1.6%，通常因质量问题被锁定。<br><span style="color:#3a7d44;margin-right:4px">&#8226;</span>检验中（INSPECTION）：194个，占比0.4%，正在等待检验结果。<br><br>关键发现：未放行子批次占绝大多数，这可能表明质量放行流程存在瓶颈或积压，需要优先处理以提高库存周转率。<br><br>行动建议：立即检查未放行子批次的检验记录和原因，优化放行流程以减少积压。</div>
+      </div>
+    </div>
+
+    <div class="card " id="case-M08">
+      <div class="card-header">
+        <div class="card-title-row">
+          <span class="case-id">M08</span>
+          <span class="level-badge" style="background:#f0fdfa;color:#0d9488;border:1px solid #0d948830">L3 MES</span>
+          
+          <span class="status-badge" style="color:var(--pass)">&#10004; 通过</span>
+        </div>
+        <div class="query-text">各类型物料有多少种？</div>
+      </div>
+
+      <div class="card-meta">
+        <div class="meta-row">
+          <span class="meta-label">调用工具</span>
+          <span class="meta-value mono">mes.material.search</span>
+        </div>
+        <div class="meta-row">
+          <span class="meta-label">期望工具</span>
+          <span class="meta-value mono expected">mes.material.search</span>
+        </div>
+        <div class="meta-row">
+          <span class="meta-label">Recall</span>
+          <span class="meta-value">100%</span>
+          <span class="meta-label" style="margin-left:20px">耗时</span>
+          <span class="meta-value">17.4s</span>
+          <span class="meta-label" style="margin-left:20px">轮次</span>
+          <span class="meta-value">2</span>
+        </div>
+      </div>
+
+      <div class="answer-section">
+        <div class="answer-label">AI 回答</div>
+        <div class="answer-content">根据物料数据，系统中共有16195种物料，分为8个类型。其中，包装材料（PACKAGE_MATERIAL）最多，有7277种，占比44.9%；其次是零部件（PARTS）3040种（18.8%）、成品（FINISHED_PRODUCT）2719种（16.8%）、原材料（RAW_MATERIAL）1336种（8.2%）、半成品（SEMI_PRODUCT）1278种（7.9%）、半成品（SEMI_FINISHED_PRODUCT）503种（3.1%）、未知类型41种（0.3%）、水（WATER）1种（0.0%）。包装材料占主导，可能反映工厂对包装环节的重视或物料管理精细化；未知类型和水类物料数量极少，建议检查数据录入准确性。行动建议：优先优化包装材料的库存管理，并核实未知类型和水类物料的分类信息。</div>
+      </div>
+    </div>
+
+    <div class="card " id="case-M09">
+      <div class="card-header">
+        <div class="card-title-row">
+          <span class="case-id">M09</span>
+          <span class="level-badge" style="background:#f0fdfa;color:#0d9488;border:1px solid #0d948830">L3 MES</span>
+          
+          <span class="status-badge" style="color:var(--pass)">&#10004; 通过</span>
+        </div>
+        <div class="query-text">物料114428的配方工艺路线是什么？</div>
+      </div>
+
+      <div class="card-meta">
+        <div class="meta-row">
+          <span class="meta-label">调用工具</span>
+          <span class="meta-value mono">mes.recipe.profile</span>
+        </div>
+        <div class="meta-row">
+          <span class="meta-label">期望工具</span>
+          <span class="meta-value mono expected">mes.recipe.profile</span>
+        </div>
+        <div class="meta-row">
+          <span class="meta-label">Recall</span>
+          <span class="meta-value">100%</span>
+          <span class="meta-label" style="margin-left:20px">耗时</span>
+          <span class="meta-value">13.4s</span>
+          <span class="meta-label" style="margin-left:20px">轮次</span>
+          <span class="meta-value">2</span>
+        </div>
+      </div>
+
+      <div class="answer-section">
+        <div class="answer-label">AI 回答</div>
+        <div class="answer-content">物料114428（RnD焕采磨砂膏）的配方工艺路线目前没有记录。<br><br>核心发现：<br><span style="color:#3a7d44;margin-right:4px">1.</span>配方状态为已归档（ARCHIVED），版本为02，生效时间为2023年11月14日，参考产量为100单位，关联产线为5号软管线（3204）。<br><span style="color:#3a7d44;margin-right:4px">2.</span>配方中的工艺路线（unitProcedures）和配方组分（components）均为空，说明该配方未定义具体的生产步骤或原料清单。<br><span style="color:#3a7d44;margin-right:4px">3.</span>作为已归档配方，它可能已不再用于当前生产，但历史数据中缺少工艺细节。<br><br>行动建议：检查配方管理流程，确保归档前工艺路线已完整记录，或联系研发部门补充该配方的工艺文档。</div>
+      </div>
+    </div>
+
+    <div class="card " id="case-M10">
+      <div class="card-header">
+        <div class="card-title-row">
+          <span class="case-id">M10</span>
+          <span class="level-badge" style="background:#f0fdfa;color:#0d9488;border:1px solid #0d948830">L3 MES</span>
+          
+          <span class="status-badge" style="color:var(--pass)">&#10004; 通过</span>
+        </div>
+        <div class="query-text">2024年下半年各月工单数量和产量对比</div>
+      </div>
+
+      <div class="card-meta">
+        <div class="meta-row">
+          <span class="meta-label">调用工具</span>
+          <span class="meta-value mono">edhr.order.search, mes.trend, mes.order.search</span>
+        </div>
+        <div class="meta-row">
+          <span class="meta-label">期望工具</span>
+          <span class="meta-value mono expected">mes.trend</span>
+        </div>
+        <div class="meta-row">
+          <span class="meta-label">Recall</span>
+          <span class="meta-value">100%</span>
+          <span class="meta-label" style="margin-left:20px">耗时</span>
+          <span class="meta-value">39.5s</span>
+          <span class="meta-label" style="margin-left:20px">轮次</span>
+          <span class="meta-value">3</span>
+        </div>
+      </div>
+
+      <div class="answer-section">
+        <div class="answer-label">AI 回答</div>
+        <div class="answer-content">目前没有2024年下半年各月的工单数量和产量对比记录。所有查询工具都返回了错误：edhr.order.search 因 OAuth2 认证失败（401 无效客户端）无法访问，mes.trend 和 mes.order.search 因服务器错误（500）无法获取生产订单数据。这意味着系统当前无法直接提供工单和产量的月度对比数据。<br><br>不过，从数据时间范围（2024年4月至8月）和业务关系链来看，我们可以挖掘一些相关上下文：<br><span style="color:#3a7d44;margin-right:4px">&#8226;</span><strong>时间范围</strong>：数据覆盖2024年4月到8月，这属于2024年下半年的部分月份（7-8月是下半年，4-6月是上半年），但缺少9-12月的数据。<br><span style="color:#3a7d44;margin-right:4px">&#8226;</span><strong>关键指标替代分析</strong>：虽然没有直接的工单数量和产量，但系统关注工单完成率、检测合格率、异常率等指标。例如，如果后续能访问数据，可以通过工单完成数除以总数来估算完成率，或通过检测项状态分析质量趋势。<br><span style="color:#3a7d44;margin-right:4px">&#8226;</span><strong>业务关联</strong>：工单关联产品和批号，并产生质量异常，这暗示工单数量可能影响异常率——更多工单可能带来更多异常，需要监控决策类型（如重新操作、返修）。<br><br><strong>行动建议</strong>：立即检查系统认证和服务器状态，修复OAuth2客户端配置和服务器错误，以恢复数据访问。然后，优先查询2024年4-8月的工单记录，手动计算月度分布，并关联检测项分析质量表现。</div>
+      </div>
+    </div>
+
+    <div class="card " id="case-M11">
+      <div class="card-header">
+        <div class="card-title-row">
+          <span class="case-id">M11</span>
+          <span class="level-badge" style="background:#f0fdfa;color:#0d9488;border:1px solid #0d948830">L3 MES</span>
+          
+          <span class="status-badge" style="color:var(--pass)">&#10004; 通过</span>
+        </div>
+        <div class="query-text">乳化线的生产概况</div>
+      </div>
+
+      <div class="card-meta">
+        <div class="meta-row">
+          <span class="meta-label">调用工具</span>
+          <span class="meta-value mono">mes.line.overview</span>
+        </div>
+        <div class="meta-row">
+          <span class="meta-label">期望工具</span>
+          <span class="meta-value mono expected">mes.line.overview</span>
+        </div>
+        <div class="meta-row">
+          <span class="meta-label">Recall</span>
+          <span class="meta-value">100%</span>
+          <span class="meta-label" style="margin-left:20px">耗时</span>
+          <span class="meta-value">13.6s</span>
+          <span class="meta-label" style="margin-left:20px">轮次</span>
+          <span class="meta-value">2</span>
+        </div>
+      </div>
+
+      <div class="answer-section">
+        <div class="answer-label">AI 回答</div>
+        <div class="answer-content">目前没有乳化线的生产记录。<br><br>从产线分类看，乳化线属于乳化类（编号3102-3112），但查询不到相关数据，可能原因：<br><span style="color:#3a7d44;margin-right:4px">1.</span>近期没有乳化线的生产安排<br><span style="color:#3a7d44;margin-right:4px">2.</span>乳化线名称不匹配（如使用具体编号而非“乳化线”统称）<br><br>不过，从业务关系链看，乳化线是生产的关键环节，连接配方和工单。建议先确认乳化线的具体名称或编号，再查看相关配方和工单状态。<br><br>行动建议：检查乳化线（3102-3112）的近期工单安排，或从配方中筛选涉及乳化工艺的配方进行排查。</div>
+      </div>
+    </div>
+
+    <div class="card " id="case-M12">
+      <div class="card-header">
+        <div class="card-title-row">
+          <span class="case-id">M12</span>
+          <span class="level-badge" style="background:#f0fdfa;color:#0d9488;border:1px solid #0d948830">L3 MES</span>
+          
+          <span class="status-badge" style="color:var(--pass)">&#10004; 通过</span>
+        </div>
+        <div class="query-text">搜索包含"乳霜"的物料</div>
+      </div>
+
+      <div class="card-meta">
+        <div class="meta-row">
+          <span class="meta-label">调用工具</span>
+          <span class="meta-value mono">mes.material.search</span>
+        </div>
+        <div class="meta-row">
+          <span class="meta-label">期望工具</span>
+          <span class="meta-value mono expected">mes.material.search</span>
+        </div>
+        <div class="meta-row">
+          <span class="meta-label">Recall</span>
+          <span class="meta-value">100%</span>
+          <span class="meta-label" style="margin-left:20px">耗时</span>
+          <span class="meta-value">21.6s</span>
+          <span class="meta-label" style="margin-left:20px">轮次</span>
+          <span class="meta-value">2</span>
+        </div>
+      </div>
+
+      <div class="answer-section">
+        <div class="answer-label">AI 回答</div>
+        <div class="answer-content">搜索到 83 条包含“乳霜”的物料记录。从预计算统计看，这些物料主要分为四类：包装材料最多，占 62.7%（52 条），其次是半成品占 19.3%（16 条）、成品占 15.7%（13 条）、半成品成品占 2.4%（2 条）。单位以“个”为主（78.3%），少数用“公斤”（21.7%）。储存条件大部分要求常温（＜35℃，45-75%RH），占 78.3%，其余需冷藏（18-28℃，50-75%RH）。有效期的平均值为 1507.9 天（约 4.1 年），最短为 0 天（如“纤女曲线乳霜”），最长为 1825 天（5 年）；复验期的平均值为 1339.8 天（约 3.7 年），最短 270 天，最长 1825 天。<br><br>关键发现：<br><span style="color:#3a7d44;margin-right:4px">1.</span>包装材料占比高，说明乳霜产品涉及大量包装组件，如瓶、盒、贴纸等，可能影响供应链管理。<br><span style="color:#3a7d44;margin-right:4px">2.</span>有 3 条记录的有效期为 0 天（如“纤女曲线乳霜”、“智能水漾保濕乳霜30g”、“滋養蜂嫩手足深層修護乳霜220g”），需紧急检查是否为数据录入错误或特殊处理品。<br><span style="color:#3a7d44;margin-right:4px">3.</span>储存条件分两类，大部分为常温，但半成品和半成品成品多为冷藏，提示生产环节需注意温控。<br><span style="color:#3a7d44;margin-right:4px">4.</span>复验期最短仅 270 天（约 9 个月），低于平均值，可能增加质检频率。<br><br>行动建议：立即核查那 3 条有效期为 0 天的物料，确认其实际有效期或处理状态，避免库存过期风险。</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 评测方法说明 -->
+  <div class="methodology">
+    <h3>评测方法说明</h3>
+    <p>本报告基于 Lantern 平台级 Benchmark v1，覆盖三个评测层级：</p>
+    <ul>
+      <li><strong>L1 系统路由（12 题）</strong>：验证 AI 能否在 EAM / EDHR / MES 三个系统中选对目标系统。包含术语歧义（如"工单"在 EAM 是维修工单、在 MES 是生产工单）、多系统查询等场景。</li>
+      <li><strong>L2 跨系统推理（6 题）</strong>：验证 AI 能否在单次对话中调用多个系统的工具，完成跨系统关联分析。如"故障频率最高的设备所在产线的生产趋势"需同时查 EAM 故障数据和 MES 产线趋势。</li>
+      <li><strong>L3 MES 单系统（12 题）</strong>：验证 MES 系统新落地的 10 个工具的准确率，覆盖 dashboard、工单、批次、配方、物料、库存、产线等全场景。</li>
+    </ul>
+    <p style="margin-top:12px"><strong>评估指标</strong>：工具 Recall（是否调用了所有必要工具）、系统路由准确率（是否选对系统）、事实分（回答是否包含必要关键词且无禁用词）。P18 为已知的部分通过用例——AI 成功定位了 EAM 中故障最高的设备，但未进一步调用 MES 趋势工具获取产线生产趋势。</p>
+    <p style="margin-top:8px"><strong>数据基线</strong>：EAM 青川制药（120 台设备、350 故障记录）、EDHR 医疗器械（34 品种、审批流程）、MES 克丽缇娜（化妆品生产、5 产线、配方管理）。</p>
+  </div>
+
+  <div class="footer">
+    Lantern NL-API Platform &copy; 2026 &mdash; Generated at 2026-04-03 08:09:12
+  </div>
+
+</div>
+
+<script>
+function filterCards(level) {
+  const cards = document.querySelectorAll('.card');
+  cards.forEach(card => {
+    if (level === 'all') { card.style.display = ''; return; }
+    const id = card.id.replace('case-', '');
+    const data = window.__results.find(r => r.id === id);
+    card.style.display = data && data.level === level ? '' : 'none';
+  });
+  document.querySelectorAll('.level-filter button').forEach(btn => btn.classList.remove('active'));
+  event.target.classList.add('active');
+}
+window.__results = [{"id":"P01","level":"routing"},{"id":"P02","level":"routing"},{"id":"P03","level":"routing"},{"id":"P04","level":"routing"},{"id":"P05","level":"routing"},{"id":"P06","level":"routing"},{"id":"P07","level":"routing"},{"id":"P08","level":"routing"},{"id":"P09","level":"routing"},{"id":"P10","level":"routing"},{"id":"P11","level":"routing"},{"id":"P12","level":"routing"},{"id":"P13","level":"cross-system"},{"id":"P14","level":"cross-system"},{"id":"P15","level":"cross-system"},{"id":"P16","level":"cross-system"},{"id":"P17","level":"cross-system"},{"id":"P18","level":"cross-system"},{"id":"M01","level":"single-system"},{"id":"M02","level":"single-system"},{"id":"M03","level":"single-system"},{"id":"M04","level":"single-system"},{"id":"M05","level":"single-system"},{"id":"M06","level":"single-system"},{"id":"M07","level":"single-system"},{"id":"M08","level":"single-system"},{"id":"M09","level":"single-system"},{"id":"M10","level":"single-system"},{"id":"M11","level":"single-system"},{"id":"M12","level":"single-system"}];
+</script>
+</body>
+</html>

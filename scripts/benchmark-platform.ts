@@ -244,6 +244,41 @@ async function main() {
 
   console.log(`\n${'='.repeat(70)}`)
 
+  // ============ 保存到数据库（Web UI 可查看） ============
+  const runId = `platform-v1-${new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19)}`
+  try {
+    storage.saveBenchmarkRun({
+      runId,
+      timestamp: new Date().toISOString(),
+      config: {
+        model: 'deepseek-chat',
+        maxChaseRounds: 2,
+        promptVersion: 'platform-v1',
+        notes: `平台级三层 Benchmark — L1路由${routingCorrect}/${routingResults.length} L2跨系统${crossPerfect}/${crossResults.length} L3单系统${mesPerfect}/${mesResults.length}`,
+      },
+      summary: {
+        total: results.length, success: successful.length,
+        recall: avgRecall, precision: 0,
+        perfectCount: successful.filter(r => r.toolRecall === 1).length,
+        factScore: mesFactScore,
+        byLevel: {
+          'L1-routing': { recall: routingCorrect / (routingResults.length || 1), perfect: routingCorrect, count: routingResults.length },
+          'L2-cross': { recall: crossRecall, perfect: crossPerfect, count: crossResults.length },
+          'L3-single': { recall: mesRecall, perfect: mesPerfect, count: mesResults.length },
+        },
+      },
+      results: results.map(r => ({
+        id: r.id, query: r.query, level: r.level, success: r.success,
+        actualTools: r.actualTools, expectedTools: r.bestPath,
+        recall: r.toolRecall, precision: r.toolPrecision,
+        rounds: r.rounds, latencyMs: r.latencyMs,
+        answer: r.answer,
+        confidence: 'high', hasSources: false,
+      })),
+    } as any)
+    console.log(`\n运行记录已保存: ${runId}`)
+  } catch (e) { console.log(`保存失败: ${(e as Error).message}`) }
+
   await mcpClient.close()
   storage.close()
 }

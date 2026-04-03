@@ -79,8 +79,13 @@ export function registerRepairSearch(server: McpServer) {
             }
           : undefined
 
+        // 防御: filter 已指定具体值时，groupBy 同维度是多余的
+        const effectiveGroupBy = (args.groupBy === 'status' && args.status !== undefined)
+          || (args.groupBy === 'orderType' && args.orderType !== undefined)
+          ? undefined : args.groupBy
+
         const result = await eamSearch<RepairOrder>('/eam/repair-order/page', params, {
-          groupBy: args.groupBy,
+          groupBy: effectiveGroupBy,
           groupKeyFn: (r, gb) => gb === 'equipment' ? String(r.equipmentId)
             : gb === 'productionLine' ? (eqToLine?.get(r.equipmentId) ?? '未分配产线')
             : gb === 'orderType' ? (r.orderType ?? '未知')
@@ -130,6 +135,21 @@ export function registerRepairSearch(server: McpServer) {
         }
       }
 
+      // 批量解析设备名称 — 避免返回裸 equipmentId（原则：ID 字段不暴露内部实现）
+      const equipmentIds = [...new Set(list.map(r => r.equipmentId))]
+      const eqNameMap = new Map<number, string>()
+      if (equipmentIds.length > 0) {
+        try {
+          // 全量拉设备列表做映射（设备总量通常 < 200，一次全拿）
+          const allEquipments = await eamGetAll<{ id: number; equipmentCode: string; equipmentName: string }>('/eam/equipment/page', {})
+          for (const eq of allEquipments) {
+            if (equipmentIds.includes(eq.id)) {
+              eqNameMap.set(eq.id, `${eq.equipmentCode} ${eq.equipmentName}`)
+            }
+          }
+        } catch { /* 查不到名称不影响主流程 */ }
+      }
+
       // concise: 不做丰富化
       if (args.format === 'concise') {
         const conciseResult: Record<string, unknown> = {
@@ -137,7 +157,8 @@ export function registerRepairSearch(server: McpServer) {
           count: list.length,
           items: list.map(r => ({
             code: r.orderCode, status: REPAIR_STATUS[r.status], type: r.orderType,
-            equipmentId: r.equipmentId, createTime: (r as any).createTime ?? null,
+            equipment: eqNameMap.get(r.equipmentId) ?? `设备#${r.equipmentId}`,
+            createTime: (r as any).createTime ?? null,
             repairMinutes: r.repairMinutes,
             laborCost: r.laborCost, materialCost: r.materialCost,
           })),
@@ -167,7 +188,8 @@ export function registerRepairSearch(server: McpServer) {
 
         return {
           id: r.id, code: r.orderCode, status: r.status, statusText: REPAIR_STATUS[r.status],
-          orderType: r.orderType, equipmentId: r.equipmentId,
+          orderType: r.orderType,
+          equipment: eqNameMap.get(r.equipmentId) ?? `设备#${r.equipmentId}`,
           createTime: (r as any).createTime ?? null,  // 暴露创建时间，让 AI 能算维修周期/间隔
           repairMinutes: r.repairMinutes, laborCost: r.laborCost, materialCost: r.materialCost,
           spareSummary: { count: spareCount, totalCost: spareCost, details: spareDetails },
