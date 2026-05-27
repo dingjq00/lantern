@@ -1,7 +1,7 @@
 // mes.trend — 生产趋势分析（按月/按产线统计工单数和产量）
 import { z } from 'zod'
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
-import { mesClient, jmixDate, type JmixCondition } from '../../jmix-api.js'
+import { mesClient, jmixLocalDateTime, type JmixCondition } from '../../jmix-api.js'
 import { textResult } from '../../shared.js'
 
 export function registerMesTrend(server: McpServer) {
@@ -15,8 +15,8 @@ export function registerMesTrend(server: McpServer) {
     },
     async (args) => {
       const conditions: JmixCondition[] = [
-        { property: 'planStart', operator: '>=', value: jmixDate(args.dateRange.from) },
-        { property: 'planStart', operator: '<=', value: jmixDate(args.dateRange.to, true) },
+        { property: 'planStart', operator: '>=', value: jmixLocalDateTime(args.dateRange.from) },
+        { property: 'planStart', operator: '<=', value: jmixLocalDateTime(args.dateRange.to, true) },
       ]
       if (args.status) conditions.push({ property: 'status', operator: '=', value: args.status })
 

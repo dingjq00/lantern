@@ -39,6 +39,8 @@ interface JmixClientConfig {
   baseUrl: string
   clientId: string
   clientSecret: string
+  /** 并发上限 — 防止 dashboard fan-out + ReAct 并发把后端连接池打挂。默认不限。 */
+  maxConcurrent?: number
 }
 
 // ============ 工厂函数 ============
@@ -49,6 +51,22 @@ export function createJmixClient(config: JmixClientConfig) {
   /** Jmix 自签名证书 — 全局禁用 TLS 验证（仅开发环境） */
   if (config.baseUrl.startsWith('https://localhost')) {
     process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0'
+  }
+
+  /** 并发闸 — 仅限制数据请求，OAuth getToken 不计入（getToken 内部已有缓存复用） */
+  const max = config.maxConcurrent ?? Infinity
+  let active = 0
+  const waiters: Array<() => void> = []
+  async function withLimit<T>(fn: () => Promise<T>): Promise<T> {
+    if (max === Infinity) return fn()
+    if (active >= max) await new Promise<void>(resolve => waiters.push(resolve))
+    active++
+    try { return await fn() }
+    finally {
+      active--
+      const next = waiters.shift()
+      if (next) next()
+    }
   }
 
   /** OAuth2 Client Credentials 认证，自动缓存和续期 */
@@ -87,23 +105,25 @@ export function createJmixClient(config: JmixClientConfig) {
       returnCount?: boolean
     },
   ): Promise<{ items: T[]; count?: number }> {
-    const token = await getToken()
-    const url = new URL(`${config.baseUrl}/rest/entities/${entityName}`)
+    return withLimit(async () => {
+      const token = await getToken()
+      const url = new URL(`${config.baseUrl}/rest/entities/${entityName}`)
 
-    if (options?.limit) url.searchParams.set('limit', String(options.limit))
-    if (options?.offset) url.searchParams.set('offset', String(options.offset))
-    if (options?.sort) url.searchParams.set('sort', options.sort)
-    if (options?.fetchPlan) url.searchParams.set('fetchPlan', options.fetchPlan)
-    if (options?.returnCount) url.searchParams.set('returnCount', 'true')
+      if (options?.limit) url.searchParams.set('limit', String(options.limit))
+      if (options?.offset) url.searchParams.set('offset', String(options.offset))
+      if (options?.sort) url.searchParams.set('sort', options.sort)
+      if (options?.fetchPlan) url.searchParams.set('fetchPlan', options.fetchPlan)
+      if (options?.returnCount) url.searchParams.set('returnCount', 'true')
 
-    const res = await fetch(url.toString(), {
-      headers: { 'Authorization': `Bearer ${token}` },
+      const res = await fetch(url.toString(), {
+        headers: { 'Authorization': `Bearer ${token}` },
+      })
+      if (!res.ok) throw new Error(`Jmix GET ${entityName} 失败: ${res.status}`)
+
+      const items = await res.json() as T[]
+      const countHeader = res.headers.get('X-Total-Count')
+      return { items, count: countHeader ? parseInt(countHeader) : undefined }
     })
-    if (!res.ok) throw new Error(`Jmix GET ${entityName} 失败: ${res.status}`)
-
-    const items = await res.json() as T[]
-    const countHeader = res.headers.get('X-Total-Count')
-    return { items, count: countHeader ? parseInt(countHeader) : undefined }
   }
 
   /** 获取单个实体 */
@@ -112,16 +132,18 @@ export function createJmixClient(config: JmixClientConfig) {
     id: string,
     fetchPlan?: string,
   ): Promise<T> {
-    const token = await getToken()
-    const url = new URL(`${config.baseUrl}/rest/entities/${entityName}/${id}`)
-    if (fetchPlan) url.searchParams.set('fetchPlan', fetchPlan)
+    return withLimit(async () => {
+      const token = await getToken()
+      const url = new URL(`${config.baseUrl}/rest/entities/${entityName}/${id}`)
+      if (fetchPlan) url.searchParams.set('fetchPlan', fetchPlan)
 
-    const res = await fetch(url.toString(), {
-      headers: { 'Authorization': `Bearer ${token}` },
+      const res = await fetch(url.toString(), {
+        headers: { 'Authorization': `Bearer ${token}` },
+      })
+      if (!res.ok) throw new Error(`Jmix GET ${entityName}/${id} 失败: ${res.status}`)
+
+      return await res.json() as T
     })
-    if (!res.ok) throw new Error(`Jmix GET ${entityName}/${id} 失败: ${res.status}`)
-
-    return await res.json() as T
   }
 
   /** 条件搜索 — POST /rest/entities/{entity}/search */
@@ -136,28 +158,30 @@ export function createJmixClient(config: JmixClientConfig) {
       returnCount?: boolean
     },
   ): Promise<{ items: T[]; count?: number }> {
-    const token = await getToken()
-    const url = new URL(`${config.baseUrl}/rest/entities/${entityName}/search`)
+    return withLimit(async () => {
+      const token = await getToken()
+      const url = new URL(`${config.baseUrl}/rest/entities/${entityName}/search`)
 
-    if (options?.limit) url.searchParams.set('limit', String(options.limit))
-    if (options?.offset) url.searchParams.set('offset', String(options.offset))
-    if (options?.sort) url.searchParams.set('sort', options.sort)
-    if (options?.fetchPlan) url.searchParams.set('fetchPlan', options.fetchPlan)
-    if (options?.returnCount) url.searchParams.set('returnCount', 'true')
+      if (options?.limit) url.searchParams.set('limit', String(options.limit))
+      if (options?.offset) url.searchParams.set('offset', String(options.offset))
+      if (options?.sort) url.searchParams.set('sort', options.sort)
+      if (options?.fetchPlan) url.searchParams.set('fetchPlan', options.fetchPlan)
+      if (options?.returnCount) url.searchParams.set('returnCount', 'true')
 
-    const res = await fetch(url.toString(), {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ filter }),
+      const res = await fetch(url.toString(), {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ filter }),
+      })
+      if (!res.ok) throw new Error(`Jmix SEARCH ${entityName} 失败: ${res.status} ${await res.text()}`)
+
+      const items = await res.json() as T[]
+      const countHeader = res.headers.get('X-Total-Count')
+      return { items, count: countHeader ? parseInt(countHeader) : undefined }
     })
-    if (!res.ok) throw new Error(`Jmix SEARCH ${entityName} 失败: ${res.status} ${await res.text()}`)
-
-    const items = await res.json() as T[]
-    const countHeader = res.headers.get('X-Total-Count')
-    return { items, count: countHeader ? parseInt(countHeader) : undefined }
   }
 
   /** 条件计数 */
@@ -165,26 +189,28 @@ export function createJmixClient(config: JmixClientConfig) {
     entityName: string,
     filter: JmixFilter,
   ): Promise<number> {
-    const token = await getToken()
-    const url = new URL(`${config.baseUrl}/rest/entities/${entityName}/search`)
-    url.searchParams.set('fetchPlan', '_instance_name')
-    url.searchParams.set('limit', '50000')
+    return withLimit(async () => {
+      const token = await getToken()
+      const url = new URL(`${config.baseUrl}/rest/entities/${entityName}/search`)
+      url.searchParams.set('fetchPlan', '_instance_name')
+      url.searchParams.set('limit', '50000')
 
-    const res = await fetch(url.toString(), {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ filter }),
+      const res = await fetch(url.toString(), {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ filter }),
+      })
+      if (!res.ok) throw new Error(`Jmix COUNT ${entityName} 失败: ${res.status}`)
+
+      const items = await res.json() as JmixEntity[]
+      return items.length
     })
-    if (!res.ok) throw new Error(`Jmix COUNT ${entityName} 失败: ${res.status}`)
-
-    const items = await res.json() as JmixEntity[]
-    return items.length
   }
 
-  /** 全量拉取（聚合用） */
+  /** 全量拉取（聚合用） — 一律分页，避免单次 10k 把 Jmix 后端打挂 */
   async function getAll<T extends JmixEntity = JmixEntity>(
     entityName: string,
     options?: {
@@ -193,20 +219,17 @@ export function createJmixClient(config: JmixClientConfig) {
       fetchPlan?: string
     },
   ): Promise<T[]> {
-    if (options?.filter) {
-      const { items } = await search<T>(entityName, options.filter, {
-        limit: 10000, sort: options.sort, fetchPlan: options.fetchPlan,
-      })
-      return items
-    }
-
     const PAGE_SIZE = 500
     let all: T[] = []
     let offset = 0
     while (true) {
-      const { items } = await list<T>(entityName, {
-        limit: PAGE_SIZE, offset, sort: options?.sort, fetchPlan: options?.fetchPlan,
-      })
+      const { items } = options?.filter
+        ? await search<T>(entityName, options.filter, {
+            limit: PAGE_SIZE, offset, sort: options.sort, fetchPlan: options.fetchPlan,
+          })
+        : await list<T>(entityName, {
+            limit: PAGE_SIZE, offset, sort: options?.sort, fetchPlan: options?.fetchPlan,
+          })
       all.push(...items)
       if (items.length < PAGE_SIZE) break
       offset += PAGE_SIZE
@@ -238,11 +261,12 @@ const edhrClient = createJmixClient({
   clientSecret: process.env.EDHR_CLIENT_SECRET || 'fpMqaLPAAB',
 })
 
-/** MES 实例 */
+/** MES 实例 — 如需限并发可设 MES_MAX_CONCURRENT 环境变量，默认不限 */
 export const mesClient = createJmixClient({
   baseUrl: process.env.MES_BASE_URL || 'https://localhost:443',
   clientId: process.env.MES_CLIENT_ID || 'suuxrhsdjs',
   clientSecret: process.env.MES_CLIENT_SECRET || 'yLdhwhEBNo',
+  maxConcurrent: process.env.MES_MAX_CONCURRENT ? parseInt(process.env.MES_MAX_CONCURRENT) : undefined,
 })
 
 // ============ EDHR 向后兼容导出（已有 handler 不用改） ============
@@ -264,6 +288,17 @@ export function jmixDate(dateStr: string, endOfDay = false): string {
   if (/[Z+]\d{0,2}:?\d{0,2}$/.test(dateStr)) return dateStr
   if (dateStr.includes('T')) return dateStr + 'Z'
   return endOfDay ? `${dateStr}T23:59:59Z` : `${dateStr}T00:00:00Z`
+}
+
+/**
+ * Jmix LocalDateTime 字段格式化 — 不带时区
+ * MES 的 planStart/planEnd/actualStart/actualEnd/documentDate 都是 localDateTime；
+ * 给这些字段加 Z 或 +08:00 会让 Jmix 解析失败直接 500。
+ */
+export function jmixLocalDateTime(dateStr: string, endOfDay = false): string {
+  if (!dateStr) return dateStr
+  if (dateStr.includes('T')) return dateStr.replace(/[Z]$|[+-]\d{2}:?\d{2}$/, '')
+  return endOfDay ? `${dateStr}T23:59:59` : `${dateStr}T00:00:00`
 }
 
 export { textResult } from './shared.js'

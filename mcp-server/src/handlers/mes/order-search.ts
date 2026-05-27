@@ -1,13 +1,13 @@
 // mes.order.search — 生产工单搜索
 import { z } from 'zod'
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
-import { mesClient, jmixDate, type JmixCondition } from '../../jmix-api.js'
+import { mesClient, jmixLocalDateTime, type JmixCondition } from '../../jmix-api.js'
 import { textResult } from '../../shared.js'
 
 export function registerMesOrderSearch(server: McpServer) {
   server.tool(
     'mes.order.search',
-    '按条件搜索生产工单列表。支持按状态、工单号、物料、产线、日期范围过滤，可按状态/产线/月份聚合统计。适用于"有多少工单在执行""上月完成了多少工单""各产线的工单分布"等问题。',
+    '按条件搜索生产工单列表（当前快照）。支持按状态、工单号、物料、工单类型、计划日期范围过滤，可按状态/类型/月份聚合。跨系统询问"对应/关联的工单"时按 status=RUNNING 取活跃工单。',
     {
       status: z.string().optional().describe('工单状态: INIT/CONFIRMED/RUNNING/FINISHED/CLOSED/CANCELED/ABORTED'),
       orderNo: z.string().optional().describe('工单号（模糊匹配）'),
@@ -24,8 +24,8 @@ export function registerMesOrderSearch(server: McpServer) {
       if (args.materialCode) conditions.push({ property: 'material.materialCode', operator: 'contains', value: args.materialCode })
       if (args.orderType) conditions.push({ property: 'orderType', operator: '=', value: args.orderType })
       if (args.dateRange) {
-        conditions.push({ property: 'planStart', operator: '>=', value: jmixDate(args.dateRange.from) })
-        conditions.push({ property: 'planStart', operator: '<=', value: jmixDate(args.dateRange.to, true) })
+        conditions.push({ property: 'planStart', operator: '>=', value: jmixLocalDateTime(args.dateRange.from) })
+        conditions.push({ property: 'planStart', operator: '<=', value: jmixLocalDateTime(args.dateRange.to, true) })
       }
 
       const filter = { conditions }
