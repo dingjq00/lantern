@@ -60,7 +60,7 @@ export function TracePanel({ trace }: TracePanelProps) {
             )}
             <div>Verdict: 已停用（P1.5 清理）</div>
             <div>
-              置信度: toolMatch={trace.confidence.toolMatch} verdict={trace.confidence.verdictConfidence} clarity={trace.confidence.queryClarity}
+              置信度: toolMatch={trace.confidence.toolMatch} relevance={trace.confidence.dataRelevance} clarity={trace.confidence.queryClarity}
               → 最终={trace.finalConfidence}
             </div>
             {trace.validation.length > 0 && (

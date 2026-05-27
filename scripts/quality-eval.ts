@@ -17,7 +17,7 @@ import { buildDigestForSummarize } from '../lib/brain/data-digest'
 
 const LLM_BASE_URL = process.env.LLM_BASE_URL || 'http://38.55.108.188:8317/v1'
 const LLM_API_KEY = process.env.LLM_API_KEY || 'sk-mes-ai-explorer-2026'
-const LLM_MODEL = process.env.LLM_MODEL || 'deepseek-chat'
+const LLM_MODEL = process.env.LLM_MODEL || 'deepseek-v4-flash'
 
 const client = new OpenAI({ baseURL: LLM_BASE_URL, apiKey: LLM_API_KEY })
 

@@ -1,17 +1,15 @@
-# MES 全局仪表盘 — 生产+仓库全景概览
+# MES 全局仪表盘 — 仓库 + 主数据 + 产线名录（非工单查询）
 name: mes.dashboard
 description: >
-  获取 MES 系统全局概览。返回生产工单状态分布（INIT/CONFIRMED/RUNNING/FINISHED/CLOSED等）、
-  19条产线列表、库存单类型分布（仓库操作/批次检验/生产入库/采购/领料等）、
-  主数据总量（物料16K+/批次86K+/子批次78K+）。
-  适用于管理层了解生产和仓库全貌的"生产怎么样""仓库概况"类问题。
+  获取 MES 全厂级「非工单」概览：产线名录、库存单类型分布、物料/批次/子批次总量。
+  虽附带全厂工单状态计数（byStatus），但仅为参考数字，**无过滤维度**，不能按产线/物料/设备关联。
+  任何「多少工单/执行中/积压/按状态统计/跨系统对应工单」必须用 mes.order.search，禁止用本工具代替。
 version: "1.0"
 system: mes
 type: simple
 maps_to: mes.dashboard
 
 domains:
-  - production
   - warehouse
 
 operation: dashboard
@@ -22,19 +20,19 @@ input_schema:
   properties: {}
 
 when_to_use:
-  - 用户询问生产整体概况，如"生产情况怎么样""MES 概览""今天工单情况"
-  - 用户询问全局统计数字，如"有多少工单在执行""仓库单据有多少""物料有多少种"
-  - 用户询问产线列表，如"有哪些产线""系统里有几条线"
-  - 管理层需要快速了解生产+仓库健康度，如"日报数据""各项指标"
-  - 作为分析链的起点——先全局再深入某条产线或某个工单
+  - 用户问 MES/仓库/主数据全貌，如"仓库概况""物料批次有多少""库存单类型分布"
+  - 用户问全厂产线名录，如"有哪些产线""系统里有几条线"
+  - 管理层快速看仓库+主数据健康度（不涉及具体工单筛选）
 
 when_not_to_use:
-  - 用户询问某条产线的概况 → 使用 mes.line.overview
-  - 用户询问特定工单的详情 → 使用 mes.order.profile
-  - 用户需要时间趋势分析 → 使用 mes.trend
+  - ⚠️ 任何生产工单问题：多少/执行中/积压/按状态/按物料/跨系统对应工单 → **mes.order.search**
+  - 用户问某条产线的情况或该产线工单 → mes.line.overview（仅产线画像）+ mes.order.search（工单）
+  - 用户问产量/工单随时间变化 → mes.trend
+  - 用户问单个工单详情 → mes.order.profile
+  - 跨系统「设备/备件/批次 → MES 工单」→ mes.order.search（status=RUNNING 等），本工具无法关联
 
 examples:
-  - query: "MES 生产和仓库现在什么情况"
+  - query: "MES 仓库和主数据现在什么情况"
     arguments: {}
-  - query: "有多少工单在执行？"
+  - query: "库存单各类型有多少"
     arguments: {}

@@ -155,6 +155,70 @@ const CROSS_SYSTEM_TESTS: PlatformTestCase[] = [
       ['eam.fault.search', 'mes.line.overview'],
     ],
     shouldContain: ['故障', '趋势'] },
+
+  { id: 'C19', query: '压片线设备故障多的话，MES 上该产线工单是否也积压？', level: 'cross-system',
+    description: '设备影响生产 — 产线维度 EAM+MES',
+    acceptablePaths: [
+      ['eam.fault.search', 'mes.order.search'],
+      ['eam.scope.overview', 'mes.order.search'],
+    ],
+    shouldContain: ['故障', '工单'] },
+
+  { id: 'C20', query: '正在维修的设备对应产线，MES 还有多少在执行中的班次工单？', level: 'cross-system',
+    description: '维修中设备 → 产线 → MES 执行工单',
+    acceptablePaths: [
+      ['eam.repair.search', 'mes.order.search'],
+      ['eam.equipment.search', 'mes.order.search'],
+    ],
+    shouldContain: ['维修', '工单'] },
+
+  { id: 'C21', query: 'EAM 保养逾期最多的产线，MES 产量完成率是否也偏低？', level: 'cross-system',
+    description: '维护影响产量 — 保养与计划达成',
+    acceptablePaths: [
+      ['eam.maintenance.search', 'mes.trend'],
+      ['eam.scope.overview', 'mes.order.search'],
+    ],
+    shouldContain: ['保养', '完成'] },
+
+  { id: 'C22', query: 'MES 物料齐套有风险时，EAM 对应设备的 BOM 备件是否也在预警？', level: 'cross-system',
+    description: '库存影响排产 — MES 物料 + EAM 备件',
+    acceptablePaths: [
+      ['mes.material.search', 'eam.spare.search'],
+      ['mes.inventory.search', 'eam.spare.search'],
+    ],
+    shouldContain: ['物料', '备件'] },
+
+  { id: 'C23', query: 'EDHR 检测异常率高的产品，MES 上对应批次的放行率怎么样？', level: 'cross-system',
+    description: '质量回溯 — EDHR + MES',
+    acceptablePaths: [
+      ['edhr.exception.search', 'mes.sublot.search'],
+      ['edhr.order.search', 'mes.lot.search'],
+    ],
+    shouldContain: ['异常', '批'] },
+
+  { id: 'C24', query: '出一份三系统运营摘要：设备、检测、生产各给关键数字', level: 'cross-system',
+    description: '三系统日报 — EAM + EDHR + MES',
+    acceptablePaths: [
+      ['eam.dashboard', 'edhr.dashboard', 'mes.dashboard'],
+    ],
+    shouldContain: ['设备', '工单'] },
+
+  { id: 'C25', query: '称量产线 EAM 故障趋势和 MES 工单完成率趋势是否同向变化？', level: 'cross-system',
+    description: '趋势归因 — 双系统 trend',
+    acceptablePaths: [
+      ['eam.trend', 'mes.trend'],
+      ['eam.fault.search', 'mes.trend'],
+    ],
+    shouldContain: ['趋势'] },
+
+  { id: 'C26', query: '故障率最高的设备是否直接导致了产线产量下降？', level: 'cross-system',
+    description: '因果克制 — 只能陈述数据与假设，禁止强因果',
+    acceptablePaths: [
+      ['eam.fault.search', 'mes.trend'],
+      ['eam.equipment.profile', 'mes.trend'],
+    ],
+    forbidden: ['直接导致', '正是因为', '证明了', '必然导致'],
+    shouldContain: ['故障'] },
 ]
 
 // ============================================================

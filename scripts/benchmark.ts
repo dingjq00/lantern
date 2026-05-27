@@ -13,6 +13,7 @@ if (fs.existsSync(envPath)) {
 }
 
 import { processQuery } from '../lib/brain/router'
+import { BENCHMARK_DATASETS, buildBenchmarkConfig } from '../lib/benchmark/manifest'
 import { ToolRegistry } from '../lib/tools/registry'
 import { CodexProxyProvider } from '../lib/llm/codex-proxy'
 import { SQLiteStorage } from '../lib/storage/sqlite'
@@ -246,7 +247,7 @@ const BENCHMARK_MODELS: ModelConfig[] = [
     name: 'DeepSeek',
     baseURL: process.env.LLM_BASE_URL || 'https://gptapi.tutu02.us.ci/v1',
     apiKey: process.env.LLM_API_KEY || 'sk-mes-ai-explorer-2026',
-    model: 'deepseek-chat',
+    model: process.env.LLM_MODEL || 'deepseek-v4-flash',
   },
   // GPT-4.1 暂时关闭 — GitHub Models API rate limit 太严，每次跑 30 分钟还跑不完
   // {
@@ -391,13 +392,13 @@ async function runBenchmarkForModel(
     storage.saveBenchmarkRun({
       runId,
       timestamp: new Date().toISOString(),
-      config: {
+      config: buildBenchmarkConfig({
         model: modelConfig.model,
-        maxChaseRounds: 2,
         escalationModel: process.env.LLM_ESCALATION_MODEL || modelConfig.model,
         promptVersion: 'v3-multi-model',
+        datasetVersion: BENCHMARK_DATASETS.eamEdhr.id,
         notes: notes || `${modelConfig.name} benchmark`,
-      },
+      }),
       summary: {
         total: results.length, success: successful.length,
         recall: avgRecall, precision: avgPrecision, perfectCount: perfectRecall,

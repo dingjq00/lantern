@@ -17,9 +17,11 @@ import { CodexProxyProvider } from '../lib/llm/codex-proxy'
 import { SQLiteStorage } from '../lib/storage/sqlite'
 import { loadTools } from '../lib/tools/yaml-loader'
 import { MCPClient } from '../lib/tools/mcp-client'
+import { getMcpServerSpawn } from '../lib/tools/mcp-spawn'
 import path from 'path'
 
 import { PLATFORM_TEST_CASES, PLATFORM_TEST_STATS, type PlatformTestCase, type TestLevel } from '../data/platform-test-cases.js'
+import { BENCHMARK_DATASETS, buildBenchmarkConfig } from '../lib/benchmark/manifest'
 
 const CONCURRENCY = 3
 const GLOBAL_FORBIDDEN = ['数据不足', '无法回答', '数据不完整', '暂无数据']
@@ -129,7 +131,8 @@ async function main() {
   const storage = new SQLiteStorage('./data/insight68.db')
   storage.initialize()
 
-  const mcpClient = new MCPClient('npx', ['tsx', path.join(__dirname, '../mcp-server/src/index.ts')])
+  const mcpSpawn = getMcpServerSpawn(path.join(__dirname, '..'))
+  const mcpClient = new MCPClient(mcpSpawn.command, mcpSpawn.args)
   await mcpClient.connect()
   console.log('MCP Server 已连接\n')
 
@@ -250,12 +253,13 @@ async function main() {
     storage.saveBenchmarkRun({
       runId,
       timestamp: new Date().toISOString(),
-      config: {
-        model: 'deepseek-chat',
-        maxChaseRounds: 2,
-        promptVersion: 'platform-v1',
+      config: buildBenchmarkConfig({
+        model: process.env.LLM_MODEL || 'deepseek-v4-flash',
+        escalationModel: process.env.LLM_ESCALATION_MODEL || 'deepseek-v4-pro',
+        promptVersion: 'platform-v2',
+        datasetVersion: BENCHMARK_DATASETS.platform.id,
         notes: `平台级三层 Benchmark — L1路由${routingCorrect}/${routingResults.length} L2跨系统${crossPerfect}/${crossResults.length} L3单系统${mesPerfect}/${mesResults.length}`,
-      },
+      }),
       summary: {
         total: results.length, success: successful.length,
         recall: avgRecall, precision: 0,

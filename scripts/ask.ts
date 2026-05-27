@@ -33,7 +33,7 @@ async function main() {
   const llm = new CodexProxyProvider(
     process.env.LLM_BASE_URL || 'https://gptapi.tutu02.us.ci/v1',
     process.env.LLM_API_KEY || 'sk-mes-ai-explorer-2026',
-    process.env.LLM_MODEL || 'deepseek-chat',
+    process.env.LLM_MODEL || 'deepseek-v4-flash',
   )
 
   const mcpClient = new MCPClient('npx', ['tsx', path.join(__dirname, '../mcp-server/src/index.ts')])

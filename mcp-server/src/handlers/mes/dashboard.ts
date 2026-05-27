@@ -6,7 +6,7 @@ import { textResult } from '../../shared.js'
 export function registerMesDashboard(server: McpServer) {
   server.tool(
     'mes.dashboard',
-    '获取 MES 系统全局概览。返回生产工单状态分布、产线列表、库存单类型分布、物料/批次/子批次总数。适用于"生产情况怎么样""工单概况""仓库概况"等全局视角问题。',
+    'MES 全厂仓库+主数据+产线名录概览。返回库存单类型分布、物料/批次/子批次总量、产线列表；工单状态计数仅为全厂参考、无过滤维度。问工单数量/执行中/积压/跨系统对应工单必须用 mes.order.search。',
     {},
     async () => {
       // 并行拉取各维度

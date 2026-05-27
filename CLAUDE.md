@@ -1,11 +1,13 @@
 # CLAUDE.md — Lantern NL-API Platform（原 Insight68）
 
+> 本文件保留旧会话形成的架构原则。当前可执行开发约定见 `AGENTS.md`，当前代码状态、工作区变更和风险见 `docs/handoff.md`。
+
 ## 项目概述
 
 企业系统 AI 自然语言交互平台。用户面对一个输入框，用自然语言查询、分析、操作企业数据。
 EAM 是第一个落地场景，架构为"任何有 API 的企业系统"而设计。
 
-**当前状态**：P1.5 完成 — 19 工具 / 100% recall / 质量 4.7/5 / 数据处理层落地
+**当前可核对状态**：已接入 EAM、EDHR、MES 三系统，`skills/` 注册 30 个 YAML skills（含 1 个 common glossary skill）。历史实验指标请按对应报告的测试范围解读。
 
 ## 技术方向
 
@@ -15,7 +17,7 @@ LLM 路由 + MCP 确定性执行 + ReAct 循环 + 数据处理层。不走 Text-
 - 6 层 Context 架构（System Prompt → Rules → Task Instructions → Examples → Dynamic Context → User Input）
 - 3 步 think（规划 → 审查放开 → finish）+ 5 步结构化模板（ToolGT + Step-Back + Reflexion）
 - 参数引用 {{N.path}} + 级联策略（默认用主模型，可配环境变量覆盖）
-- 19 个 YAML 声明式 MCP 工具（EAM 12 + EDHR 7）+ Benchmark Dashboard
+- 30 个 YAML 声明式 skills（EAM 12 + EDHR 7 + MES 10 + common 1）+ Benchmark Dashboard
 - 数据处理层：stats 前置 + 原始数据保留 + 领域公式（TPM/FDA KPI）
 
 ## 关联项目

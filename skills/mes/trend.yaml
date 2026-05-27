@@ -37,6 +37,7 @@ when_to_use:
 when_not_to_use:
   - 用户只想看当前状态不看趋势 → 使用 mes.dashboard
   - 用户想看具体工单列表 → 使用 mes.order.search
+  - ⚠️ 跨系统问"对应/关联的工单是否积压/影响生产"——这是当前快照问题不是趋势问题，必须用 mes.order.search（按 status 过滤），不要用 trend 代替
 
 examples:
   - query: "最近半年产量趋势"

@@ -492,7 +492,7 @@ function RunDetailPanel({ result: r }: { result: any }) {
               ))}
               <div className="text-gray-500 space-y-0.5">
                 {r.trace.intent && <div>意图: {r.trace.intent.domains?.join('/')} / {r.trace.intent.operation}</div>}
-                <div>置信度: toolMatch={r.trace.confidence?.toolMatch} verdict={r.trace.confidence?.verdictConfidence} clarity={r.trace.confidence?.queryClarity} → {r.confidence}</div>
+                <div>置信度: toolMatch={r.trace.confidence?.toolMatch} relevance={r.trace.confidence?.dataRelevance} clarity={r.trace.confidence?.queryClarity} → {r.confidence}</div>
               </div>
             </div>
           )}
