@@ -15,7 +15,7 @@ export class TraceCollector {
       query,
       startTime: Date.now(),
       rounds: [],
-      confidence: { toolMatch: 'medium', verdictConfidence: 'low', queryClarity: 'medium' },
+      confidence: { toolMatch: 'medium', queryClarity: 'medium', dataRelevance: 'medium', verdictConfidence: 'medium' },
       finalConfidence: 'medium',
       validation: [],
       sources: [],

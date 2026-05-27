@@ -95,6 +95,21 @@ const ThinkResultSchema = z.object({
 // 改为函数调用，在构造函数/方法中才真正读取
 const env = (key: string, fallback = '') => process.env[key] || fallback
 
+function isDeepSeekV4Model(model: string): boolean {
+  return /deepseek-v4/i.test(model)
+}
+
+/** V4 默认 thinking 会把正文放进 reasoning_content；ReAct 需关闭 thinking 并走 JSON mode */
+function deepSeekChatExtras(model: string): Record<string, unknown> {
+  if (!isDeepSeekV4Model(model)) return {}
+  return { extra_body: { thinking: { type: 'disabled' } } }
+}
+
+function isOpenAIReasoningModel(model: string): boolean {
+  if (isDeepSeekV4Model(model)) return false
+  return /deepseek-reasoner|gpt-5-mini|gpt-5\.0-mini|\/o[13]/i.test(model)
+}
+
 export class CodexProxyProvider implements LLMProvider {
   private client: OpenAI
   private summarizeClient: OpenAI | null  // summarize 独立客户端（可选）
@@ -157,8 +172,9 @@ ${toolDescriptions}
       calls: parsed.calls || [],
       confidenceSignals: {
         toolMatch: 'high',
-        verdictConfidence: 'medium',
         queryClarity: 'high',
+        dataRelevance: 'high',
+        verdictConfidence: 'medium',
       },
     }
   }
@@ -188,7 +204,7 @@ ${toolDescriptions}
     const useModel = sumModel || this.model
     const useClient = this.summarizeClient || this.client
     const isReasoning = sumModel
-      ? /deepseek-reasoner|gpt-5-mini|gpt-5\.0-mini|\/o[13]/i.test(sumModel)
+      ? isOpenAIReasoningModel(sumModel)
       : this.isReasoningModel
     // stats 在前（引导引用预计算数字）+ 原始数据跟后（保留完整细节供 AI 分析）
     const dataContent = dataDigest
@@ -217,7 +233,7 @@ ${toolDescriptions}
 
   async think(messages: Array<{ role: string; content: string }>, modelOverride?: string): Promise<ThinkResult> {
     const useModel = modelOverride || this.model
-    const isReasoning = modelOverride ? /gpt-5-mini|gpt-5\.0-mini|\/o[13]/i.test(modelOverride) : this.isReasoningModel
+    const isReasoning = isOpenAIReasoningModel(useModel)
     const response = await this.client.chat.completions.create({
       model: useModel,
       ...(!isReasoning && { temperature: 0 }),
@@ -227,7 +243,8 @@ ${toolDescriptions}
         content: m.content,
       })),
       ...(!isReasoning && { response_format: { type: 'json_object' as const } }),
-    })
+      ...deepSeekChatExtras(useModel),
+    } as OpenAI.Chat.ChatCompletionCreateParamsNonStreaming)
 
     const content = response.choices[0]?.message?.content || '{}'
     try {

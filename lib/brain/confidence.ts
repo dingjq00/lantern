@@ -1,14 +1,15 @@
-// 置信度融合 — P1.5: verdict 已停用，实际为二信号（toolMatch + queryClarity）
+// 置信度融合 — toolMatch + queryClarity + dataRelevance
 import type { ConfidenceSignals, ConfidenceLevel, MemoryVerdict } from '@/lib/types'
 
 /**
- * 融合规则（verdictConfidence 固定 medium，实际由 toolMatch + queryClarity 决定）：
- * - toolMatch=high + clarity=high → high
- * - 任意 low → low（反问澄清）
+ * 融合规则：
+ * - 任意 low → low
+ * - 三者均为 high → high
  * - 其余 → medium
+ * verdictConfidence 已不参与融合（P1.5 停用 verdict）
  */
 export function computeConfidence(signals: ConfidenceSignals): ConfidenceLevel {
-  const values = [signals.toolMatch, signals.verdictConfidence, signals.queryClarity]
+  const values = [signals.toolMatch, signals.queryClarity, signals.dataRelevance]
 
   if (values.some(v => v === 'low')) return 'low'
   if (values.every(v => v === 'high')) return 'high'
@@ -16,8 +17,7 @@ export function computeConfidence(signals: ConfidenceSignals): ConfidenceLevel {
 }
 
 /**
- * P1.5: verdict 已停用，固定返回 medium（不拖后腿也不加分）
- * 未来自学习复活时改回动态计算
+ * P1.5: verdict 已停用，固定返回 medium（trace 兼容）
  */
 export function computeVerdictConfidence(_verdict: MemoryVerdict | null): ConfidenceLevel {
   return 'medium'

@@ -55,11 +55,13 @@ export interface RouteResult {
   confidenceSignals: ConfidenceSignals
 }
 
-/** 置信度三信号 */
+/** 置信度信号（verdictConfidence 保留字段供 trace 兼容，不参与融合） */
 export interface ConfidenceSignals {
   toolMatch: ConfidenceLevel
-  verdictConfidence: ConfidenceLevel
   queryClarity: ConfidenceLevel
+  dataRelevance: ConfidenceLevel
+  /** @deprecated P1.5 verdict 已停用，固定 medium，仅写入 trace */
+  verdictConfidence?: ConfidenceLevel
 }
 
 // ============================================================
@@ -119,6 +121,22 @@ export interface ToolResult {
   data: unknown
   status: 'success' | 'partial' | 'error'
   errorLevel?: 1 | 2 | 3 | 4
+}
+
+/** 单次成功工具调用 — router → summarize 全程携带 */
+export interface ToolInvocation {
+  tool: string
+  arguments: Record<string, unknown>
+  data: unknown
+  system: string
+  argSignature: string
+}
+
+/** 按系统切片 — 多系统 summarize 时各自 domain/KPI */
+export interface SystemSlice {
+  systemId: string
+  invocations: ToolInvocation[]
+  digest: string
 }
 
 // ============================================================
@@ -321,6 +339,10 @@ export interface BenchmarkRun {
     maxChaseRounds: number
     escalationModel: string
     promptVersion: string
+    /** 测试集版本，如 platform-v1 */
+    datasetVersion?: string
+    /** 运行时的 git commit 短 SHA */
+    commitSha?: string
     notes?: string
   }
   summary: {

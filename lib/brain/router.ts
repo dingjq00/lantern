@@ -7,18 +7,20 @@ import { prepareSummarizeContext } from './summarize-context'
 import { extractIntentFromThinkResult } from './intent'
 import { validateResult } from './validator'
 import { cleanDefensiveLanguage, calcTruncateThreshold, buildObservationData, buildObservationMessage } from './observation'
+import { hasActualData, computeDataRelevance } from './relevance-checker'
 import { SYSTEM_REGISTRY } from '@/lib/systems'
 import { TraceCollector } from './trace'
 import type { ToolRegistry } from '@/lib/tools/registry'
 import type { StorageInterface } from '@/lib/storage/types'
+import { computeArgSignature } from './summarize-context'
 import type {
   LLMProvider, StructuredResult, ToolResult,
-  IntentTags, ConfidenceSignals, ConfidenceLevel, MemorySession,
+  IntentTags, ConfidenceSignals, ConfidenceLevel, MemorySession, ToolInvocation,
 } from '@/lib/types'
 
 const MAX_CHASE_ROUNDS = 2  // ①规划 → ②审查放开 → ③finish，最多 3 次 think
 // 延迟读取，避免 ESM import hoisting 导致 env 未加载
-const getEscalationModel = () => process.env.LLM_ESCALATION_MODEL || process.env.LLM_MODEL || 'deepseek-chat'
+const getEscalationModel = () => process.env.LLM_ESCALATION_MODEL || 'deepseek-v4-pro'
 
 interface RouterDeps {
   registry: ToolRegistry
@@ -44,7 +46,7 @@ export async function processQuery(
 
   const trace = new TraceCollector(query)
   const allTools = registry.getAllTools()
-  const allResults: Array<{ tool: string; data: unknown }> = []
+  const allResults: ToolInvocation[] = []
   const sources: Array<{ tool: string; description: string }> = []
   let totalCallsAttempted = 0
 
@@ -127,7 +129,9 @@ export async function processQuery(
       if (escalated.unsupported || !escalated.calls?.length) {
         // 强模型也搞不定——用 AI 推理生成上下文相关的回复，不用写死文本
         trace.endRound('强模型也无法处理，确认超纲')
-        const signals: ConfidenceSignals = { toolMatch: 'low', verdictConfidence: 'medium', queryClarity: clarity }
+        const signals: ConfidenceSignals = {
+          toolMatch: 'low', queryClarity: clarity, dataRelevance: 'low', verdictConfidence: 'medium',
+        }
         trace.setConfidence(signals, 'low')
         const unsupportedSummary = await llm.summarize(
           { unsupported: true, aiAnalysis: escalated.thought },
@@ -204,8 +208,14 @@ export async function processQuery(
         })
 
         if (toolResult.status !== 'error') {
-          allResults.push({ tool: call.tool, data: toolResult.data })
           const toolDef = registry.getTool(call.tool)
+          allResults.push({
+            tool: call.tool,
+            arguments: resolvedArgs,
+            data: toolResult.data,
+            system: toolDef?.system ?? call.tool.split('.')[0],
+            argSignature: computeArgSignature(resolvedArgs),
+          })
           if (toolDef) {
             sources.push({ tool: call.tool, description: toolDef.description })
           }
@@ -245,21 +255,10 @@ export async function processQuery(
       const intentDomains = intent?.domains ?? []
       const uncoveredDomains = intentDomains.filter(d => !coveredDomains.includes(d))
 
-      const hasActualData = allResults.some(r => {
-        if (!r.data || typeof r.data !== 'object') return false
-        const d = r.data as Record<string, unknown>
-        // 检查常见的数据存在标志
-        if ('total' in d && (d.total as number) > 0) return true
-        if ('items' in d && Array.isArray(d.items) && d.items.length > 0) return true
-        if ('groups' in d && Array.isArray(d.groups) && d.groups.length > 0) return true
-        if ('context' in d) return false  // 有 context 说明空结果需要审查
-        // 没有 total/items/groups 字段的数据（如 dashboard 嵌套对象）默认有数据
-        if (!('total' in d) && !('items' in d) && !('groups' in d)) return true
-        return false  // 有这些字段但都为空 → 确实没数据
-      })
+      const hasData = allResults.some(r => hasActualData(r.data))
       if (round === 0 && uncoveredDomains.length === 0 && clarity === 'high'
           && allResults.length === totalCallsAttempted && allResults.length > 0
-          && intentDomains.length <= 1 && hasActualData) {
+          && intentDomains.length <= 1 && hasData) {
         trace.startRound(round + 1, '[快速完成] 单域查询，数据充足，跳过审查轮')
         trace.endRound('快速完成')
         finished = true
@@ -274,11 +273,21 @@ export async function processQuery(
     round++
   }
 
-  // 置信度计算（toolMatch 从实际执行结果推导，不再硬编码）
+  // 置信度计算
   const toolMatch: ConfidenceLevel = totalCallsAttempted === 0 ? 'low'
     : allResults.length === totalCallsAttempted ? 'high'
     : allResults.length > 0 ? 'medium' : 'low'
-  const signals: ConfidenceSignals = { toolMatch, verdictConfidence: 'medium', queryClarity: clarity }
+  const calledTools = allResults.map(r => r.tool)
+  const coveredDomains = [...new Set(calledTools.flatMap(t => registry.getTool(t)?.domains ?? []))]
+  const dataRelevance = computeDataRelevance({
+    totalCallsAttempted,
+    successfulResults: allResults,
+    intentDomains: intent?.domains ?? [],
+    coveredDomains,
+  })
+  const signals: ConfidenceSignals = {
+    toolMatch, queryClarity: clarity, dataRelevance, verdictConfidence: 'medium',
+  }
   const finalConfidence = computeConfidence(signals)
   trace.setConfidence(signals, finalConfidence)
 
