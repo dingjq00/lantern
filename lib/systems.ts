@@ -31,6 +31,53 @@ export interface GlossaryTerm {
   relatedTools?: string[]  // 推荐使用的工具
 }
 
+/** 跨系统实体桥接 — exact 可关联，inferred 仅作分析假设 */
+export interface CrossSystemBridge {
+  id: string
+  from: { system: string; entity: string; field?: string }
+  to: { system: string; entity: string; field?: string }
+  kind: 'exact' | 'inferred'
+  note: string
+  /** 跨系统分析时推荐的工具组合（按调用顺序） */
+  recommendedTools?: string[]
+}
+
+export const CROSS_SYSTEM_BRIDGES: CrossSystemBridge[] = [
+  {
+    id: 'line-eam-mes',
+    from: { system: 'eam', entity: 'productionLine', field: 'productionLine' },
+    to: { system: 'mes', entity: 'productionLine', field: 'productionLineName' },
+    kind: 'exact',
+    note: 'EAM 产线与 MES 产线名称同源，可按产线名关联设备状态与生产工单',
+    recommendedTools: ['eam.scope.overview', 'mes.line.overview'],
+  },
+  {
+    id: 'equipment-order-impact',
+    from: { system: 'eam', entity: 'equipment' },
+    to: { system: 'mes', entity: 'order' },
+    kind: 'inferred',
+    note: '设备故障/维修可能影响同产线 MES 工单执行，需结合产线字段交叉核对，不可直接断言因果',
+    // 关键：必须用 order.search 按 status 过滤活跃工单，不能用 dashboard/trend 代替
+    recommendedTools: ['eam.equipment.search', 'mes.order.search'],
+  },
+  {
+    id: 'spare-bom-mes-material',
+    from: { system: 'eam', entity: 'spare' },
+    to: { system: 'mes', entity: 'material' },
+    kind: 'inferred',
+    note: '备件预警与 MES 物料/库存可对照分析齐套风险，物料编码需人工确认是否一致',
+    recommendedTools: ['eam.spare.search', 'mes.material.search'],
+  },
+  {
+    id: 'edhr-mes-batch',
+    from: { system: 'edhr', entity: 'order' },
+    to: { system: 'mes', entity: 'batch' },
+    kind: 'inferred',
+    note: 'EDHR 检测工单与 MES 批次/子批可能存在批号关联，跨系统对比时需标注批号来源',
+    recommendedTools: ['edhr.exception.search', 'mes.sublot.search'],
+  },
+]
+
 export interface SystemMeta {
   label: string         // 显示名称
   scope: string         // 业务关键词，AI 用来判断查询属于哪个系统
@@ -134,6 +181,7 @@ export const SYSTEM_REGISTRY: Record<string, SystemMeta> = {
       '班次工单': { aliases: ['ShiftOrder', '班次', '排产单'], definition: '批次工单按班次拆分的执行单元，关联具体产线和配方', computation: '通过生产工单→批次工单→班次工单的层级查询', relatedTools: ['mes.order.profile'] },
       '库存单': { aliases: ['出入库单', '仓库单据', '领料单'], definition: '所有物料出入库的凭证，含仓库操作、采购入库、生产入库、零星领料等类型', computation: '按类型、状态、供应商筛选', relatedTools: ['mes.inventory.search'] },
       '产线': { aliases: ['生产线', '工位', '线体'], definition: '生产线体，分称量(3101)、乳化(3102-3112)、灌装包装(3201-3288)、检验(3301-3302)四大类', computation: '按编号或名称查产线概览', relatedTools: ['mes.line.overview'] },
+      '齐套': { aliases: ['齐套率', '物料齐套', '物料齐套率'], definition: '生产工单所需原料/包材是否在仓库齐备可投产', computation: '需对比物料库存（mes.material.search / mes.inventory.search）与工单 BOM；目前 MES 无原生齐套指标，需基于物料+库存做近似分析，必要时标注"建议人工核对"', relatedTools: ['mes.material.search', 'mes.inventory.search'] },
     },
   },
 }

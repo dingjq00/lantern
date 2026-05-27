@@ -4,6 +4,7 @@
 
 import { SYSTEM_REGISTRY } from '@/lib/systems'
 import { applyDomainFormulas } from './domain-formulas'
+import type { SystemSlice } from '@/lib/types'
 
 // ============================================================
 // 类型定义
@@ -12,6 +13,8 @@ import { applyDomainFormulas } from './domain-formulas'
 export interface ToolResultInput {
   tool: string
   data: unknown
+  /** 同工具多次调用时的唯一键，默认等于 tool */
+  digestKey?: string
 }
 
 // 需要统计分布的枚举字段（已知）
@@ -55,10 +58,10 @@ export function digestToolResults(results: Array<ToolResultInput>): string {
     return JSON.stringify(digest, null, 2)
   }
 
-  // 多工具：以 tool 名为 key
+  // 多工具：以 digestKey 为 key（支持同工具多次调用）
   const combined: Record<string, unknown> = {}
-  for (const { tool, data } of results) {
-    combined[tool] = digestSingle(data)
+  for (const { tool, data, digestKey } of results) {
+    combined[digestKey ?? tool] = digestSingle(data)
   }
   return JSON.stringify(combined, null, 2)
 }
@@ -67,7 +70,7 @@ export function digestToolResults(results: Array<ToolResultInput>): string {
  * 为 summarize 构建完整数据摘要（通用统计 + 领域 KPI）
  */
 export function buildDigestForSummarize(
-  results: Array<{ tool: string; data: unknown }>,
+  results: Array<{ tool: string; data: unknown; digestKey?: string }>,
   systemId?: string,
 ): string {
   if (results.length === 0) return '{}'
@@ -75,8 +78,8 @@ export function buildDigestForSummarize(
   // 构建通用摘要
   const digestObj: Record<string, unknown> = {}
 
-  for (const { tool, data } of results) {
-    digestObj[tool] = digestSingle(data)
+  for (const { tool, data, digestKey } of results) {
+    digestObj[digestKey ?? tool] = digestSingle(data)
   }
 
   // 领域公式
@@ -92,8 +95,9 @@ export function buildDigestForSummarize(
           obj.items.length,  // bug fix: 用 items.length 不用 total（total 可能是全量数，items 是当前页）
           metrics,
         )
+        const kpiKey = r.digestKey ?? r.tool
         if (Object.keys(kpi).length > 0) {
-          kpiResults[r.tool] = kpi
+          kpiResults[kpiKey] = kpi
         }
       }
     }
@@ -125,7 +129,7 @@ export function buildDigestForSummarize(
 
   // 单工具时简化结构
   if (results.length === 1) {
-    const key = results[0].tool
+    const key = results[0].digestKey ?? results[0].tool
     const result: Record<string, unknown> = digestObj[key] as Record<string, unknown>
     if (digestObj['_领域指标']) {
       result['_领域指标'] = (digestObj['_领域指标'] as Record<string, unknown>)[key]
@@ -134,6 +138,20 @@ export function buildDigestForSummarize(
   }
 
   return JSON.stringify(digestObj, null, 2)
+}
+
+/**
+ * 多系统摘要 — 单系统退化为 buildDigestForSummarize，多系统按 systemId 分桶
+ */
+export function buildMultiSystemDigest(slices: SystemSlice[]): string {
+  if (slices.length === 0) return '{}'
+  if (slices.length === 1) return slices[0].digest
+
+  const combined: Record<string, unknown> = {}
+  for (const slice of slices) {
+    combined[slice.systemId] = JSON.parse(slice.digest)
+  }
+  return JSON.stringify(combined, null, 2)
 }
 
 // ============================================================

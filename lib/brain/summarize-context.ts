@@ -1,40 +1,108 @@
-// Summarize 上下文打包 — 一次性 resolve 出 summarize 所需的全部信息
-// 偷师 UniClaudeProxy 的 ResolvedRoute 模式：一次解析，全程携带
-
-import { buildDigestForSummarize } from './data-digest'
+// Summarize 上下文打包 — 多系统分片 + 按 (tool, args) 保留证据
+import { buildDigestForSummarize, buildMultiSystemDigest } from './data-digest'
 import { detectDisplayFormat } from './result-presenter'
 import { SYSTEM_REGISTRY } from '@/lib/systems'
+import { resolveBridgeHints, formatBridgeHintsForPrompt, type BridgeHint } from './cross-system-bridge'
 import type { ToolRegistry } from '@/lib/tools/registry'
-import type { DisplayFormat } from '@/lib/types'
+import type { DisplayFormat, ToolInvocation, SystemSlice } from '@/lib/types'
 
 export interface SummarizeContext {
+  /** 主系统：单系统即该系统；多系统为按调用顺序首个 */
   systemId: string | undefined
-  dedupedResults: Array<{ tool: string; data: unknown }>
+  systemIds: string[]
+  systems: SystemSlice[]
+  allInvocations: ToolInvocation[]
+  /** 按 tool+argSignature 去重后的结果（供 UI 表格） */
+  dedupedResults: Array<{ tool: string; data: unknown; arguments: Record<string, unknown> }>
   mergedData: unknown
   formatHint: DisplayFormat
   relatedContext: string | undefined
   dataDigest: string | undefined
+  bridges: BridgeHint[]
 }
 
-/**
- * 从 allResults 一次性打包 summarize 所需的全部上下文
- * @param allResults - 所有工具调用结果
- * @param registry - 工具注册表
- * @returns SummarizeContext
- */
-export function prepareSummarizeContext(
-  allResults: Array<{ tool: string; data: unknown }>,
+/** 稳定序列化参数，用于区分同工具不同调用 */
+export function computeArgSignature(args: Record<string, unknown>): string {
+  return JSON.stringify(sortKeysDeep(args))
+}
+
+function sortKeysDeep(value: unknown): unknown {
+  if (value === null || typeof value !== 'object') return value
+  if (Array.isArray(value)) return value.map(sortKeysDeep)
+  const obj = value as Record<string, unknown>
+  return Object.keys(obj).sort().reduce<Record<string, unknown>>((acc, key) => {
+    acc[key] = sortKeysDeep(obj[key])
+    return acc
+  }, {})
+}
+
+/** 同 tool+args 只保留最后一次（重试场景） */
+export function dedupeInvocations(invocations: ToolInvocation[]): ToolInvocation[] {
+  const map = new Map<string, ToolInvocation>()
+  for (const inv of invocations) {
+    map.set(`${inv.tool}|${inv.argSignature}`, inv)
+  }
+  return [...map.values()]
+}
+
+/** 为 digest 分配唯一键：同工具多次调用用 tool#N */
+export function assignDigestKeys(invocations: ToolInvocation[]): Array<{ tool: string; data: unknown; digestKey: string }> {
+  const perTool = new Map<string, number>()
+  return invocations.map(inv => {
+    const n = (perTool.get(inv.tool) ?? 0) + 1
+    perTool.set(inv.tool, n)
+    const total = invocations.filter(i => i.tool === inv.tool).length
+    const digestKey = total === 1 ? inv.tool : `${inv.tool}#${n}`
+    return { tool: inv.tool, data: inv.data, digestKey }
+  })
+}
+
+function toInvocation(
+  r: { tool: string; data: unknown; arguments?: Record<string, unknown> },
   registry: ToolRegistry,
-): SummarizeContext {
-  // 1. 推断系统 ID
-  const firstToolDef = allResults.length > 0 ? registry.getTool(allResults[0].tool) : undefined
-  const systemId = firstToolDef?.system
+): ToolInvocation {
+  const args = r.arguments ?? {}
+  const toolDef = registry.getTool(r.tool)
+  return {
+    tool: r.tool,
+    arguments: args,
+    data: r.data,
+    system: toolDef?.system ?? r.tool.split('.')[0],
+    argSignature: computeArgSignature(args),
+  }
+}
 
-  // 2. 构建 relatedHints（feeds_into 深挖方向 + 数据数字诱饵 + domain model）
+function buildSystemSlices(deduped: ToolInvocation[]): SystemSlice[] {
+  const bySystem = new Map<string, ToolInvocation[]>()
+  for (const inv of deduped) {
+    const list = bySystem.get(inv.system) ?? []
+    list.push(inv)
+    bySystem.set(inv.system, list)
+  }
+  return [...bySystem.entries()].map(([systemId, invocations]) => ({
+    systemId,
+    invocations,
+    digest: buildDigestForSummarize(assignDigestKeys(invocations), systemId),
+  }))
+}
+
+function buildRelatedContext(
+  deduped: ToolInvocation[],
+  registry: ToolRegistry,
+  systemIds: string[],
+): { relatedContext: string | undefined; bridges: BridgeHint[] } {
   const relatedHints: string[] = []
-  const calledTools = new Set(allResults.map(r => r.tool))
+  const calledTools = new Set(deduped.map(r => r.tool))
 
-  for (const r of allResults) {
+  for (const sysId of systemIds) {
+    const meta = SYSTEM_REGISTRY[sysId]
+    if (meta?.domainModel) {
+      const label = meta.label ?? sysId.toUpperCase()
+      relatedHints.push(`[${label}] 业务关系链:\n${meta.domainModel}`)
+    }
+  }
+
+  for (const r of deduped) {
     const toolDef = registry.getTool(r.tool)
     if (toolDef?.feedsInto?.length) {
       const uncalled = toolDef.feedsInto.filter(t => !calledTools.has(t))
@@ -46,7 +114,6 @@ export function prepareSummarizeContext(
         relatedHints.push(`${r.tool} 可深挖→ ${toolNames.join(', ')}`)
       }
     }
-    // 数据数字摘要作为诱饵
     const d = r.data as Record<string, unknown>
     if (d && typeof d === 'object') {
       const nums: string[] = []
@@ -58,31 +125,53 @@ export function prepareSummarizeContext(
     }
   }
 
-  // 注入 domain model
-  if (systemId) {
-    const meta = SYSTEM_REGISTRY[systemId]
-    if (meta?.domainModel) {
-      relatedHints.unshift(`业务关系链:\n${meta.domainModel}`)
-    }
+  const bridges = resolveBridgeHints(systemIds)
+  const bridgeBlock = formatBridgeHintsForPrompt(bridges)
+  if (bridgeBlock) relatedHints.push(bridgeBlock)
+
+  return {
+    relatedContext: relatedHints.length > 0 ? relatedHints.join('\n\n') : undefined,
+    bridges,
   }
+}
 
-  const relatedContext = relatedHints.length > 0 ? relatedHints.join('\n') : undefined
+/**
+ * 从工具调用结果打包 summarize 上下文
+ * 支持 ToolInvocation[] 或带可选 arguments 的简化输入（测试兼容）
+ */
+export function prepareSummarizeContext(
+  allResults: Array<{ tool: string; data: unknown; arguments?: Record<string, unknown> }> | ToolInvocation[],
+  registry: ToolRegistry,
+): SummarizeContext {
+  const raw = allResults as Array<{ tool: string; data: unknown; arguments?: Record<string, unknown> }>
+  const invocations: ToolInvocation[] = raw.length > 0 && 'argSignature' in raw[0]
+    ? (raw as ToolInvocation[])
+    : raw.map(r => toInvocation(r, registry))
 
-  // 3. 去重（同工具多次调用只保留最后一次）
-  const dedupMap = new Map<string, { tool: string; data: unknown }>()
-  for (const r of allResults) dedupMap.set(r.tool, r)
-  const dedupedResults = [...dedupMap.values()]
+  const deduped = dedupeInvocations(invocations)
+  const systemIds = [...new Set(deduped.map(i => i.system))]
+  const systemId = systemIds.length === 1 ? systemIds[0] : systemIds[0]
+  const systems = buildSystemSlices(deduped)
+  const { relatedContext, bridges } = buildRelatedContext(deduped, registry, systemIds)
 
-  // 4. 数据处理层摘要
-  const toolResultsForDigest = dedupedResults.map(r => ({ tool: r.tool, data: r.data }))
-  const dataDigest = toolResultsForDigest.length > 0
-    ? buildDigestForSummarize(toolResultsForDigest, systemId)
+  const dataDigest = deduped.length > 0
+    ? buildMultiSystemDigest(systems)
     : undefined
 
-  // 5. 显示格式检测
-  const mergedData = dedupedResults.map(r => r.data)
+  const mergedData = deduped.map(r => r.data)
   const firstData = mergedData.length === 1 ? mergedData[0] : mergedData
   const formatHint = detectDisplayFormat(firstData)
 
-  return { systemId, dedupedResults, mergedData: firstData, formatHint, relatedContext, dataDigest }
+  return {
+    systemId: systemIds.length === 1 ? systemIds[0] : (systemIds[0] ?? undefined),
+    systemIds,
+    systems,
+    allInvocations: invocations,
+    dedupedResults: deduped.map(i => ({ tool: i.tool, data: i.data, arguments: i.arguments })),
+    mergedData: firstData,
+    formatHint,
+    relatedContext,
+    dataDigest,
+    bridges,
+  }
 }

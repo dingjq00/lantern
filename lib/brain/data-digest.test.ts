@@ -123,6 +123,17 @@ describe('digestToolResults (JSON 格式)', () => {
     expect(parsed['eam.spare.search']).toBeDefined()
   })
 
+  it('同工具多次调用用 digestKey 区分', () => {
+    const results = [
+      { tool: 'eam.dashboard', digestKey: 'eam.dashboard#1', data: { total: 1 } },
+      { tool: 'eam.dashboard', digestKey: 'eam.dashboard#2', data: { total: 99 } },
+    ]
+    const digest = digestToolResults(results)
+    const parsed = JSON.parse(digest)
+    expect(parsed['eam.dashboard#1'].total).toBe(1)
+    expect(parsed['eam.dashboard#2'].total).toBe(99)
+  })
+
   it('空结果 + context', () => {
     const data = { total: 0, items: [], context: '没有符合条件的记录' }
     const digest = digestToolResults([{ tool: 'test', data }])
