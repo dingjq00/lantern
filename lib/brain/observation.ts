@@ -1,8 +1,20 @@
 // 观察注入纯函数 — 从 router.ts 拆出，保持 router 只负责编排流程
 // 三个职责：清洗防御语言、截断+正面概要、组装观察消息
 
+import { SYSTEM_REGISTRY } from '@/lib/systems'
+import { resolveBridgeHints } from './cross-system-bridge'
 import type { ToolRegistry } from '@/lib/tools/registry'
 import type { IntentTags } from '@/lib/types'
+
+/** 从 query 中按 scope 关键词推断"问题涉及哪些系统"（用于跨系统覆盖检查） */
+export function detectCandidateSystems(query: string): string[] {
+  return Object.entries(SYSTEM_REGISTRY)
+    .filter(([, meta]) => meta.scope.split(/[、，,]/).some(kw => {
+      const trimmed = kw.trim()
+      return trimmed.length > 0 && query.includes(trimmed)
+    }))
+    .map(([sysId]) => sysId)
+}
 
 /**
  * 清洗 thinkResult.thought 中的防御性语言
@@ -115,5 +127,34 @@ export function buildObservationMessage(params: {
     ? `\n\n${validationWarnings.map(w => `⚠️ 校验: ${w}`).join('\n')}`
     : ''
 
-  return `观察结果: ${JSON.stringify(obsData)}\n\n事实对比:\n- 用户问: "${query}"\n- 已获得字段: ${[...new Set(dataFields)].join(', ')}${domainCoverageHint}${contextSection}${validationSection}\n\n检查：数据是否已回答用户问题？有无未覆盖的域？够了就 finish，不够就补充。`
+  // 已调用工具所属系统
+  const calledSystems = [...new Set(calledTools.map(t => t.split('.')[0]))]
+
+  // MES 工单误用 dashboard / line.overview：全厂计数不能答筛选类工单问题
+  const mesOrderQuery = /工单|积压|执行中|在制|pending|RUNNING/i.test(query)
+  const misusedMesOverview = mesOrderQuery && (
+    calledTools.includes('mes.dashboard')
+    || (calledTools.includes('mes.line.overview') && !calledTools.includes('mes.order.search'))
+  )
+  const mesToolHint = misusedMesOverview
+    ? '\n\n⚠️ MES 工单提示: mes.dashboard / mes.line.overview 返回全厂或产线画像，不能按状态/产线/设备筛选工单。若问题涉及工单数量、积压或跨系统对应关系，必须补查 mes.order.search（如 status=RUNNING），不要用 dashboard 数字代替。'
+    : ''
+
+  // 跨系统覆盖建议：根据 query 关键词推断潜在涉及系统，未覆盖的给出 bridge 推荐工具
+  const candidateSystems = detectCandidateSystems(query)
+  const uncoveredSystems = candidateSystems.filter(s => !calledSystems.includes(s))
+  let bridgeHintSection = ''
+  if (uncoveredSystems.length > 0 && calledSystems.length > 0) {
+    const hints = resolveBridgeHints(calledSystems, candidateSystems)
+    const tooltips: string[] = []
+    for (const h of hints) {
+      const targetsUncovered = h.recommendedTools.some(t => uncoveredSystems.includes(t.split('.')[0]))
+      if (targetsUncovered) tooltips.push(`🔗 ${h.text}`)
+    }
+    if (tooltips.length > 0) {
+      bridgeHintSection = `\n\n跨系统覆盖建议:\n${tooltips.join('\n')}\n问题关键词指向系统 [${candidateSystems.join(', ')}]，已覆盖 [${calledSystems.join(', ')}]，未覆盖 [${uncoveredSystems.join(', ')}]，若有必要按推荐工具补查。`
+    }
+  }
+
+  return `观察结果: ${JSON.stringify(obsData)}\n\n事实对比:\n- 用户问: "${query}"\n- 已获得字段: ${[...new Set(dataFields)].join(', ')}\n- 已查系统: [${calledSystems.join(', ')}]${domainCoverageHint}${contextSection}${validationSection}${mesToolHint}${bridgeHintSection}\n\n重新审查用户原始问题中的每个概念，是否都已有数据覆盖？如果某个概念在当前结果中没有对应数据，检查其他系统是否有相关工具可以补充。够了就 finish，不够就补充。`
 }

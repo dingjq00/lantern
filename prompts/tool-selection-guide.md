@@ -16,8 +16,9 @@
 |------|------|------|
 | 单实体某维度 | detail（含摘要） | 一次多域，够用不拆 |
 | 单实体某维度完整列表 | search | detail 只有近几条 |
-| 全局数字 | dashboard | 一次跨域汇总 |
+| 全局数字（非 MES 工单） | dashboard | 一次跨域汇总 |
 | 按条件筛选+聚合 | search(groupBy) | dashboard 没有过滤能力 |
+| **MES 工单**数量/状态/积压/跨系统对应 | **mes.order.search** | mes.dashboard 仅全厂计数、不能筛选；mes.line.overview 无工单列表 |
 | 范围综合画像 | statistics | 一个工具搞定 |
 | 时间变化 | trend | 专做时间序列 |
 

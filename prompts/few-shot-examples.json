@@ -157,13 +157,13 @@
     "type": "single_round",
     "query": "MES 生产和仓库现在什么情况？",
     "round0": {
-      "thought": "[意图] 查 MES 全局概况 [候选] mes.dashboard [审查] dashboard 返回工单状态分布+产线列表+库存单类型分布+主数据总量，一个工具搞定 [规划] 直接调用 [验证] 全局概况只需 dashboard",
-      "intent": {"domains": ["production", "warehouse"], "operation": "dashboard", "filters": []},
+      "thought": "[意图] 查 MES 仓库与主数据全貌 [候选] mes.dashboard [审查] dashboard 返回产线名录+库存单类型+物料批次总量；不涉及按条件查工单 [规划] 直接调用 [验证] 仓库+主数据覆盖",
+      "intent": {"domains": ["warehouse"], "operation": "dashboard", "filters": []},
       "clarity": "clear",
       "calls": [{"tool": "mes.dashboard", "arguments": {}}]
     },
     "finish": true,
-    "note": "MES 全局概况 → mes.dashboard，和 EAM/EDHR 的 dashboard 用法一致"
+    "note": "MES 仓库/主数据全貌 → mes.dashboard；工单数量/状态 → mes.order.search，不用 dashboard"
   },
   {
     "type": "multi_round",
@@ -192,5 +192,59 @@
     },
     "finish": true,
     "note": "MES 产量统计 → trend(dimension=month)，不需要 order.search(groupBy)"
+  },
+  {
+    "type": "multi_round",
+    "query": "最近几个月工单趋势怎么样？",
+    "round0": {
+      "thought": "[意图] 查工单趋势 [候选] 多个系统都有工单相关工具 [审查] 先查一个系统的趋势 [规划] eam.trend [验证] 覆盖一个系统",
+      "intent": {"domains": ["order"], "operation": "trend", "filters": []},
+      "clarity": "clear",
+      "calls": [{"tool": "eam.trend", "arguments": {"domain": "repair", "groupBy": "month"}}]
+    },
+    "observation0": "返回一个系统的工单趋势数据",
+    "round1": {
+      "thought": "[审查] 拿到了数据，但用户没有指定系统。检查可用工具列表，发现同一概念在其他系统也存在。只呈现一个系统的视角不完整，补查其他系统",
+      "calls": [
+        {"tool": "mes.trend", "arguments": {"dimension": "month"}},
+        {"tool": "edhr.trend", "arguments": {"dimension": "month"}}
+      ]
+    },
+    "observation1": "多个系统的趋势数据都已获得",
+    "round2": {
+      "thought": "[验证] 同一概念的多系统视角完整覆盖",
+      "finish": true
+    },
+    "note": "think② 系统覆盖检查：用户没指定系统 + 同一概念跨系统存在 = 只查一个系统不完整"
+  },
+  {
+    "type": "single_round",
+    "query": "故障最多的设备，它所在产线的生产趋势怎么样？",
+    "round0": {
+      "thought": "[意图] 设备故障(EAM) + 产线生产趋势(MES) [候选] eam.fault.search + mes.trend [审查] dashboard/line.overview 不能答趋势；须 trend [规划] 并行 [验证] 两系统覆盖",
+      "intent": {"domains": ["fault", "production"], "operation": "trend", "filters": []},
+      "clarity": "clear",
+      "calls": [
+        {"tool": "eam.fault.search", "arguments": {"groupBy": "equipment"}},
+        {"tool": "mes.trend", "arguments": {"dimension": "productionLine", "dateRange": {"from": "2026-04-01", "to": "2026-05-27"}}}
+      ]
+    },
+    "finish": true,
+    "note": "跨系统：EAM 故障 + MES 趋势用 mes.trend，不用 line.overview/dashboard"
+  },
+  {
+    "type": "single_round",
+    "query": "维修中的设备，有没有影响到正在执行的生产工单？",
+    "round0": {
+      "thought": "[意图] EAM 维修设备 + MES 在执行工单 [候选] eam.equipment.search + mes.order.search [审查] dashboard 只有全厂计数不能筛选；须 order.search(status=RUNNING) [规划] 并行 [验证] 两系统",
+      "intent": {"domains": ["equipment", "production"], "operation": "search", "filters": ["status"]},
+      "clarity": "clear",
+      "calls": [
+        {"tool": "eam.equipment.search", "arguments": {"status": "维修中"}},
+        {"tool": "mes.order.search", "arguments": {"status": "RUNNING"}}
+      ]
+    },
+    "finish": true,
+    "note": "跨系统对应工单 → mes.order.search，禁止 mes.dashboard"
   }
 ]
