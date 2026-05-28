@@ -17,6 +17,48 @@ export function detectCandidateSystems(query: string): string[] {
 }
 
 /**
+ * 从首轮 thought 抽取 "[规划] ..." 段，作为后续轮的对照基准（防止 LLM 自己忘记原计划）
+ * 模板由 prompts/react-instructions.md 固定，标签稳定
+ */
+export function extractPlan(thought: string | undefined): string | undefined {
+  if (!thought) return undefined
+  const m = thought.match(/\[规划\][：:\s]*([\s\S]+?)(?=\s*\[[一-龥A-Za-z]+\]|$)/)
+  if (!m) return undefined
+  const plan = m[1].trim()
+  return plan.length > 0 ? plan : undefined
+}
+
+/**
+ * Finish gate — 检查用户问题涉及的信息维度（intent.domains + candidate systems）是否都已覆盖
+ * 返回未覆盖的描述（用于否决 finish 时给 LLM 看）；返回 undefined 表示放行
+ * 注意：纯函数，不依赖任何具体系统名/关键词，规则通用
+ */
+export function checkFinishCoverage(params: {
+  query: string
+  intent?: IntentTags
+  calledTools: string[]
+  registry: ToolRegistry
+}): { uncoveredDomains: string[]; uncoveredSystems: string[]; hintText: string } | undefined {
+  const { query, intent, calledTools, registry } = params
+  const calledSystems = [...new Set(calledTools.map(t => t.split('.')[0]))]
+  const coveredDomains = [...new Set(calledTools.flatMap(t => registry.getTool(t)?.domains ?? []))]
+
+  const intentDomains = intent?.domains ?? []
+  const uncoveredDomains = intentDomains.filter(d => !coveredDomains.includes(d))
+
+  const candidateSystems = detectCandidateSystems(query)
+  // 只要查询关键词暗示了某系统，且该系统一次都没被调用，就视为未覆盖
+  const uncoveredSystems = candidateSystems.filter(s => !calledSystems.includes(s))
+
+  if (uncoveredDomains.length === 0 && uncoveredSystems.length === 0) return undefined
+
+  const parts: string[] = []
+  if (uncoveredDomains.length > 0) parts.push(`未覆盖数据域 [${uncoveredDomains.join(', ')}]`)
+  if (uncoveredSystems.length > 0) parts.push(`未覆盖系统 [${uncoveredSystems.join(', ')}]`)
+  return { uncoveredDomains, uncoveredSystems, hintText: parts.join('；') }
+}
+
+/**
  * 清洗 thinkResult.thought 中的防御性语言
  * 防止犹豫心态通过 assistant 消息传染到下一轮（Phase 2 污染防控）
  * @param thought - AI 的原始思考文本
@@ -95,8 +137,10 @@ export function buildObservationMessage(params: {
   intent?: IntentTags
   registry: ToolRegistry
   validationWarnings: string[]
+  originalPlan?: string
+  roundIndex?: number
 }): string {
-  const { obsData, query, allResults, intent, registry, validationWarnings } = params
+  const { obsData, query, allResults, intent, registry, validationWarnings, originalPlan, roundIndex } = params
 
   // 字段提取
   const dataFields = obsData.flatMap(d => {
@@ -156,5 +200,10 @@ export function buildObservationMessage(params: {
     }
   }
 
-  return `观察结果: ${JSON.stringify(obsData)}\n\n事实对比:\n- 用户问: "${query}"\n- 已获得字段: ${[...new Set(dataFields)].join(', ')}\n- 已查系统: [${calledSystems.join(', ')}]${domainCoverageHint}${contextSection}${validationSection}${mesToolHint}${bridgeHintSection}\n\n重新审查用户原始问题中的每个概念，是否都已有数据覆盖？如果某个概念在当前结果中没有对应数据，检查其他系统是否有相关工具可以补充。够了就 finish，不够就补充。`
+  // 原规划对照（A — Plan 持久化）：首轮规划文本在后续轮显式回放，防 LLM 忘记自己的多步计划
+  const planReminderSection = originalPlan && (roundIndex ?? 0) >= 1
+    ? `\n\n📋 首轮规划回放: "${originalPlan}"\n已完成 ${allResults.length} 次工具调用。对照原规划检查：未执行的步骤继续推进，不要因为"手头数据不够"就放弃 — 缺什么再补一个工具调用就是。`
+    : ''
+
+  return `观察结果: ${JSON.stringify(obsData)}\n\n事实对比:\n- 用户问: "${query}"\n- 已获得字段: ${[...new Set(dataFields)].join(', ')}\n- 已查系统: [${calledSystems.join(', ')}]${domainCoverageHint}${contextSection}${validationSection}${mesToolHint}${bridgeHintSection}${planReminderSection}\n\n重新审查用户原始问题中的每个概念，是否都已有数据覆盖？如果某个概念在当前结果中没有对应数据，检查其他系统是否有相关工具可以补充。够了就 finish，不够就补充。`
 }

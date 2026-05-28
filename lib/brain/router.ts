@@ -6,7 +6,7 @@ import { buildStructuredResult } from './result-presenter'
 import { prepareSummarizeContext } from './summarize-context'
 import { extractIntentFromThinkResult } from './intent'
 import { validateResult } from './validator'
-import { cleanDefensiveLanguage, calcTruncateThreshold, buildObservationData, buildObservationMessage } from './observation'
+import { cleanDefensiveLanguage, calcTruncateThreshold, buildObservationData, buildObservationMessage, extractPlan, checkFinishCoverage } from './observation'
 import { hasActualData, computeDataRelevance } from './relevance-checker'
 import { SYSTEM_REGISTRY } from '@/lib/systems'
 import { TraceCollector } from './trace'
@@ -18,7 +18,7 @@ import type {
   IntentTags, ConfidenceSignals, ConfidenceLevel, MemorySession, ToolInvocation,
 } from '@/lib/types'
 
-const MAX_CHASE_ROUNDS = 2  // ①规划 → ②审查放开 → ③finish，最多 3 次 think
+const MAX_CHASE_ROUNDS = 3  // ①规划 → ②审查放开 → ③补全跨系统 → ④finish，最多 4 次 think（多步跨系统题需要）
 // 延迟读取，避免 ESM import hoisting 导致 env 未加载
 const getEscalationModel = () => process.env.LLM_ESCALATION_MODEL || 'deepseek-v4-pro'
 
@@ -92,6 +92,8 @@ export async function processQuery(
   let round = 0
   let finished = false
   let prevCallsSignature: string | undefined  // Phase 2: 退化循环检测
+  let originalPlan: string | undefined         // A: 首轮 [规划] 段持久化，后续轮对照
+  let finishGateConsumed = false               // B: finish gate 只否决一次，防死循环
 
   while (!finished && round <= MAX_CHASE_ROUNDS) {
     // think（网络/超时容错）
@@ -106,7 +108,7 @@ export async function processQuery(
       return result
     }
 
-    // 首轮提取 intent（可选——LLM 可能返回也可能不返回）
+    // 首轮提取 intent（可选——LLM 可能返回也可能不返回）+ 提取 [规划] 段
     if (round === 0) {
       const extracted = extractIntentFromThinkResult(thinkResult)
       clarity = extracted.clarity
@@ -114,6 +116,7 @@ export async function processQuery(
         intent = extracted.intent
         trace.setIntent(intent)
       }
+      originalPlan = extractPlan(thinkResult.thought)
     }
 
     // 超纲或首轮无 calls——升级到强模型重试一次
@@ -158,6 +161,7 @@ export async function processQuery(
           intent = extracted.intent
           trace.setIntent(intent)
         }
+        originalPlan = extractPlan(escalated.thought)
       }
       // 替换 thinkResult 继续执行 calls
       Object.assign(thinkResult, escalated)
@@ -165,6 +169,22 @@ export async function processQuery(
 
     // finish（追查后结束）
     if (thinkResult.finish && round > 0) {
+      // B: Finish gate — 对照原问题信息维度，未覆盖就否决（每次循环只否决一次防死循环）
+      const gate = !finishGateConsumed
+        ? checkFinishCoverage({ query, intent, calledTools: allResults.map(r => r.tool), registry })
+        : undefined
+      if (gate) {
+        finishGateConsumed = true
+        trace.startRound(round, thinkResult.thought)
+        trace.endRound(`[Finish gate] 否决：${gate.hintText}，强制再追一轮`)
+        messages.push({ role: 'assistant', content: JSON.stringify(thinkResult) })
+        messages.push({
+          role: 'user',
+          content: `⛔ 你给了 finish，但用户问题还有未覆盖部分：${gate.hintText}。\n${originalPlan ? `首轮规划: "${originalPlan}"\n` : ''}请补调对应工具，再决定是否结束（不允许重复 finish 而不补数据）。`,
+        })
+        round++
+        continue
+      }
       trace.startRound(round, thinkResult.thought)
       trace.endRound('信息充足，结束')
       break
@@ -246,28 +266,46 @@ export async function processQuery(
       const obsMessage = buildObservationMessage({
         obsData, query, allResults, intent, registry,
         validationWarnings: trace.build().validation.filter(v => v.severity === 'warning').map(v => v.message),
+        originalPlan,
+        roundIndex: round,
       })
       messages.push({ role: 'user', content: obsMessage })
 
-      // 快速完成判断：域覆盖检查
+      // 快速完成判断：域覆盖检查 + 跨系统覆盖检查（避免短路 finish gate）
       const calledTools = allResults.map(r => r.tool)
       const coveredDomains = [...new Set(calledTools.flatMap(t => registry.getTool(t)?.domains ?? []))]
       const intentDomains = intent?.domains ?? []
       const uncoveredDomains = intentDomains.filter(d => !coveredDomains.includes(d))
+      const coverageGate = checkFinishCoverage({ query, intent, calledTools, registry })
 
       const hasData = allResults.some(r => hasActualData(r.data))
       if (round === 0 && uncoveredDomains.length === 0 && clarity === 'high'
           && allResults.length === totalCallsAttempted && allResults.length > 0
-          && intentDomains.length <= 1 && hasData) {
+          && intentDomains.length <= 1 && hasData
+          && !coverageGate) {
         trace.startRound(round + 1, '[快速完成] 单域查询，数据充足，跳过审查轮')
         trace.endRound('快速完成')
         finished = true
       }
     }
 
-    // finish 在同一轮（首轮 calls + finish）
+    // finish 在同一轮（首轮 calls + finish）— 也走 finish gate
     if (thinkResult.finish) {
-      finished = true
+      const gate = !finishGateConsumed
+        ? checkFinishCoverage({ query, intent, calledTools: allResults.map(r => r.tool), registry })
+        : undefined
+      if (gate) {
+        finishGateConsumed = true
+        trace.startRound(round + 1, `[Finish gate] 否决：${gate.hintText}`)
+        trace.endRound('强制再追一轮')
+        messages.push({
+          role: 'user',
+          content: `⛔ 你给了 finish，但用户问题还有未覆盖部分：${gate.hintText}。\n${originalPlan ? `首轮规划: "${originalPlan}"\n` : ''}请补调对应工具，再决定是否结束（不允许重复 finish 而不补数据）。`,
+        })
+        // 不设 finished，循环继续
+      } else {
+        finished = true
+      }
     }
 
     round++

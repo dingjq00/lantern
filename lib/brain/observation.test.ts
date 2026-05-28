@@ -5,6 +5,8 @@ import {
   buildObservationData,
   buildObservationMessage,
   detectCandidateSystems,
+  extractPlan,
+  checkFinishCoverage,
 } from './observation'
 import { createMockRegistry, makeTool } from '@/lib/tools/__mocks__/mock-registry'
 
@@ -122,5 +124,95 @@ describe('detectCandidateSystems', () => {
     const sys = detectCandidateSystems('故障报修都有哪些')
     expect(sys).toContain('eam')
     expect(sys).not.toContain('mes')
+  })
+})
+
+describe('extractPlan', () => {
+  it('从标准 thought 模板提取 [规划] 段', () => {
+    const thought = '[意图] x [候选] a,b [审查] a [规划] 先查 eam.fault 再查 mes.trend [验证] 覆盖两域'
+    expect(extractPlan(thought)).toBe('先查 eam.fault 再查 mes.trend')
+  })
+
+  it('[规划] 在末尾也能提取', () => {
+    expect(extractPlan('[意图] x [规划] 单步：eam.equipment.profile')).toBe('单步：eam.equipment.profile')
+  })
+
+  it('无 [规划] 段返回 undefined', () => {
+    expect(extractPlan('[意图] x [候选] y')).toBeUndefined()
+    expect(extractPlan(undefined)).toBeUndefined()
+    expect(extractPlan('')).toBeUndefined()
+  })
+})
+
+describe('checkFinishCoverage', () => {
+  const registry = createMockRegistry([
+    makeTool({ name: 'eam.fault.search', domains: ['fault'], system: 'eam' }),
+    makeTool({ name: 'eam.spare.search', domains: ['spare'], system: 'eam' }),
+    makeTool({ name: 'mes.trend', domains: ['production'], system: 'mes' }),
+  ])
+
+  it('全覆盖时返回 undefined（放行 finish）', () => {
+    const r = checkFinishCoverage({
+      query: '故障最多的设备',
+      intent: { domains: ['fault'], operation: 'search', filters: [], intentHash: 'h' },
+      calledTools: ['eam.fault.search'],
+      registry,
+    })
+    expect(r).toBeUndefined()
+  })
+
+  it('域未覆盖时给出未覆盖域提示', () => {
+    const r = checkFinishCoverage({
+      query: '故障设备和生产趋势',
+      intent: { domains: ['fault', 'production'], operation: 'search', filters: [], intentHash: 'h' },
+      calledTools: ['eam.fault.search'],
+      registry,
+    })
+    expect(r).toBeDefined()
+    expect(r!.uncoveredDomains).toContain('production')
+    expect(r!.hintText).toContain('未覆盖数据域')
+  })
+
+  it('系统未覆盖时给出未覆盖系统提示（P16/P18 场景）', () => {
+    const r = checkFinishCoverage({
+      query: '备件预警涉及的设备，它们在 MES 里有多少生产工单？',
+      intent: { domains: ['spare'], operation: 'search', filters: [], intentHash: 'h' },
+      calledTools: ['eam.spare.search'],
+      registry,
+    })
+    expect(r).toBeDefined()
+    expect(r!.uncoveredSystems).toContain('mes')
+    expect(r!.hintText).toContain('未覆盖系统')
+  })
+})
+
+describe('buildObservationMessage — plan 回放', () => {
+  const registry = createMockRegistry([makeTool({ name: 'eam.fault.search' })])
+
+  it('round >= 1 且有 originalPlan 时注入规划回放', () => {
+    const msg = buildObservationMessage({
+      obsData: [{ tool: 'eam.fault.search', result: { total: 5 } }],
+      query: 'q',
+      allResults: [{ tool: 'eam.fault.search' }],
+      registry,
+      validationWarnings: [],
+      originalPlan: '先查故障，再查 mes 趋势',
+      roundIndex: 1,
+    })
+    expect(msg).toContain('首轮规划回放')
+    expect(msg).toContain('先查故障，再查 mes 趋势')
+  })
+
+  it('round 0 不注入规划回放（避免自我循环提示）', () => {
+    const msg = buildObservationMessage({
+      obsData: [{ tool: 'eam.fault.search', result: { total: 5 } }],
+      query: 'q',
+      allResults: [{ tool: 'eam.fault.search' }],
+      registry,
+      validationWarnings: [],
+      originalPlan: '先查故障，再查 mes 趋势',
+      roundIndex: 0,
+    })
+    expect(msg).not.toContain('首轮规划回放')
   })
 })
