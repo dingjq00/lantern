@@ -144,6 +144,46 @@ npm run dev
 
 访问 `http://localhost:3000` 使用主界面。
 
+## 备选：Agent / Claude 会话内异步启动
+
+如果不是在独立终端跑这三个后端，而是在 Claude 会话、CI 任务或脚本里需要后台启动（让 Java 进程脱离当前 shell 生命周期），改用 `nohup ... > log 2>&1 & disown`，**不要**用 `tee` 配 `run_in_background`：
+
+- `tee` 把进程 stdout 接到 pipe，pipe 在 task/会话清理时被关 → 主进程收 SIGPIPE → Java 进程连带退出（2026-05-28 MES 实际踩过）。
+- `nohup` + `disown` 把进程 detach 到 init，stdout 直接落盘，会话结束不影响后端。
+
+三个系统对应的异步启动写法（替换"启动顺序"小节里的前台命令）：
+
+EAM：
+
+```bash
+cd /Users/dingjq/IdeaProjects/eamNewGe/backend && \
+  nohup mvn spring-boot:run -pl yudao-server \
+    -Dspring-boot.run.profiles=local -Dmaven.test.skip=true \
+    > /tmp/eam-boot.log 2>&1 & disown
+```
+
+MES：
+
+```bash
+cd /Users/dingjq/IdeaProjects/2023-kltn/02.Source/qzCPGMOM && \
+  nohup /bin/sh ./gradlew --no-daemon bootRun \
+    > /tmp/mes-boot.log 2>&1 & disown
+```
+
+EDHR：
+
+```bash
+cd /Users/dingjq/IdeaProjects/momExecution && \
+  nohup ./gradlew --no-daemon \
+    --init-script /private/tmp/lantern-jmix-global-repo.init.gradle \
+    -Dorg.gradle.internal.http.connectionTimeout=120000 \
+    -Dorg.gradle.internal.http.socketTimeout=120000 \
+    bootRun --args="--server.port=8443 --http.port=18081" \
+    > /tmp/edhr-boot.log 2>&1 & disown
+```
+
+启动后用 `lsof -nP -iTCP:48080 -iTCP:443 -iTCP:8443 -sTCP:LISTEN` 周期性确认端口仍在监听；benchmark 等长流程开始前先验证三端口都 LISTEN，跑完后也再确认一次（防止跑过程中后端死了导致 answer 退化成兜底）。
+
 ## 启动后验证
 
 ### 监听端口
