@@ -1,11 +1,15 @@
 // 工具注册表 — 加载、匹配、执行
 import type { ToolDefinition, IntentTags, RankedTool, ToolResult } from '@/lib/types'
+import { isSystemActive } from '@/lib/systems'
 
 export class ToolRegistry {
   private tools: Map<string, ToolDefinition>
 
   constructor(tools: ToolDefinition[]) {
-    this.tools = new Map(tools.map(t => [t.name, t]))
+    // 按 ENABLED_SYSTEMS 过滤 — 禁用系统的工具不暴露给 LLM
+    // 没设 system 字段的工具（如跨系统 glossary）一律保留
+    const filtered = tools.filter(t => !t.system || isSystemActive(t.system))
+    this.tools = new Map(filtered.map(t => [t.name, t]))
   }
 
   getAllTools(): ToolDefinition[] {

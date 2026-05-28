@@ -1,0 +1,65 @@
+# JSY 发酵工单搜索
+name: jsy.ferment.order.search
+description: >
+  搜索发酵工单（曲房批次主单）。
+  支持按曲房编号、计划工单、曲种、智能房/非智能房、是否结束、日期范围过滤。
+  分页返回工单列表。
+  ⚠️ 这是制曲业务（YeastRoomBatchOrder），跟窖池工单(PITN)不同——窖池查询用 jsy.pit.lifecycle。
+version: "1.0"
+system: jsy
+type: simple
+maps_to: jsy.ferment.order.search
+
+domains:
+  - production
+
+operation: search
+
+input_schema:
+  properties:
+    roomId:
+      type: string
+      description: 曲房编号过滤
+    planOrderId:
+      type: string
+      description: 关联日计划工单号过滤
+    qzType:
+      type: string
+      description: 曲种名，如 "大曲"/"小曲"。模糊匹配
+    smartRoom:
+      type: string
+      description: 智能房筛选
+      enum: [all, smart, manual]
+      default: all
+    isEnd:
+      type: boolean
+      description: 是否已结束发酵。true=已结束，false=进行中，不传=不过滤
+    dateRange:
+      type: object
+      description: 发酵开始日期范围，格式 {from:"2026-04-01", to:"2026-04-30"}
+    pageNo:
+      type: integer
+      default: 1
+    pageSize:
+      type: integer
+      default: 20
+
+when_to_use:
+  - 用户问"最近发酵了哪些大曲" → qzType="大曲" + 默认时间
+  - 用户问"智能房有几个工单在跑" → smartRoom=smart + isEnd=false
+  - 用户问"上周完成的发酵工单" → isEnd=true + dateRange
+  - 用户问"某个曲房历史工单" → roomId
+
+when_not_to_use:
+  - 用户想看单个曲房的全景 → 用 jsy.ferment.room.profile
+  - 用户问的是窖池工单（PITN开头）→ 用 jsy.pit.lifecycle
+
+examples:
+  - query: "智能房在跑的发酵工单有多少？"
+    arguments:
+      smartRoom: smart
+      isEnd: false
+  - query: "上个月完成了多少发酵"
+    arguments:
+      isEnd: true
+      dateRange: {from: "2026-04-01", to: "2026-04-30"}

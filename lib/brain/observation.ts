@@ -1,14 +1,15 @@
 // 观察注入纯函数 — 从 router.ts 拆出，保持 router 只负责编排流程
 // 三个职责：清洗防御语言、截断+正面概要、组装观察消息
 
-import { SYSTEM_REGISTRY } from '@/lib/systems'
+import { getActiveSystems } from '@/lib/systems'
 import { resolveBridgeHints } from './cross-system-bridge'
 import type { ToolRegistry } from '@/lib/tools/registry'
 import type { IntentTags } from '@/lib/types'
 
 /** 从 query 中按 scope 关键词推断"问题涉及哪些系统"（用于跨系统覆盖检查） */
 export function detectCandidateSystems(query: string): string[] {
-  return Object.entries(SYSTEM_REGISTRY)
+  // 用 getActiveSystems() 而不是 SYSTEM_REGISTRY — 禁用系统不参与候选
+  return Object.entries(getActiveSystems())
     .filter(([, meta]) => meta.scope.split(/[、，,]/).some(kw => {
       const trimmed = kw.trim()
       return trimmed.length > 0 && query.includes(trimmed)

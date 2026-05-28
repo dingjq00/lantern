@@ -1,0 +1,57 @@
+// jsy.xxx.yyy — 一句话工具说明
+//
+// === AI 接手须知 ===
+// 1. 复制本文件改名（去掉 .example），文件名用 kebab-case，匹配工具名最后一段
+// 2. 同步在 skills/jsy/<同名>.yaml 写 skill 描述
+// 3. 在 mcp-server/src/index.ts 三处注册（import + register + 末尾 +1）
+// 4. 禁止接入写操作 — 若 endpoint 名含 Save/Delete/Create/Update/Add/Edit/Modify/Set/Transition/Remove/Insert/SoftDelete/Confirm/Approve/Submit/Lock/Reset/Clear，停手
+//
+// === 对接信息 ===
+// @endpoint: POST /xxx/yyy
+// @request:  XxxRequest  @source: Backend/DataInterface/Xxx.cs:NN
+// @response: XxxVO       @source: Backend/DataInterface/Xxx.cs:NN
+// @source-controller: Backend/Controllers/Xxx/XxxController.cs:NN
+//
+// （source 路径基准：/Users/dingjq/IdeaProjects/JSYSmartFactoryII/南厂酿酒车间/）
+//
+// === 业务术语 ===
+// （列出工具用到的关键业务概念 — 如"窖池"/"曲房"/"排次" — 见 docs/jsy-business-context.md）
+//
+// === 联调 TODO ===
+// （列出本次实现里没法在源码里确认、需要联调时验证的事项 — 字段拼写、分页字段名、空值含义等）
+
+import { z } from 'zod'
+import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
+import { jsyPost } from '../../jsy-api.js'
+import { textResult } from '../../shared.js'
+
+export function registerJsyXxxYyy(server: McpServer) {
+  server.tool(
+    'jsy.xxx.yyy',
+    '工具说明（LLM 看的，跟 yaml 的 description 保持一致）。写清楚什么场景用、不用什么场景用。',
+    {
+      // zod schema — 业务 camelCase（用户语义）
+      // .describe(...) 会作为 tool schema 暴露给 LLM，要写清这个字段是什么、什么时候传
+      param1: z.string().describe('字段含义 + 例子，如 "曲房编号，如 ZL-A12"'),
+      // 枚举一定 enum 出来，不要让 LLM 自由文本输入
+      mode: z.enum(['a', 'b']).optional().default('a').describe('模式说明'),
+      // 日期范围统一格式
+      dateRange: z.object({ from: z.string(), to: z.string() }).optional().describe('日期范围 {from:"2026-04-01", to:"2026-04-30"}'),
+    },
+    async (args) => {
+      // 入参 → 服务端 Request 字段映射（**PascalCase 不要"修正"**）
+      const body: Record<string, unknown> = {
+        ServerField1: args.param1,
+        // 字段直接 omit 而非传 null/undefined — 后端 Newtonsoft.Json 会把 null 当 "传了"
+      }
+      if (args.dateRange) {
+        body.StartTime = args.dateRange.from
+        body.EndTime = args.dateRange.to
+      }
+
+      const data = await jsyPost('/xxx/yyy', body)
+      // 透传 — 联调若发现返回 > 50KB 再加字段裁剪
+      return textResult(data)
+    },
+  )
+}

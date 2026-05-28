@@ -1,0 +1,38 @@
+# JSY 曲房/发酵房全景
+name: jsy.ferment.room.profile
+description: >
+  查询单个曲房/发酵房的全景信息：房间基础属性、当前承载的发酵批次主单、
+  配方阶段（天数/起始日期）、是否智能房。
+  ⚠️ 这是制曲业务（YeastFermentRoom），不要跟窖池(Pit)混淆——窖池查询用 jsy.pit.lifecycle。
+version: "1.0"
+system: jsy
+type: simple
+maps_to: jsy.ferment.room.profile
+
+domains:
+  - production
+
+operation: profile
+
+input_schema:
+  required: [roomId]
+  properties:
+    roomId:
+      type: string
+      description: 曲房编号（YeastFermentRoom 的业务编号），如 "ZL-A12"
+
+when_to_use:
+  - 用户问"X 号曲房什么状态" → roomId
+  - 用户问"X 号曲房在跑什么"
+  - 用户问"X 号曲房什么时候出房"
+  - 用户问"X 号发酵房的配方阶段"
+
+when_not_to_use:
+  - 用户想看一批工单/多个房间 → 用 jsy.ferment.order.search
+  - 用户问的是窖池（Pit）而不是曲房 → 用 jsy.pit.lifecycle
+  - 用户问的是仓库/库存 → 用 jsy.hut.inventory.search
+
+examples:
+  - query: "ZL-A12 号曲房现在什么状态？"
+    arguments:
+      roomId: "ZL-A12"

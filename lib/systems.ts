@@ -87,6 +87,44 @@ export interface SystemMeta {
   businessGlossary?: Record<string, GlossaryTerm>   // 业务术语表 — glossary.resolve 按需查询
 }
 
+/**
+ * 启用系统过滤 — 由 `ENABLED_SYSTEMS` 环境变量控制
+ *
+ * 用法：
+ *   ENABLED_SYSTEMS=jsy             → 只挂 JSY
+ *   ENABLED_SYSTEMS=eam,mes,jsy     → 挂三个
+ *   不配/为空                        → 全部启用（向后兼容）
+ *
+ * 影响：路由器、prompt 拼装、observation、工具注册表统一按此过滤。
+ *      MCP server 端独立读相同 env（见 mcp-server/src/index.ts）。
+ *
+ * 实现说明：每次调用都读 env（非顶层快照），方便单元测试用 vi.stubEnv 控制。
+ */
+function getEnabledSet(): Set<string> | null {
+  const raw = process.env.ENABLED_SYSTEMS
+  if (!raw || !raw.trim()) return null
+  return new Set(raw.split(',').map(s => s.trim().toLowerCase()).filter(Boolean))
+}
+
+export function isSystemActive(systemId: string): boolean {
+  const set = getEnabledSet()
+  if (!set) return true
+  return set.has(systemId.toLowerCase())
+}
+
+export function getActiveSystemIds(): string[] {
+  return Object.keys(SYSTEM_REGISTRY).filter(isSystemActive)
+}
+
+/** 过滤后的系统注册表 — router/observation/prompt-assembler 用 */
+export function getActiveSystems(): Record<string, SystemMeta> {
+  const set = getEnabledSet()
+  if (!set) return SYSTEM_REGISTRY
+  return Object.fromEntries(
+    Object.entries(SYSTEM_REGISTRY).filter(([id]) => set.has(id.toLowerCase())),
+  )
+}
+
 export const SYSTEM_REGISTRY: Record<string, SystemMeta> = {
   eam: {
     label: 'EAM（设备资产管理）',
@@ -182,6 +220,43 @@ export const SYSTEM_REGISTRY: Record<string, SystemMeta> = {
       '库存单': { aliases: ['出入库单', '仓库单据', '领料单'], definition: '所有物料出入库的凭证，含仓库操作、采购入库、生产入库、零星领料等类型', computation: '按类型、状态、供应商筛选', relatedTools: ['mes.inventory.search'] },
       '产线': { aliases: ['生产线', '工位', '线体'], definition: '生产线体，分称量(3101)、乳化(3102-3112)、灌装包装(3201-3288)、检验(3301-3302)四大类', computation: '按编号或名称查产线概览', relatedTools: ['mes.line.overview'] },
       '齐套': { aliases: ['齐套率', '物料齐套', '物料齐套率'], definition: '生产工单所需原料/包材是否在仓库齐备可投产', computation: '需对比物料库存（mes.material.search / mes.inventory.search）与工单 BOM；目前 MES 无原生齐套指标，需基于物料+库存做近似分析，必要时标注"建议人工核对"', relatedTools: ['mes.material.search', 'mes.inventory.search'] },
+    },
+  },
+  jsy: {
+    label: 'JSY（南厂酿酒车间，白酒酿造 MES）',
+    scope: '窖池、曲房、发酵房、制曲、酿酒、入窖、出窖、馏酒、糟源、排次、曲库、曲块、压曲机、稻壳、酒醅、滴酒、PITN工单、车间(NJNC)',
+    domainModel: `两条主业务链:
+【制曲链 - 曲房/曲库】
+  原辅料(稻壳/小麦) ──压曲→ 曲块 ──入房→ 曲房(YeastFermentRoom) ──发酵→ 出房 ──入仓→ 曲库(Hut)
+  发酵生命周期主单 = YeastRoomBatchOrder（含时间轴: 入房/起始/出房 + 配方阶段 + 状态）
+  曲房过程数据 = FermentRoom 采集(温湿度/含氧/蒸汽/水) + 归档 + 预警
+  曲库状态 = HutInventoryRealTimeInfo + HutInventoryTransaction（事务流水）+ HutInventoryArchive（归档快照）
+
+【窖池链 - NCNX 浓香】
+  入窖(InPit) ──发酵→ 出窖(OutPit) ──润粮(Dose) ──馏酒(Distil) ──转运(Transfer) → 入窖(下排次)
+  窖池工单号格式: PITN<车间><窖号>_<日期>，如 PITN1101_1187_20250217
+  车间映射: 11→NJNC01 / 12→NJNC02 / 13→NJNC03
+  追溯链: PrevOrderID（前序工单）+ Source_PitNo/Source_Layer（糟源窖池层）+ PitLayerLotID（批次串联）
+  生命周期主表 = POMOrderII（含 InPit/OutPit/Distil/Transfer 子表）
+
+⚠️ 制曲(曲房/Hut)与窖池(NCNX/PITN)是两条相对独立的业务链，不要混淆术语和工具:
+   - 问"X 号曲房" → jsy.ferment.room.profile / jsy.ferment.order.search
+   - 问"X 号窖池"/"PITN工单" → jsy.pit.lifecycle
+   - 问"曲库存"/"出入仓" → jsy.hut.inventory.search
+
+关键指标: 曲房发酵完成率、入房执行率、曲库周转、窖池排次时长、馏酒出酒率、糟源同窖池比`,
+    // P0 阶段先不引入 KPI 公式 — 等同事联调后按 SQL 语义补
+    computedMetrics: {},
+    recommendations: [],
+    businessGlossary: {
+      '窖池': { aliases: ['窖号', 'Pit', 'Unit'], definition: '白酒发酵的核心容器，浓香型必备', computation: 'unitCode 是业务编号(如 1187)，CellarID 是车间维度位置标识', relatedTools: ['jsy.pit.lifecycle'] },
+      '排次': { aliases: ['CrossNo', '轮次'], definition: '同一窖池每次入窖到出窖的循环编号', computation: '不传时取当前排次；同窖池下不同 CrossNo 对应不同工单', relatedTools: ['jsy.pit.lifecycle'] },
+      '糟源': { aliases: ['Source_PitNo', '糟源窖池', '回窖糟来源'], definition: '回窖糟醅的上游来源窖池/层', computation: 'POMOrderII_InPit.Source_PitNo + Source_Layer。⚠️ 90% 案例下糟源=本窖池(同窖回填)，跨窖池来源仅占 ~10%', relatedTools: ['jsy.pit.lifecycle'] },
+      '曲房': { aliases: ['发酵房', 'YeastFermentRoom', 'RoomID'], definition: '制曲发酵的房间，承载 YeastRoomBatchOrder 主单', computation: '按 RoomID 查全景，房间同时只跑一个批次主单', relatedTools: ['jsy.ferment.room.profile'] },
+      '曲库': { aliases: ['Hut', '仓', '筒仓'], definition: '存放曲块/曲粉的存储设备', computation: 'realtime=多仓批量按 LstEquPK 查实时；transaction=按日期/物料/供应商查流水', relatedTools: ['jsy.hut.inventory.search'] },
+      '智能房': { aliases: ['SmartRoom'], definition: '带在线采集/自动控制能力的曲房（SmartRoom=1）', computation: '与非智能房(0)区分时传 smartRoom=smart', relatedTools: ['jsy.ferment.order.search'] },
+      '馏酒': { aliases: ['Distil', '蒸馏', '装甑'], definition: '窖池出窖后糟醅装甑蒸馏出酒', computation: 'POMOrderII_Distil 表，含 PitLayerLotID1/2 双半甑、TrickID 班次、FactoryDate', relatedTools: ['jsy.pit.lifecycle'] },
+      '交酒': { aliases: ['HandInOrder'], definition: '馏酒后产出酒进入暂存罐+品评定级', computation: 'HandInOrder_Hut 表 + QMGrade/QMResult；与出窖是下游关系不是强关联', relatedTools: ['jsy.pit.lifecycle'] },
     },
   },
 }

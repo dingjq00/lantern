@@ -7,8 +7,10 @@ import { prepareSummarizeContext } from './summarize-context'
 import { extractIntentFromThinkResult } from './intent'
 import { validateResult } from './validator'
 import { cleanDefensiveLanguage, calcTruncateThreshold, buildObservationData, buildObservationMessage, extractPlan, checkFinishCoverage } from './observation'
+import { chooseChartsForAll } from './visualizer'
+import { decideDisplayPlan } from './display-strategist'
 import { hasActualData, computeDataRelevance } from './relevance-checker'
-import { SYSTEM_REGISTRY } from '@/lib/systems'
+import { getActiveSystems } from '@/lib/systems'
 import { TraceCollector } from './trace'
 import type { ToolRegistry } from '@/lib/tools/registry'
 import type { StorageInterface } from '@/lib/storage/types'
@@ -63,11 +65,13 @@ export async function processQuery(
 
   // 术语预匹配 — 扫描 query 命中术语表时自动注入定义（确定性，不靠 AI 判断）
   // 先用 scope 关键词预判 query 属于哪个系统，只注入相关系统的术语（防跨系统碰撞）
+  // 用 getActiveSystems() 确保禁用系统的术语不进 prompt
   const glossaryHints: string[] = []
-  const querySystems = Object.entries(SYSTEM_REGISTRY)
+  const activeSystems = getActiveSystems()
+  const querySystems = Object.entries(activeSystems)
     .filter(([, meta]) => meta.scope.split(/[、，,]/).some(kw => query.includes(kw.trim())))
     .map(([sysId]) => sysId)
-  for (const [sysId, meta] of Object.entries(SYSTEM_REGISTRY)) {
+  for (const [sysId, meta] of Object.entries(activeSystems)) {
     if (!meta.businessGlossary) continue
     // 如果能判断系统归属，只注入该系统的术语；判断不了则全部注入
     if (querySystems.length > 0 && !querySystems.includes(sysId)) continue
@@ -379,6 +383,43 @@ export async function processQuery(
     summary.followUp,
   )
   result.sources = uniqueSources
+  // dataSources 跟 data 同长度同顺序——前端按数据源拆多表
+  result.dataSources = ctx.dedupedResults.map(r => r.tool)
+
+  // 展示策略决策 — 优先 Pro 综合判断（displayPlan），失败再降级到 mini chooseChart
+  const mode = (process.env.DISPLAY_STRATEGY_MODE === 'freeform' ? 'freeform' : 'structured') as 'structured' | 'freeform'
+  let planSucceeded = false
+  try {
+    const plan = await decideDisplayPlan(
+      ctx.dedupedResults.map(r => ({ tool: r.tool, data: r.data })),
+      uniqueSources,
+      query,
+      summary.answer,
+      llm,
+      mode,
+    )
+    if (plan && plan.sources.length > 0) {
+      result.displayPlan = plan
+      planSucceeded = true
+    }
+  } catch (err) {
+    console.warn('[Router] DisplayStrategist 异常，回退 visualizer:', (err as Error).message)
+  }
+
+  // 只在 displayPlan 失败/缺失时才跑 chooseChart 兜底 — 省一次 LLM 调用
+  if (!planSucceeded) {
+    try {
+      result.chartHints = await chooseChartsForAll(
+        ctx.dedupedResults.map(r => ({ tool: r.tool, data: r.data })),
+        uniqueSources,
+        query,
+        llm,
+      )
+    } catch (err) {
+      console.warn('[Router] Visualizer 失败，全部回退表格:', (err as Error).message)
+    }
+  }
+
   result.trace = trace.build()
   return result
 }

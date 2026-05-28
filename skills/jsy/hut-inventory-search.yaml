@@ -1,0 +1,71 @@
+# JSY 仓库存查询
+name: jsy.hut.inventory.search
+description: >
+  查询曲库存（hut/仓）状态。两种模式：
+  (1) realtime — 按仓主键列表拿当前实时库存量（多仓批量）
+  (2) transaction — 按仓/物料/供应商/日期范围查出入库事务流水
+  ⚠️ 这是制曲业务的曲块/曲粉仓（HutInventory），不是 NCNX 浓香窖池库存。
+version: "1.0"
+system: jsy
+type: simple
+maps_to: jsy.hut.inventory.search
+
+domains:
+  - inventory
+
+operation: search
+
+input_schema:
+  required: [mode]
+  properties:
+    mode:
+      type: string
+      description: 查询模式
+      enum: [realtime, transaction]
+    equPkList:
+      type: array
+      description: "[realtime] 仓设备主键列表，如 [101, 102, 103]"
+      items:
+        type: integer
+    equ:
+      type: string
+      description: "[transaction] 仓编号过滤"
+    mmDef:
+      type: string
+      description: "[transaction] 物料编号过滤"
+    supplier:
+      type: string
+      description: "[transaction] 供应商号过滤"
+    inDate:
+      type: string
+      description: "[transaction] 入库日期（精确到天，格式 2026-04-15）"
+    dateRange:
+      type: object
+      description: "[transaction] 事务发生日期范围，{from,to}"
+    pageNo:
+      type: integer
+      default: 1
+    pageSize:
+      type: integer
+      default: 20
+
+when_to_use:
+  - 用户问"X 仓还剩多少" → mode=realtime + equPkList
+  - 用户问"上周的出入库记录" → mode=transaction + dateRange
+  - 用户问"某物料的库存变化" → mode=transaction + mmDef
+  - 用户问"某供应商最近供了多少货" → mode=transaction + supplier
+
+when_not_to_use:
+  - 用户问的是 NCNX 窖池库存 → 用 jsy.pit.lifecycle
+  - 用户问的是曲房在跑工单 → 用 jsy.ferment.order.search
+
+examples:
+  - query: "101 102 103 这几个仓现在还剩多少？"
+    arguments:
+      mode: realtime
+      equPkList: [101, 102, 103]
+  - query: "上周大曲的出入库流水"
+    arguments:
+      mode: transaction
+      mmDef: "大曲"
+      dateRange: {from: "2026-05-19", to: "2026-05-25"}

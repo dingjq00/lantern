@@ -1,0 +1,83 @@
+# JSY 窖池履历查询（NCNX 浓香）
+name: jsy.pit.lifecycle
+description: >
+  查询白酒酿造窖池的生命周期履历。
+  支持按窖池编号(unitCode)、工单号(orderId)、窖号(cellarId) 任一定位窖池/排次，
+  可加载来源链路、阶段面板（入窖/发酵/出窖/润粮/馏酒）、温度趋势、历史工单。
+  返回一个聚合的履历对象（含 Realtime/HistoryOrders/Detail）。
+  ⚠️ 这是 JSY 系统中窖池追溯类问题的主入口。
+version: "1.0"
+system: jsy
+type: simple
+maps_to: jsy.pit.lifecycle
+
+domains:
+  - production
+  - traceability
+
+operation: search
+
+input_schema:
+  properties:
+    workshopId:
+      type: string
+      description: 车间ID。11=NJNC01 / 12=NJNC02 / 13=NJNC03
+      enum: ["11", "12", "13"]
+    unitCode:
+      type: string
+      description: 窖池业务编号，如 "1187"。用户最常用的标识，与 cellarId/orderId 三选一
+    crossNo:
+      type: string
+      description: 排次号（同一窖池循环次数）。不传取当前排次
+    cellarId:
+      type: string
+      description: 窖号 — 车间维度的位置标识
+    orderId:
+      type: string
+      description: 窖池工单号，形如 "PITN1101_1187_20250217"
+    state:
+      type: string
+      description: 状态过滤（具体枚举待联调确认）
+    onlyWarning:
+      type: boolean
+      description: 只看告警中的窖池
+    includeLineage:
+      type: boolean
+      default: false
+      description: 是否加载糟源/前序来源链路。跨排次追溯打开
+    includeStageDetails:
+      type: boolean
+      default: true
+      description: 是否加载阶段面板（入窖/发酵/出窖/润粮/馏酒）
+    includeTemperatureTrend:
+      type: boolean
+      default: true
+      description: 是否加载温度趋势曲线
+    includeHistoryOrders:
+      type: boolean
+      default: true
+      description: 是否加载该窖池的历史排次工单列表
+
+when_to_use:
+  - 用户问"X 号窖池现在什么状态" → unitCode + 默认开关
+  - 用户问"工单 PITN1101_1187_20250217 的履历" → orderId
+  - 用户问"窖池 1187 的来源/糟源" → unitCode + includeLineage=true
+  - 用户问"窖池 1187 的发酵温度趋势" → unitCode + includeTemperatureTrend=true
+  - 用户问"窖池 1187 历史上跑过哪些排次" → unitCode + includeHistoryOrders=true
+
+when_not_to_use:
+  - 用户问曲房/发酵房（制曲业务，不是窖池业务）→ 用 jsy.ferment.room.profile
+  - 用户问仓库/库存 → 用 jsy.hut.inventory.search
+  - 用户只想看温度曲线本身（不要其他履历信息）→ 这里也能拿到，但若同事后续把曲线拆成单独工具应改用拆出来的
+
+examples:
+  - query: "1187 号窖池现在什么状态？"
+    arguments:
+      unitCode: "1187"
+  - query: "查一下窖池 1187 的糟源链路"
+    arguments:
+      unitCode: "1187"
+      includeLineage: true
+  - query: "PITN1101_1187_20250217 这个工单跑得怎么样"
+    arguments:
+      orderId: "PITN1101_1187_20250217"
