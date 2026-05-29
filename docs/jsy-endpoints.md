@@ -1,7 +1,7 @@
 # JSY 南厂酿酒车间 — Endpoint 全清单
 
 > 生成时间：2026-05-28  
-> 来源：扫描 `/Users/dingjq/IdeaProjects/JSYSmartFactoryII/南厂酿酒车间/Backend/Controllers`  
+> 来源：扫描 JSY 后端 `Backend/Controllers`（原始生成机器路径 `…/JSYSmartFactoryII/南厂酿酒车间/`；同事重跑见 `scripts/jsy/extract-endpoints.py`，把脚本里的路径换成自己本机的 JSY 源码目录）  
 > 控制器文件数：66  
 > Endpoint 总数：**589**  
 > 提取方式：Python 静态扫描 `[RoutePrefix]` + `[Route]` + `[Http*]` 属性  

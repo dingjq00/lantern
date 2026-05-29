@@ -87,7 +87,7 @@
 - 用户问 "X 日计划用了哪些原料批次" → orderId + includeMaterialBatches
 
 **注意点**：
-- findings.md 重点提到 `LifecycleTrace.vue` 复用 ZQDayPlanOrder 的接口 — 做窖池履历的同学需要这套
+- `docs/jsy-findings.md` 重点提到 `LifecycleTrace.vue` 复用 ZQDayPlanOrder 的接口 — 做窖池履历的同学需要这套
 - ZQ vs YFL 是两条日计划，业务上要区分
 
 ---
@@ -154,7 +154,7 @@
 ```
 
 **注意点**：
-- findings.md 提到 `AIAnalysisController` 是"曲房概览/异常分析/巡检分析"已有聚合，适合做"系统整体什么情况"类问题
+- `docs/jsy-findings.md` 提到 `AIAnalysisController` 是"曲房概览/异常分析/巡检分析"已有聚合，适合做"系统整体什么情况"类问题
 - 三个 overview 内部已经做了聚合，本工具不必再 fan-out
 
 ---

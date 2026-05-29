@@ -1,7 +1,7 @@
 # JSY 业务速查 — AI 写代码时该懂的
 
-> 2026-05-28。精炼自 `/Users/dingjq/IdeaProjects/JSYSmartFactoryII/南厂酿酒车间/findings.md`
-> （完整调研背景去看那份；这里只放 **AI 写 JSY 工具时一定要懂** 的部分）
+> 2026-05-28。精炼自 JSY 源码树的 `findings.md`（完整 352 行快照已拷入本仓：`docs/jsy-findings.md`）
+> （完整调研背景去看 `docs/jsy-findings.md`；这里只放 **AI 写 JSY 工具时一定要懂** 的部分）
 
 ---
 
@@ -111,9 +111,9 @@ WMS 回写流（旧业务，了解即可，新系统重写中）:
 
 ---
 
-## 7. 想了解更多 → findings.md
+## 7. 想了解更多 → docs/jsy-findings.md
 
-- `/Users/dingjq/IdeaProjects/JSYSmartFactoryII/南厂酿酒车间/findings.md`
+- `docs/jsy-findings.md`（仓内完整快照；若你本机有 JSY 源码树，源码里的 `findings.md` 是最新源）
 - 完整 352 行，含：
   - 2026-05-20 产酒定级与交酒链路排查
   - 2026-05-22 生命周期"来源窖池层"数据库核查

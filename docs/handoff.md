@@ -1,6 +1,6 @@
 # Lantern 开发交接说明
 
-> 更新时间：2026-05-27  
+> 更新时间：2026-05-27（2026-05-29 修订：补 JSY 接入事实 + 刷新系统/skills 计数）  
 > 用途：为新的开发会话或协作模型提供可验证的当前上下文。状态描述以本次读取的代码和 Git 工作区为依据。
 
 ## 项目定位
@@ -20,8 +20,8 @@ Next.js Web / API
 ## 已核对的代码状态
 
 - 技术栈：Next.js `16.2.1`、React `19.2.4`、TypeScript、OpenAI SDK、MCP SDK、SQLite、Vitest。
-- 系统注册点为 `lib/systems.ts`，当前包含 `eam`、`edhr`、`mes` 三个业务系统。
-- `skills/` 当前共有 30 个 YAML skills：EAM 12、EDHR 7、MES 10、common glossary 1。
+- 系统注册点为 `lib/systems.ts`，当前包含 `eam`、`edhr`、`mes`、`jsy` 四个业务系统（`jsy` 南厂酿酒车间为 2026-05-28 接入，P0 4 工具，正在真实环境实施；运行时启用由 `ENABLED_SYSTEMS` 控制）。
+- `skills/` 当前共有 34 个 YAML skills：EAM 12、EDHR 7、MES 10、JSY 4、common glossary 1。
 - `app/api/chat/route.ts` 组合 Brain、SQLite、Tool Registry 与 MCP client；MCP server 由 API 路由按需以 stdio 启动。
 - 评估入口包含 `scripts/benchmark.ts`（EAM/EDHR 深度用例）与 `scripts/benchmark-platform.ts`（系统路由、跨系统推理、MES 用例）。
 - R1 回归测试：`npm test` 现为 12 个测试文件、85 条用例，覆盖 router、confidence、validator、intent、observation、summarize-context、cross-system-bridge、registry、MCP 契约、storage、benchmark manifest。
@@ -31,7 +31,7 @@ Next.js Web / API
 
 ## 接手时的工作区状态
 
-检查时所在分支为 `feat/p0-platform`，相对远端分支领先 34 个提交。下列未提交改动在本次文档初始化之前已经存在，请继续工作时先理解再处理：
+检查时所在分支为 `feat/p0-platform`（已推送到 origin，JSY P0 接入已提交，同事 clone/pull 此分支即可拿到 JSY 全部代码与文档）。下表未提交改动为本文档**初始化时**的快照，与当前工作区可能已不同步；继续工作时以 `git status` 实际输出为准：
 
 | 文件 | 从 diff 推断的方向 |
 | --- | --- |
@@ -66,6 +66,7 @@ npm run dev
 | 文档 | 使用方式 |
 | --- | --- |
 | `docs/local-test-systems-startup.md` | EAM、EDHR、MES 三套真实测试后端的启动、校验与常见问题手册 |
+| `docs/jsy-onboarding.md` | JSY 南厂酿酒车间接手手册（环境配置、5 分钟跑通、红线、新增工具流程、给 AI 助手开场白）；配套 `jsy-endpoints.md` / `jsy-tool-plan.md` / `jsy-business-context.md` / `jsy-findings.md` |
 | `docs/roadmap-2026-05-27.md` | 后续推进主路线、阶段门槛与近期任务排序 |
 | `docs/specs/platform-design.md` | 平台分层与工具注册的设计基础，部分阶段描述为早期规划 |
 | `docs/plan-a-experiment-report.md` | EAM 22 tools 阶段的实验记录，用于理解决策来源，不代表当前三系统覆盖结果 |

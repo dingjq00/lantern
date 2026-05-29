@@ -1,0 +1,356 @@
+> 📋 本文件是从 JSY 后端源码树的 `findings.md` 拷入 lantern 仓的**只读快照**（2026-05-29 拷入）。
+> 原始文件在你本机的 JSY 源码目录下；若 JSY 源码更新，以源码树的 `findings.md` 为准，本快照可能滞后。
+> 精炼版（AI 写工具够用的部分）见 `docs/jsy-business-context.md`。
+
+# Findings: 南厂酿酒业务梳理
+
+## Scope
+- 调研主目录：`D:\SmilSoft\JSYSmartFactoryII\南厂酿酒车间`
+- 联动调研范围：仓库内与南厂酿酒、窖池履历、发酵/任务/库存相关的旧 WinForm、数据层、服务层代码
+- 明确排除：`D:\SmilSoft\JSYSmartFactoryII\JSYSmartFactory.NC.Services`
+
+## Research Findings
+- `南厂酿酒车间` 当前更像从“制曲与原辅料”抽出的平台骨架，而不是完整迁移完成的南厂业务系统。
+- `README.md` 说明当前保留的是平台能力：登录鉴权、JWT 刷新、角色管理、菜单管理、用户角色分配、通知/WebSocket 等。
+- `README.md` 说明当前已裁掉原有业务控制器、业务页面与业务接口入口，意味着具体南厂业务需要继续从旧目录追溯。
+- `Backend/Controllers` 已预留大量业务域控制器目录，重点包括：`MakeWine`、`RoomInfo`、`Inventory`、`Order`、`PlanOrder`、`Materials`、`SiloScada`、`Equipment`、`Check`、`WaterQuality`。
+- `DataInterface` 已有大量南厂相关实体分类，重点包括：`factory`、`Inventory`、`Order`、`PlanOrder`、`ProductionTask`、`SiloScada`、`MaterialProduce`、`Equipment`、`Check`、`Member`、`WaterQuality`。
+- `Frontend/src/views` 仍是平台化目录结构，南厂业务页面需要从 `business`、`index` 等目录继续下钻。
+- 目前后端与窖池履历关系最强的控制器集中在：
+  - `RoomInfo/FermentRoomController.cs`
+  - `RoomInfo/FermentRoomAnalysisController.cs`
+  - `RoomInfo/FermentRoomIssueController.cs`
+  - `RoomInfo/ProductionTaskController.cs`
+  - `Inventory/HutInfoController.cs`
+  - `Inventory/HutInventoryController*.cs`
+  - `Order/*WarehouseOrderController.cs`
+  - `SiloScada/SiloScadaController.cs`
+- `MakeWine` 目录当前仅有 `MakeWineBaseController.cs`，说明“酿酒”业务还没有在新后端完整展开，很多细节可能仍需回溯旧系统。
+- `DataInterface` 中与窖池/发酵/履历最相关的实体簇已经出现，重点类包括：
+  - `HutInventoryRealTimeInfo`
+  - `HutInventoryTransaction`
+  - `HutInventoryArchive`
+  - `HutInventoryForceTransaction`
+  - `HutInventoryOrder` / `HutInventoryOrderItem`
+  - `HutMixOrder` / `HutMixOrderItem`
+  - `QuBlockInRoomOrder` / `QuBlockOutRoomOrder`
+  - `QuBlockInRoomOrderData` / `QuBlockOutRoomOrderData`
+  - `YeastFermentOrder`
+  - `YeastFermentOperation`
+  - `YeastRoomBatchOrder`
+  - `OutRoomInfo` / `OutRoomInfoData`
+  - `FermentRoomCollectData`
+  - `FermentRoomArchiveData`
+  - `FermentRoomWarningData`
+  - `RoomOutPlanOrder`
+- 这些类名说明窖池履历至少横跨四类数据：实时库存、库存交易/归档、入房出房/发酵订单、采集与预警数据。
+- 前端 `business` 目录中，和履历最相关的页面/区域已存在：
+  - `traceability/LifecycleTrace.vue`
+  - `fermentRoom/*`
+  - `inventory/*`
+  - `zqplanorder/dayplan/components/Trace*.vue`
+  - `board/fermentRoomID/*`
+  - `board/fermentWarehouseControl/*`
+- 前端已经不只是普通 CRUD；至少有“生命周期追溯”“数字孪生/时间线审计”“房间看板/库存看板”几个展示方向。
+- `traceability/LifecycleTrace.vue` 已经实现一个“追溯码/批次号查询”的生命周期页面原型。
+- `LifecycleTrace.vue` 当前直接拼装四类数据源：
+  - `getdatabyorderid(orderId)`：生产任务/工单信息
+  - `MaterialBatchDetails(orderId)`：原料批次明细
+  - `getqfList(orderId)`：曲房/发酵房列表
+  - `GetLimsOrder(orderId)`：质检/化验数据
+- `LifecycleTrace.vue` 当前展示的信息包括：
+  - 原料批次数量
+  - 生产任务数量
+  - 发酵房数量
+  - 质检合格率
+  - 原料入库时间、压曲工艺、压曲机编号、曲房编号、曲库编号
+- 这说明“网页端履历”现在已选择按“批次/追溯码”聚合展示，而不是直接按单个窖池主键展示。
+- `FermentRoomController` 暴露的 `FermentRoomInfo` 表明“房间履历视角”至少会读取：
+  - `ZQEquipmentItem`：房间主数据
+  - `YeastRoomBatchOrder`：当前/最近发酵工单
+  - `ZQCheckOrder`：水质化验状态
+  - `QuBlockInRoomOrder`：曲架入房记录
+  - 发酵配方阶段天数与起始日期
+- `FermentRoomController` 的 `FermentOrderList` 说明房间视角还能按时间、曲种、是否结束、是否智能房、是否执行等维度筛选工单。
+- `HutInventoryController` 不是简单查当前库存，而是把多源数据重新计算成“仓实时信息”：
+  - `HutInventoryArchive`
+  - `HutInventoryForceTransaction`
+  - `CleanHutRecord`
+  - `ZQEquipmentPropertyData`
+  - `HutTempArchive`
+  - `MMDefinition`
+- `HutInventoryController` 的逻辑说明“窖池/仓状态”依赖实时归档 + 强制事务 + 清仓截断 + 温湿度 + 物料属性的综合计算，这部分很像履历中的“状态层”。
+- `YeastFermentOperation` 已明确映射到数据库表 `ssit_yeast_operation`，可视为发酵生命周期中的关键事件表。
+- `YeastFermentOperation` 的事件枚举已经覆盖典型生命周期动作：`倒浆`、`平翻`、`加3高`、`加4高`、`加5高`、`并房`、`头火`、`二火`、`盖草帘`、`判曲`。
+- 旧实现里，南厂发酵/房间生命周期的规则核心明显集中在：
+  - `D:\SmilSoft\JSYSmartFactoryII\制曲与原辅料\HandleYeastAndMaterialDataInterface\Order\YeastFerment\YeastRoomBatchOrder.cs`
+  - `D:\SmilSoft\JSYSmartFactoryII\制曲与原辅料\ApiBusiness\Mes\Inventory\Core4HutInventory.cs`
+  - `D:\SmilSoft\JSYSmartFactoryII\制曲与原辅料\ApiBusiness\Mes\Inventory\Core4ProduceHutInventory.cs`
+- `YeastRoomBatchOrder.cs` 不只是实体，还内嵌了大量生命周期规则方法，包括：
+  - `SavePeriodData`
+  - `GetEquOrder`
+  - `GetEquEndOrder`
+  - `GetEquOrders`
+  - `FormulaRatio`
+  - `FormulaWeight`
+  - `OutEnd`
+  - `RoomStateName`
+- 这说明 `YeastRoomBatchOrder` 实际上是“发酵生命周期主单 + 规则聚合根”。
+- 旧业务编排入口里最关键的是：
+  - `D:\SmilSoft\JSYSmartFactoryII\制曲与原辅料\ApiBackend\Controllers\WmsController.cs`
+- `WmsController.cs` 里已明确承担以下动作：
+  - 按房间创建/更新 `YeastRoomBatchOrder`
+  - 创建 `QuBlockInRoomOrder`
+  - 创建 `QuBlockInRoomOrderData` / `QuBlockInRoomOrderDataItem`
+  - 创建 `QuBlockOutRoomOrder` / `QuBlockOutRoomOrderData`
+  - 调用 `YeastRoomBatchOrder.OutEnd(...)` 判断出房结束
+  - 调用 `Core4ProduceHutInventory.GetProductBatchResult(...)` 计算库存事务
+- 这意味着后续网页端若要做“窖池履历”，`WmsController` 对应的事件流非常值得复用或至少照着拆接口。
+- `BusinessService/Room/*` 中也有与发酵房数据生成相关的后台逻辑，例如：
+  - `FermentRoomDataService.cs`
+  - `FermentRoomHydrate.cs`
+  - `FermentRoomHydrate1.cs`
+  - `RoomUtil.cs`
+- 这些服务表明房间履历不仅有业务单据，还会持续沉淀采集归档、含水/润房、预警等过程数据。
+- `SSIT.HandleYeastAndMaterialUI` 旧 WinForm 项目是存在的，但从当前命中结果看，它更多是设备/属性/菜单/导入类工具界面，并不是发酵履历主业务承载层。
+- 当前直接命中的 WinForm 与窖池数据最相关的文件是：
+  - `SSIT.HandleYeastAndMaterialUI/UI/ImportEquipmentPropertyForm.cs`
+  - 它会直接构造 `QuBlockInRoomOrder` 与 `QuBlockInRoomOrderData`
+- 因此“WinForm 相关功能”目前更像基础配置/数据导入辅助，而核心业务逻辑主要仍在 `ApiBackend` + `BusinessService` + `DataInterface`。
+- 在 `SSIT.HandleYeastAndMaterialUI` 中，没有直接命中以 `Ferment/Room/Hut/Inventory/Warehouse/Yeast` 命名的业务窗体类，进一步印证旧 WinForm 不是履历主业务前台。
+- `WmsController` 当前公开方法名进一步说明了旧事件流入口：
+  - `OrderStateChange`
+  - `RoomIDCallback`
+  - `YeastRackIntoRoomCallback`
+  - `YeastRackWithFrameIntoRoomCallback`
+  - `OutboundInfo`
+- 从命名判断，旧系统与 WMS/设备回调耦合较深，很多生命周期事件是被外部系统回写推进的。
+- 新旧两套后端都保留了 `AIAnalysisController`，公开聚合接口包括：
+  - `AnomalyOverview`
+  - `ProductionOverview`
+  - `InspectionOverview`
+- 这说明系统里已经有一层“曲房概览/异常分析/巡检分析”的聚合后端，可作为履历总览页的参考，而不必全都直接打明细表。
+- 前端 `TraceTimelineAuditBoardView` 目前至少被两个入口复用：
+  - `business/zqplanorder/dayplan/index.vue`
+  - `business/settings/trace/index.vue`
+- 说明“时间线审计/追溯看板”已经被当成一个可嵌入组件，而不是只服务于单一页面。
+
+## Data Model Notes
+- `DataInterface/factory`、`Inventory`、`Order`、`ProductionTask`、`SiloScada` 很可能共同承载窖池履历相关数据。
+- `Inventory` 更像“窖池当前状态/变化记录”层。
+- `Order/YeastFerment` 更像“业务动作与生命周期事件”层。
+- `OPC` / `SiloScada` 更像“设备采集与自动化状态”层。
+- `PlanOrder` / `ProductionTask` 更像“计划驱动与执行任务”层。
+- `YeastFermentOperation.DbTableName = ssit_yeast_operation` 已从代码中直接确认。
+- `YeastRoomBatchOrder` 在房间信息接口中承担“当前批次/当前房间生命周期主单”的角色。
+- `QuBlockInRoomOrder` / `QuBlockOutRoomOrder` 看起来承担“入房/出房明细事件”的角色。
+- `HutInventoryArchive` / `HutInventoryForceTransaction` / `CleanHutRecord` 看起来承担“库存状态快照 + 状态变更 + 清空重置”的角色。
+- `FermentRoomCollectData` / `FermentRoomArchiveData` / `FermentRoomWarningData` 是房间过程采集与预警数据的重要表模型。
+- 已从旧 `DataInterface` 中直接确认的关键表名包括：
+  - `YeastRoomBatchOrder` → `ssit_yeastbatchorder`
+  - `YeastFermentOperation` → `ssit_yeast_operation`
+  - `YeastFermentOperationAttach` → `ssit_yeast_operation_attach`
+  - `YeastFermentOrder` → `ssit_hym_ferment_order`
+  - `YeastFermentOrderRackItem` → `ssit_hym_ferment_order_rack_item`
+  - `YeastFermentOrderWetItem` → `ssit_hym_ferment_order_wet_item`
+  - `YeastFermentRoomBlower` → `ssit_hym_FermentRoomBlower`
+  - `QuBlockInRoomOrder` → `ssit_hym_QuBlockInRoomOrder`
+  - `QuBlockInRoomOrderData` → `ssit_hym_QuBlockInRoomOrderData`
+  - `QuBlockInRoomOrderDataItem` → `ssit_hym_QuBlockInRoomOrderDataItem`
+  - `QuBlockOutRoomOrder` → `ssit_hym_QuBlockOutRoomOrder`
+  - `QuBlockOutRoomOrderData` → `ssit_hym_QuBlockOutRoomOrderData`
+  - `QuBlockInWarehouseOrder` → `ssit_hym_QuBlockInWarehouseOrder`
+  - `OutRoomInfo` → `ssit_hym_OutRoomInfo`
+  - `OutRoomInfoData` → `ssit_hym_OutRoomInfoData`
+  - `EmptyReturnWarehouse` → `ssit_hym_EmptyReturnWarehouse`
+  - `EmptyReturnWarehouseData` → `ssit_hym_EmptyReturnWarehouseData`
+  - `LayerInAssociateWithOutRecord` → `ssit_hym_LayerInAssociateWithOutRecord`
+  - `HutInventoryRealTimeInfo` → `ssit_hym_hut_inventory_real_time_info`
+  - `HutInventoryTransaction` → `ssit_hym_hut_inventory_transaction`
+  - `HutInventoryArchive` → `ssit_hym_hut_inventory_archive`
+  - `HutInventoryForceTransaction` → `ssit_hym_hut_inventory_force_transaction`
+  - `HutTempArchive` → `ssit_hym_HutTempArchive`
+  - `YeastInventoryRealTimeInfo` → `ssit_hym_yeast_inventory_real_time_info`
+  - `YeastInventoryTransaction` → `ssit_hym_yeast_inventory_transaction`
+  - `YeastInventoryArchive` → `ssit_hym_yeast_inventory_archive`
+  - `FermentRoomCollectData` → `ssit_hym_FermentRoomCollectData`
+  - `FermentRoomArchiveData` → `ssit_hym_FermentRoomArchiveData`
+  - `FermentRoomWarningData` → `ssit_hym_FermentRoomWarningData`
+- 这些表可以大致分层：
+  - 主单/业务单：`ssit_yeastbatchorder`、`ssit_hym_ferment_order`
+  - 入房出房事件：`ssit_hym_QuBlockInRoomOrder*`、`ssit_hym_QuBlockOutRoomOrder*`
+  - 过程操作事件：`ssit_yeast_operation*`
+  - 房间采集归档：`ssit_hym_FermentRoom*`
+  - 库存状态与事务：`ssit_hym_hut_inventory_*`
+- 从字段上看，几个主实体的设计重点如下：
+  - `YeastRoomBatchOrder`
+    - 主键/标识：`OrderID`、`PlanOrderID`、`Batch`
+    - 主体关联：`RoomID`、`RoomName`、`DefPK/DefName/DefAliasName`、`ZQTypeName`
+    - 生命周期状态：`OrderState`、`RoomOrderState`
+    - 时间轴：`WaterStartTime`、`WaterEndTime`、`InStartTime`、`InFirstTime`、`InEndTime`、`StartTime`、`StartFirstTime`、`EndTime`、`OutFirstTime`、`OutEndTime`
+    - 质检/评级相关：`Issue`、`LimsID`、`RatingLotID`、`RoutineLotID`、`Level`
+  - `QuBlockInRoomOrder`
+    - 单据关联：`OrderID`、`PlanOrderID`、`ProduceDate`、`WMSOrderID`、`TaskID`、`ProduceOrderID`
+    - 空间/对象：`RoomID`、`RoomName`、`PalletID`
+    - 业务内容：`ZQTypeName`、`Qty`、`Weight`、`RefineWeight`、`LotID`
+    - 位置/路径：`StartLocation`、`EndLocation`
+    - 配比：`DefRatio`、`LotRatio`
+    - 时间：`CreateTime`
+  - `QuBlockOutRoomOrder`
+    - 单据关联：`OrderID`、`PlanOrderID`、`ProduceDate`、`WMSOrderID`、`TaskID`、`ProduceOrderID`
+    - 空间/对象：`RoomID`、`RoomName`、`WarehouseID`、`WarehouseName`、`PalletID`、`CurvedRFID`
+    - 业务内容：`Qty`、`Weight`
+    - 位置/路径：`StartLocation`、`EndLocation`
+    - 时间：`CreateTime`
+  - `HutInventoryArchive`
+    - 归档主键：`ArchiveTime`、`VersionID`、`EquPK`、`SequenceID`
+    - 物料批次：`MMDefPK`、`InDate`、`SupplierID`、`SupplierName`、`BatchID`
+    - 数量状态：`Qty`
+    - 归档属性：`ArchiveType`
+  - `FermentRoomCollectData`
+    - 主键：`RoomID`、`CollectTime`
+    - 采集指标：`QXTempQ`、`QXTempH`、`HJTempQ`、`HJTempH`、`HJHumQ`、`HJHumH`、`Oxygen`、`Steam`、`Wind`、`Water`
+
+## Business Flow Notes
+- “窖池履历/生命周期”后续大概率不是单点功能，而是跨计划、投料、入窖/出窖、库存、任务、报警或设备状态的链路型功能。
+- 新前端已存在 `LifecycleTrace` 和多个 `Trace*` 审计视图，说明后续开发应优先复用已有追溯展示框架，而不是从零设计页面。
+- 目前能初步拼出的链路是：
+  - 计划/工单
+  - 原料批次
+  - 入房/出房
+  - 房间发酵过程
+  - 库存/仓状态变化
+  - 质检结果
+- 若后续要做“窖池生命周期”页面，很可能需要同时支持两种查询主线：
+  - 按批次/追溯码看全过程
+  - 按房间/窖池看当前与历史状态
+- 旧系统已有较完整的事件流雏形：
+  - 创建发酵批次主单
+  - 曲块/货架入房
+  - 发酵过程操作与采集
+  - 预警/质检/含水调整
+  - 出房
+  - 库存与批次结果落账
+- 后续网页端如果只做展示，可以先围绕这个事件流读数据；如果要补业务录入，就需要重新设计对 `WmsController` 这类旧入口的替代接口。
+- `LifecycleTrace.vue` 复用的不是专属追溯接口，而是 `ZQDayPlanOrder` 与 `General` 现有接口：
+  - `ZQDayPlanOrder/getdatabyorderid`
+  - `ZQDayPlanOrder/MaterialBatchDetails`
+  - `ZQDayPlanOrder/getqfList`
+  - `General/GetLimsOrder`
+- 同一组接口也被 `zqplanorder/dayplan/components/Detailview.vue` 使用，说明“追溯页”本质上是在复用“制曲日计划详情页”的数据拼装逻辑。
+- 这对后续开发很重要：如果你要做窖池履历网页，优先应该从 `Detailview.vue` 和对应 API 入手，而不是完全重开一套后端。
+- `YeastRoomBatchOrder` 自身已经带有较完整的生命周期时间轴字段，因此网页端可以优先基于“主单时间轴 + 入房出房事件 + 过程操作 + 采集归档”拼接履历，而不一定需要新建一张专门的“生命周期总表”。
+- 从 `WmsController` 的回调方法设计看，这条事件流的推进节点很多都带有“回调”语义，后续网页端若只做查看可以直接读库；若要支持人工补录/修正，需要单独梳理哪些节点可以脱离 WMS 独立操作。
+- 从 `AIAnalysisController` 与 `TraceTimelineAuditBoardView` 的存在看，系统已经开始把明细事件往“概览分析 + 时间线展示”两种上层视图抽象，这对后续窖池履历页面设计是利好。
+
+## Code Entry Points
+- `D:\SmilSoft\JSYSmartFactoryII\南厂酿酒车间\Backend\Controllers`
+- `D:\SmilSoft\JSYSmartFactoryII\南厂酿酒车间\DataInterface`
+- `D:\SmilSoft\JSYSmartFactoryII\南厂酿酒车间\Frontend\src\views`
+- `D:\SmilSoft\JSYSmartFactoryII\南厂酿酒车间\Frontend\src\views\business\traceability\LifecycleTrace.vue`
+- `D:\SmilSoft\JSYSmartFactoryII\南厂酿酒车间\Frontend\src\views\business\zqplanorder\dayplan\components`
+- `D:\SmilSoft\JSYSmartFactoryII\南厂酿酒车间\Backend\Controllers\RoomInfo\FermentRoomController.cs`
+- `D:\SmilSoft\JSYSmartFactoryII\南厂酿酒车间\Backend\Controllers\Inventory\HutInventoryController.cs`
+- `D:\SmilSoft\JSYSmartFactoryII\南厂酿酒车间\DataInterface\Order\YeastFerment\YeastFermentOperation.cs`
+- `D:\SmilSoft\JSYSmartFactoryII\制曲与原辅料\HandleYeastAndMaterialDataInterface\Order\YeastFerment\YeastRoomBatchOrder.cs`
+- `D:\SmilSoft\JSYSmartFactoryII\制曲与原辅料\ApiBackend\Controllers\WmsController.cs`
+- `D:\SmilSoft\JSYSmartFactoryII\制曲与原辅料\ApiBusiness\Mes\Inventory\Core4HutInventory.cs`
+- `D:\SmilSoft\JSYSmartFactoryII\制曲与原辅料\BusinessService\Room`
+- `D:\SmilSoft\JSYSmartFactoryII\南厂酿酒车间\Backend\Controllers\AIAnalysis\AIAnalysisController.cs`
+- `D:\SmilSoft\JSYSmartFactoryII\南厂酿酒车间\Frontend\src\views\business\settings\trace\index.vue`
+
+## Open Questions
+
+## 2026-05-20 产酒定级与交酒链路排查
+- 当前页面“产酒定级档案”为空，不是前端渲染问题。测试工单 `PITN1101_1184_20251108` 在 `10.10.201.112/JSYMESMainDbII.ssit_Pom_OrderII` 中 `HandInOrderID` 为空，`Alcohol0/1/2/3/First/LastQuantity` 和 `liquoryield` 均为 0，按现有 `LoadLiquorGradeRows` 逻辑必然查不到定级档案。
+- 该 PITN 工单有馏酒记录：`ssit_Pom_OrderII_Distil` 中 `Unit_Code=N1101`、`FactoryDate=2026-01-10`、`LinePK=118`、`WorkTeamPK=239`、`TrickID=45`，来源窖池 `Source_PitNo1/2=1184`，共查到 14 甑。
+- 产出的酒确实进入了车间暂存罐。旧库 `10.10.201.56/JSYMESMainDb.ssit_pom_HandInBill` 中，`NJ20260110_CJ102_153_ABC` 对应交酒记录，暂存罐包括 `52910`、`52911`、`52912`，交酒单号包括 `JJGC11_200082_1_260110001`、`JJGC11_200029_2_260115001`、`JJGC11_200026_2_260115001` 等。
+- 交酒工单的定级和评语字段在 `ssit_pom_HandInOrder_Hut`：`QMOrderID`、`QMGrade`、`QMResult`、`QMJudge`、`QMNote`、`QMOperate`、`QMEndTime`。同表中已确认 2026-05 的 `JJGC11_*` 有完整品评结果和评语。
+- 对当前样例而言，`NJ20260110_CJ102_153_ABC` 对应的 2026-01 交酒单行已存在，但当前直接关联的 `HandInOrderID` 不在 PITN 工单上，需要建立新 MES PITN 到旧 NJ/交酒单的可靠映射后才能自动展示。
+
+## 2026-05-22 交酒工单与出窖后续强关联判断
+- 新网页生命周期主链默认装配的是 `入窖/出窖/转运/润粮/馏酒/质检` 数据，不默认装配交酒工单或定级结果。`BuildDetail(...)` 里 `LiquorGradeResults` 与 `QualityBenchmark` 初始为空，而阶段面板里的 `quality` 也只读取 `InSampleOrder/OutSampleOrder`，说明交酒不是生命周期详情的硬依赖。
+- 新网页的“后段执行”链路在 `NcnxPitLifecycleLineageBuilder` 中被明确建模为 `出窖 -> 出窖转运 -> 润粮 -> 馏酒 -> 入窖转运 -> 行车入窖`，没有把交酒工单作为必经节点放进主链。
+- `POMOrderII` 同时保留了 `OutQMOrderID`、`LiquorYield/Alcohol*Quantity`、`HandInOrderID`，语义上分别对应“出窖质检”“产出指标”“转酒/交酒单号”，说明交酒字段是下游结果引用，不是出窖字段本身。
+- 新网页里用于质量分析的文案已经明确承认“直接交酒回填可能缺失”：当前工单若没有交酒定级，会退化成“按同窖池历史工单匹配”，甚至在只有 `OutQMOrderID` 时也只提示“已有出窖质检单，但尚未回填交酒/品评定级”。这说明交酒缺失不会阻断出窖后续分析。
+- WinForm `PitOrderPage` 读取当前窖池时，是按 `OrderID` 查出窖明细、按 `PitLayerLotID/Source_PitNo` 查馏酒、按 `OutQMOrderID` 查出窖质检；这里没有等价强度的 `HandInOrderID` 查询。窖池详情视图的核心仍是“出窖到馏酒”的执行链。
+- WinForm 报表层面对“出窖”和“交酒”更多是并列汇总，而不是一对一事务驱动。`FrmProductionStatisticsReport` 单独按时间取 `HandInOrder_Hut` 统计交酒吨数，同时按 `POMOrderII_OutPit` 统计出窖并用 `in/out` 日期计算发酵天数，说明二者在分析口径上相关，但在程序结构上是分层统计。
+- 交酒工单本身属于“暂存罐/质检/转酒”链。`HandInOrder` 是基于 `WorkshopHut` 创建 `HandInOrder_Hut` 明细，再发起 LIMS 质检申请；完成定级后，`CreateTransOrder(...)` 会按 `QMMMDefPK + IsStore + QMOrderID` 分组，再调用 `ProduceInstructorOrder.CreateHandInTranOrder(...)` 生成后续转酒工单。强关联发生在“交酒 -> 质检 -> 转酒/入库”，而不是“出窖 -> 交酒”。
+- 结论：两者有明确业务上下游关系，但不是强关联。
+- 更准确地说：`出窖后续工作` 的执行主链可以不依赖 `交酒工单` 完成；`交酒工单` 更像出窖产酒进入暂存罐后的质量定级与转酒归集结果。
+- 只有在做“产出率/优质酒率/定级追溯/库区转酒”这类闭环分析时，交酒才会变成重要补链数据；在窖池出窖和后段执行本身上，它不是硬门槛。
+
+## 2026-05-22 生命周期“来源窖池层”数据库核查
+- 生命周期溯源左侧“来源窖池层”不是前端自由推导出来的，它直接取自 `NcnxPitLifecycleLineageBuilder.BuildUpstreamSources(...)`，而这个方法只映射 `POMOrderII_InPit.Source_PitNo / Source_Layer / Source_OutTime / Back_TypeDesc`。
+- `POMOrderII_InPit` 模型源码对这几个字段的定义很明确：
+  - `Source_PitNo`：回窖糟的糟源出窖窖池
+  - `Source_Layer`：回窖糟的糟源层数
+  - `Source_OutTime`：回窖糟的糟源出窖时间
+  这说明页面这里展示的不是“别的来源窖池”这个抽象概念，而是“这层入窖糟醅记录的糟源出窖窖池/层”。
+- 直查 `10.10.201.112 / JSYMESMainDbII` 得到：
+  - `ssit_Pom_OrderII` 中，当前工单是 `PITN1101_1187_20250217`，`PrevOrderID = PITN1101_1187_20241207`。
+  - `ssit_Pom_OrderII_InPit` 中，当前工单第 1 层记录原始值就是：
+    - `PitNo = 1187`
+    - `In_Layer = 1`
+    - `Source_PitNo = 1187`
+    - `Source_Layer = 4`
+    - `Source_OutTime = 1990-01-01 00:00:00`
+    - `Back_Type = 2`
+  - 同表第 2 层没有来源字段：`Source_PitNo = 0`、`Source_Layer = 0`。
+- 再查前序工单 `PITN1101_1187_20241207` 的 `ssit_Pom_OrderII_OutPit`，确认在 `2025-02-17` 确实存在 `1187` 窖第 `4` 层的出窖记录。因此“来源窖池 = 1187，来源层 = 4”与数据库中的前后排次链条是对得上的。
+- 继续抽查 1187 窖的其他历史 `InPit` 记录后发现：大量记录都存在 `Source_PitNo = 当前 PitNo` 的情况，因此“来源窖池等于当前窖池”在这套数据模型里是常见现象，不是单条脏数据孤例。
+- 结合旧 WinForm/分析页的命名，这里的业务语义更接近“糟源窖池”而不是“上游不同窖池”。旧代码里也用过“糟源窖池 / 糟源层数 / 糟源出窖时间”这套名称。
+- 当前真正异常的字段是 `Source_OutTime = 1990-01-01 00:00:00`：
+  - 这不是当前工单独有，库里今天也有大量 `Source_PitNo > 0` 的 `InPit` 记录把 `Source_OutTime` 写成同样的 `1990-01-01 00:00:00`。
+  - 因此更像服务写库时的默认占位时间没有被实际出窖时间覆盖，而不是页面展示问题。
+- `Back_Type = 2` 通过 `MeihuInterface.dll` 反射确认是 `UpperMiddles`，描述为“中上粮糟”，不是异常枚举值。
+- 结论：
+  - “来源窖池 = 当前窖池”对当前页面来说是数据库原始事实，而且在现网历史数据里是常见情况。
+  - 如果业务上你们不希望这样展示，那要么是页面文案要从“来源窖池”改成“糟源窖池/前序同窖来源层”，要么是溯源规则要改成展示“前序工单 + 来源层”而不是只展示 `Source_PitNo`。
+  - 当前最明确的数据库问题不是“同窖池”，而是 `Source_OutTime` 被大量写成 `1990-01-01 00:00:00`。
+
+## 2026-05-22 同窖池来源占比统计
+- 统计口径：只统计 `JSYMESMainDbII.dbo.ssit_Pom_OrderII_InPit` 中 `Source_PitNo > 0` 的入窖明细，也就是明确带“糟源窖池”字段的记录。
+- 全量统计结果：
+  - 总记录数：`168,883`
+  - `Source_PitNo = PitNo`（同窖池来源）：`152,610`，占 `90.36%`
+  - `Source_PitNo <> PitNo`（跨窖池来源）：`16,273`，占 `9.64%`
+- 最近 14 天统计结果：
+  - 总记录数：`10,181`
+  - 同窖池来源：`8,975`，占 `88.15%`
+  - 跨窖池来源：`1,206`，占 `11.85%`
+- 逐日抽样也一致：`2026-05-13` 到 `2026-05-22` 每天都是同窖池来源明显多于跨窖池来源，例如：
+  - `2026-05-22`：同窖池 `561`，跨窖池 `92`
+  - `2026-05-21`：同窖池 `644`，跨窖池 `85`
+  - `2026-05-20`：同窖池 `598`，跨窖池 `75`
+- 结论：如果问题是“我现在发现大部分都是来源本窖池，对吗”，答案是**对**，而且不是少量样本误差，是当前库里非常稳定的整体现象。
+- 如果业务理论上“不应该”这样，那么现在最可能的问题不是单条脏数据，而是：
+  - 要么 `Source_PitNo/Source_Layer` 这组字段本来就代表“回窖糟糟源”，并不适合被当成“生命周期上游来源窖池”展示；
+  - 要么 写库服务把很多“默认回本窖池”的过程数据落进了 `InPit` 来源字段，导致这个字段天然偏向同窖池来源。
+
+## 2026-05-22 生命周期里可用的其他来源线索
+- 如果问题是“除了 `POMOrderII_InPit.Source_PitNo / Source_Layer` 之外，还有没有别的来源”，答案是**有**，而且不止一组。
+- 当前页面左侧“来源窖池层”这一列，现阶段只用了 `POMOrderII_InPit.Source_PitNo / Source_Layer / Source_OutTime / Back_TypeDesc`，这是单一来源实现，不代表系统里只有这一组可追溯来源。
+- 现有代码里还能拿来做“上游来源”判断的线索至少有 4 类：
+  1. `POMOrderII.PrevOrderID`
+     - 这是主工单层面的“前序排次工单”。
+     - 对于当前大量“同窖池回填”的场景，它比裸 `Source_PitNo` 更接近业务理解上的“上一排来源”。
+  2. `POMOrderII_OutPit.PitLayerLotID`
+     - 这是出窖层批次标识。
+     - 现有生命周期主链里很多地方已经把 `PitLayerLotID` 当作跨环节关联键在用。
+  3. `POMOrderII_Distil.PitLayerLotID1/2 + Source_PitNo1/2 + Source_Layer1/2`
+     - 这是装甑/馏酒层面的双半甑来源信息。
+     - 后端加载馏酒明细时，优先就是按 `PitLayerLotID1/2` 去匹配，而不是只按 `Source_PitNo`。
+  4. `POMOrderII_Transfer.InPit_Source_PitNo / InPit_Source_Layer / InPit_Source_OutTime`
+     - 这是转运斗过程里的“入窖来源”字段。
+     - 它和 `InPit` 表是两套来源记录，理论上可以互相校验。
+- 另外，转运表里还有 `OutPit_PitNo / OutPit_Layer`，可以提供“这个转运节点实际承接的是哪一个出窖窖池/层”的过程证据。
+- 从现有后端实现看：
+  - 当前“来源窖池层”卡片只用 `InPit.Source_*`。
+  - 当前“后段执行链”更多用 `PitLayerLotID`、`Distil.Source_PitNo1/2`、`Transfer.OutPit_PitNo` 等过程字段。
+  - 当前“前序工单”已经在摘要/业务链接里暴露，但还没真正参与左侧来源卡片的构建。
+- 所以如果后面要把页面改得更符合业务理解，优先级更高的替代方案其实是：
+  - 方案 A：`PrevOrderID + 前序工单 OutPit 层`
+  - 方案 B：`PitLayerLotID` 串联前序 `OutPit -> Distil -> Transfer -> InPit`
+  - 方案 C：`Transfer.InPit_Source_*` 与 `InPit.Source_*` 双重校验后再展示
+- 结论：不是“没有其他来源”，而是**当前页面只选了 `InPit.Source_*` 这一组字段来代表来源**；如果业务上这组字段语义不对，可以改成用前序工单或批次链路做更稳的来源展示。

@@ -19,17 +19,26 @@
 
 ## 五分钟跑通
 
-**前置条件**：lantern 主仓已经在跑，EAM/EDHR/MES 三系统已经接好。
+**前置条件**：lantern 主仓能在本机起来（根目录 `npm install` + `npm run dev`）。JSY-only 模式（`ENABLED_SYSTEMS=jsy`）**不需要** EAM/EDHR/MES 那三套后端，只要本机能连到 JSY 后端即可。
 
 ### 1. 配置环境变量
 
-在 lantern 仓根目录的 `.env.local`（不存在就建）加：
+**全新机器先从模板拷一份**（不要手建只含 JSY 块的 `.env.local`——那样会漏掉 `LLM_API_KEY` 和 `TOOLS_DIR`，结果 lantern 能启动但 brain 瘫 / 工具一个都加载不出）：
 
 ```bash
-# 只挂 JSY，其他三系统不参与（避免 LLM 看到连不上的工具浪费 ReAct 轮次）
+cp .env.example .env.local
+```
+
+然后在 `.env.local` 里改这几项：
+
+```bash
+# ① LLM —— 必填，否则 brain 不工作（DeepSeek 官方 key）
+LLM_API_KEY=<你的 DeepSeek key>
+
+# ② 只挂 JSY，其他三系统不参与（避免 LLM 看到连不上的工具浪费 ReAct 轮次）
 ENABLED_SYSTEMS=jsy
 
-# JSY 后端 base URL — IIS 部署
+# ③ JSY 后端 base URL — IIS 部署
 JSY_API_BASE_URL=http://<JSY_HOST>:<PORT>
 JSY_USERNAME=<工号>
 JSY_PASSWORD=<密码>
@@ -38,20 +47,23 @@ JSY_PASSWORD=<密码>
 # JSY_GOD_TOKEN=1
 ```
 
+> `cp` 来的 `.env.example` 已含 `TOOLS_DIR=./skills`，别删——删了会退回默认 `./tools`（空目录），工具全部加载不出来。
 > 师傅本机三系统并跑时设 `ENABLED_SYSTEMS=eam,mes,jsy`；不填 = 全开（向后兼容）。
-> 改这个变量必须重启 lantern 和 mcp-server。
+> 改 `ENABLED_SYSTEMS` 必须重启 lantern 和 mcp-server。
 
 > **上帝口令说明**：JSY 后端代码内硬编码 `MaxLevelToken = "oiiaioiiiai"`，任何带这个 token 的请求都通过 Authorization。手册里写出来是为了你联调便利，**任何情况下不要把 `JSY_GOD_TOKEN=1` 提交进 git 或上生产**。
 
-### 2. 编译 mcp-server
+### 2. 安装 mcp-server 依赖（build 仅做类型检查）
 
 ```bash
 cd mcp-server
 npm install
-npm run build
+npm run build   # 仅类型检查；过了说明 4 个 handler 类型没问题
 ```
 
-应当看到 `dist/handlers/jsy/` 下生成 4 个 `.js`。
+> **运行机制（别踩坑）**：lantern 运行时是用 `npx tsx mcp-server/src/index.ts` **直接跑 TS 源码**（见 `app/api/chat/route.ts`），**不从 dist 跑**。所以：
+> - 改完 handler **不需要 build**，只要**重启 lantern**（它会重新 spawn mcp-server）就生效；
+> - `build` 的价值是提前抓类型错，以及让下面第 3 步的独立 smoke test 能用 `node dist/index.js`。
 
 ### 3. 跑一个调用验证
 
@@ -214,7 +226,7 @@ if (!context.Request.Headers.Contains("X-Real-IP") && context.RequestContext.IsL
 2. 配置对没 → 检查 `JSY_API_BASE_URL` 能不能 curl 到（先 ping `/PublicKey`，公开接口不需要 token）
 3. 登录对没 → 用 curl 跑一次 `POST /Login`，看返回 `{Code:200, Data:{Token:...}}`
 4. 路由对没 → MCP 工具的 `maps_to` 名字、index.ts 注册名一致
-5. 服务端报错 → 看 `JsyApiError` 的 `serverMsg`，对照 `findings.md` 里业务规则
+5. 服务端报错 → 看 `JsyApiError` 的 `serverMsg`，对照 `docs/jsy-findings.md` 里业务规则
 
 ---
 
@@ -247,8 +259,9 @@ if (!context.Request.Headers.Contains("X-Real-IP") && context.RequestContext.IsL
 - 响应包装 Code=200 才是 Success，不是 0
 - 上帝口令 oiiaioiiiai 不写进 git
 
-JSY 源码（DTO/Controller 在这里看）：
-/Users/dingjq/IdeaProjects/JSYSmartFactoryII/南厂酿酒车间/Backend/
+JSY 源码（DTO/Controller 在这里看，路径换成你本机的）：
+<你本机的 JSY 源码目录>/Backend/   # 典型 …/JSYSmartFactoryII/南厂酿酒车间/Backend/
+业务调研笔记已随仓交付：docs/jsy-findings.md（关键业务规则全文）、docs/jsy-business-context.md（精炼版）
 
 测试新工具一行命令：
 npx tsx scripts/jsy/test-tool.ts <tool-name> '<json-args>'

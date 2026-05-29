@@ -35,11 +35,11 @@ This version has breaking changes — APIs, conventions, and file structure may 
 ## JSY 南厂酿酒车间接入约定（2026-05-28 接入中）
 
 **JSY 后端源码路径**（不在 lantern 仓内，需跳到此处看 controller / DTO）：
-`/Users/dingjq/IdeaProjects/JSYSmartFactoryII/南厂酿酒车间/`
-- `Backend/Controllers/` — 67 个 .cs，每文件一组 `[Route]` action
+`<你本机的 JSY 后端源码目录>`（典型为 `…/JSYSmartFactoryII/南厂酿酒车间/`；Windows 现场多为 `D:\SmilSoft\JSYSmartFactoryII\南厂酿酒车间`）
+- `Backend/Controllers/` — 66 个 .cs，每文件一组 `[Route]` action
 - `Backend/DataInterface/` — 请求/响应 DTO 类定义
 - `Backend/Middleware/` — JWT/包装/错误过滤
-- `findings.md` — 业务背景调研笔记（**关键**，含表名/字段语义/业务规则）
+- 业务背景调研笔记已拷入本仓：`docs/jsy-findings.md`（**关键**，含表名/字段语义/业务规则；352 行完整快照，源以你本机源码树的 `findings.md` 为准）
 
 **接入产物位置**：
 - 客户端：`mcp-server/src/jsy-api.ts`（JWT + 解包 + 自动重登 + 分页）
