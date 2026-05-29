@@ -57,6 +57,9 @@ export default function Home() {
         confidence: data.confidence,
         followUp: data.followUp,
         sources: data.sources,
+        dataSources: data.dataSources,
+        chartHints: data.chartHints,
+        displayPlan: data.displayPlan,
         trace: data.trace,
         latencyMs,
       } as any
@@ -88,7 +91,7 @@ export default function Home() {
       {/* 标题栏 */}
       <header className="flex items-center justify-between px-6 py-3 bg-white border-b border-gray-200 shadow-sm">
         <div className="flex items-center">
-          <h1 className="text-lg font-semibold text-blue-800">Insight68</h1>
+          <h1 className="text-lg font-semibold text-blue-800">Lantern 执灯系统</h1>
           <span className="ml-2 text-sm text-gray-500">智能查询助手</span>
         </div>
         <div className="flex items-center gap-3">
