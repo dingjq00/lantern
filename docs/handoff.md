@@ -21,6 +21,7 @@ Next.js Web / API
 
 - 技术栈：Next.js `16.2.1`、React `19.2.4`、TypeScript、OpenAI SDK、MCP SDK、SQLite、Vitest。
 - 系统注册点为 `lib/systems.ts`，当前包含 `eam`、`edhr`、`mes`、`jsy` 四个业务系统（`jsy` 南厂酿酒车间为 2026-05-28 接入，P0 4 工具，正在真实环境实施；运行时启用由 `ENABLED_SYSTEMS` 控制）。
+  - **定位区分**：`eam`/`edhr`/`mes` 是本机系统测试接入（验证平台能力，非真实实施）；`jsy` 是 Lantern **首个真实项目实施**，现场对接真实系统。实施步骤见 `docs/jsy-implementation-guide.html`。
 - `skills/` 当前共有 34 个 YAML skills：EAM 12、EDHR 7、MES 10、JSY 4、common glossary 1。
 - `app/api/chat/route.ts` 组合 Brain、SQLite、Tool Registry 与 MCP client；MCP server 由 API 路由按需以 stdio 启动。
 - 评估入口包含 `scripts/benchmark.ts`（EAM/EDHR 深度用例）与 `scripts/benchmark-platform.ts`（系统路由、跨系统推理、MES 用例）。

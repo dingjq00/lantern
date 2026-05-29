@@ -14,7 +14,7 @@ This version has breaking changes — APIs, conventions, and file structure may 
 
 ## 项目边界
 
-- Lantern 是面向企业系统的自然语言 API 平台，目前接入 EAM、EDHR、MES、JSY。
+- Lantern 是面向企业系统的自然语言 API 平台，目前接入 EAM、EDHR、MES、JSY。其中 EAM/EDHR/MES 为本机系统测试接入（验证平台能力），**JSY（南厂酿酒车间）是首个真实项目实施**。
 - Brain 层负责意图理解、工具编排、结果呈现；MCP handler 负责确定性取数；工具能力由 `skills/**/*.yaml` 声明。
 - 不将业务查询改造成 Text-to-SQL 路线，除非有新的明确架构决策。
 

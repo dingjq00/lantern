@@ -3,6 +3,9 @@
 > 核验日期：2026-05-27  
 > 用途：为 Lantern 启动 EAM、EDHR、MES 真实查询所依赖的本地/测试后端服务。本文记录的是已经通过基础 API 验证的启动组合，不记录用户名、密码或 OAuth 密钥。
 
+> ⚠️ **定位说明**：本文涉及的 EAM / EDHR / MES 三套是 **dingjq 本机的系统测试环境**，用于验证 Lantern 平台能力，**不是真实项目实施**。
+> **真实项目实施请看 JSY（南厂酿酒车间）—— 那是 Lantern 的首个真实落地项目。** 文档见 `docs/jsy-onboarding.md` 与 `docs/jsy-implementation-guide.html`。接手 JSY 的同事**不需要**启动这三套测试后端。
+
 ## 服务清单
 
 | 系统 | 对应工程 | Lantern 访问地址 | 说明 |

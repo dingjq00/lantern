@@ -12,6 +12,8 @@
 
 截至 `2026-05-29`，代码中注册了 34 个 YAML skills：EAM 12 个、EDHR 7 个、MES 10 个、JSY 4 个、common 1 个。JSY 为最新接入（P0 4 工具，正在真实环境实施），接手手册见 [docs/jsy-onboarding.md](docs/jsy-onboarding.md)；短期开发状态和待处理风险见 [docs/handoff.md](docs/handoff.md)。
 
+> **系统定位**：EAM / EDHR / MES 为本机**测试接入**（验证平台能力，非真实实施）；**JSY（南厂酿酒车间）是 Lantern 首个真实项目实施**，正在现场对接真实系统。实施步骤见 [docs/jsy-implementation-guide.html](docs/jsy-implementation-guide.html)。
+
 ## 目录
 
 | 路径 | 职责 |

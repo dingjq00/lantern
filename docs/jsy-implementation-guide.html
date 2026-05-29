@@ -1,0 +1,607 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>JSY 南厂酿酒车间 — 真实项目实施手册 | Lantern 执灯系统</title>
+<style>
+  :root {
+    --bg: #faf8f4;
+    --surface: #ffffff;
+    --ink: #23201b;
+    --ink-soft: #4b4640;
+    --muted: #857d72;
+    --line: #e7e1d6;
+    --accent: #b45309;        /* 灯火琥珀 */
+    --accent-soft: #fef3e2;
+    --accent-line: #f0c98b;
+    --danger: #b91c1c;
+    --danger-bg: #fdf0ef;
+    --danger-line: #f3c9c6;
+    --warn: #a15c07;
+    --warn-bg: #fff8eb;
+    --warn-line: #f3d99b;
+    --info: #1d4ed8;
+    --info-bg: #eef3fe;
+    --info-line: #c7d6f7;
+    --ok: #15803d;
+    --ok-bg: #eefaf0;
+    --ok-line: #bfe6c7;
+    --code-bg: #f5f2ec;
+    --code-line: #e3dccf;
+    --radius: 12px;
+    --mono: "SFMono-Regular", "JetBrains Mono", "Cascadia Code", Consolas, "Liberation Mono", monospace;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: var(--sans); line-height: 1.7; font-size: 16px;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { display: grid; grid-template-columns: 256px minmax(0, 1fr); max-width: 1180px; margin: 0 auto; }
+
+  /* ---- 侧边导航 ---- */
+  nav.toc {
+    position: sticky; top: 0; align-self: start; height: 100vh; overflow-y: auto;
+    padding: 28px 18px 40px; border-right: 1px solid var(--line);
+  }
+  nav.toc .brand { font-weight: 700; font-size: 15px; color: var(--accent); letter-spacing: .3px; }
+  nav.toc .brand span { display: block; font-size: 11px; color: var(--muted); font-weight: 500; margin-top: 2px; }
+  nav.toc a { display: block; padding: 5px 10px; margin: 1px 0; color: var(--ink-soft); text-decoration: none;
+    font-size: 13.5px; border-radius: 7px; border-left: 2px solid transparent; }
+  nav.toc a:hover { background: var(--accent-soft); color: var(--accent); }
+  nav.toc a.sub { padding-left: 22px; font-size: 12.5px; color: var(--muted); }
+  nav.toc hr { border: none; border-top: 1px solid var(--line); margin: 16px 4px; }
+
+  main { padding: 40px 48px 120px; min-width: 0; }
+
+  h1 { font-size: 30px; line-height: 1.25; margin: 0 0 6px; letter-spacing: -.3px; }
+  h2 { font-size: 22px; margin: 46px 0 14px; padding-top: 10px; scroll-margin-top: 12px; }
+  h2 .num { color: var(--accent); font-variant-numeric: tabular-nums; margin-right: 8px; }
+  h3 { font-size: 16.5px; margin: 26px 0 8px; color: var(--ink); }
+  p { margin: 10px 0; color: var(--ink-soft); }
+  a { color: var(--accent); }
+  code { font-family: var(--mono); font-size: .88em; background: var(--code-bg);
+    border: 1px solid var(--code-line); border-radius: 5px; padding: 1px 5px; color: #8a4a08; }
+  strong { color: var(--ink); }
+  hr.sec { border: none; border-top: 1px solid var(--line); margin: 40px 0; }
+
+  .lead { font-size: 16.5px; color: var(--ink-soft); }
+  .meta { color: var(--muted); font-size: 13px; margin: 4px 0 0; }
+
+  /* ---- 顶部定位横幅 ---- */
+  .positioning {
+    margin: 26px 0 8px; border-radius: var(--radius); overflow: hidden;
+    border: 1px solid var(--ok-line); background: var(--ok-bg);
+    display: grid; grid-template-columns: 6px 1fr;
+  }
+  .positioning .bar { background: var(--ok); }
+  .positioning .body { padding: 16px 20px; }
+  .positioning .body b { color: var(--ok); }
+  .positioning .vs {
+    display: flex; gap: 14px; margin-top: 12px; flex-wrap: wrap;
+  }
+  .positioning .pill {
+    flex: 1 1 240px; background: #fff; border: 1px solid var(--line); border-radius: 9px; padding: 12px 14px;
+  }
+  .positioning .pill .tag { font-size: 11px; font-weight: 700; letter-spacing: .5px; text-transform: uppercase; }
+  .positioning .pill.test .tag { color: var(--muted); }
+  .positioning .pill.real .tag { color: var(--ok); }
+  .positioning .pill p { margin: 4px 0 0; font-size: 13.5px; color: var(--ink-soft); }
+
+  /* ---- 卡片/callout ---- */
+  .card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 18px 22px; margin: 16px 0; }
+  .callout { border-radius: 10px; padding: 13px 16px 13px 18px; margin: 16px 0; border: 1px solid; font-size: 14.5px; }
+  .callout .h { font-weight: 700; display: block; margin-bottom: 3px; }
+  .callout p:last-child { margin-bottom: 0; }
+  .callout p:first-of-type { margin-top: 2px; }
+  .callout.danger { background: var(--danger-bg); border-color: var(--danger-line); }
+  .callout.danger .h { color: var(--danger); }
+  .callout.warn { background: var(--warn-bg); border-color: var(--warn-line); }
+  .callout.warn .h { color: var(--warn); }
+  .callout.info { background: var(--info-bg); border-color: var(--info-line); }
+  .callout.info .h { color: var(--info); }
+  .callout.ok { background: var(--ok-bg); border-color: var(--ok-line); }
+  .callout.ok .h { color: var(--ok); }
+
+  /* ---- 步骤 ---- */
+  .step { display: grid; grid-template-columns: 38px 1fr; gap: 16px; margin: 18px 0; }
+  .step .n { width: 38px; height: 38px; border-radius: 50%; background: var(--accent-soft);
+    border: 1px solid var(--accent-line); color: var(--accent); font-weight: 700;
+    display: flex; align-items: center; justify-content: center; font-size: 16px; }
+  .step .c { padding-top: 3px; }
+  .step .c h3 { margin-top: 2px; }
+
+  /* ---- 代码块 ---- */
+  pre { background: var(--code-bg); border: 1px solid var(--code-line); border-radius: 10px;
+    padding: 14px 16px; overflow-x: auto; margin: 12px 0; }
+  pre code { background: none; border: none; padding: 0; color: #3a352c; font-size: 13px; line-height: 1.6; }
+  pre .c { color: #9a8f7d; }       /* 注释 */
+  pre .k { color: #b45309; }       /* 关键命令 */
+  pre .s { color: #15803d; }       /* 字符串/值 */
+
+  /* ---- 表格 ---- */
+  table { width: 100%; border-collapse: collapse; margin: 14px 0; font-size: 14px; }
+  th, td { text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { color: var(--muted); font-weight: 600; font-size: 12.5px; text-transform: uppercase; letter-spacing: .4px;
+    background: #f7f3ec; }
+  tr:last-child td { border-bottom: none; }
+  td code { white-space: nowrap; }
+
+  /* ---- 检查清单 ---- */
+  ul.check { list-style: none; padding: 0; margin: 12px 0; }
+  ul.check li { position: relative; padding: 6px 0 6px 30px; color: var(--ink-soft); border-bottom: 1px dashed var(--line); }
+  ul.check li:last-child { border-bottom: none; }
+  ul.check li::before { content: "☐"; position: absolute; left: 4px; top: 6px; color: var(--accent); font-size: 16px; }
+
+  ul.dot { padding-left: 20px; }
+  ul.dot li { margin: 5px 0; color: var(--ink-soft); }
+
+  .copybox { position: relative; }
+  .copybtn { position: absolute; top: 10px; right: 10px; background: #fff; border: 1px solid var(--code-line);
+    color: var(--accent); border-radius: 7px; padding: 4px 10px; font-size: 12px; cursor: pointer; font-family: var(--sans); }
+  .copybtn:hover { background: var(--accent-soft); }
+
+  footer { color: var(--muted); font-size: 12.5px; border-top: 1px solid var(--line); margin-top: 60px; padding-top: 18px; }
+
+  @media (max-width: 880px) {
+    .wrap { grid-template-columns: 1fr; }
+    nav.toc { display: none; }
+    main { padding: 28px 20px 80px; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <nav class="toc">
+    <div class="brand">🏮 Lantern 执灯系统<span>JSY 真实实施手册</span></div>
+    <hr>
+    <a href="#intro">阅前必读 · 定位</a>
+    <a href="#ai-onboard">▶ 让 AI 先理解项目</a>
+    <a href="#what">0 · 你拿到了什么</a>
+    <a href="#env">1 · 环境搭建</a>
+    <a href="#verify">2 · 连通性分层验证</a>
+    <a href="#p0">3 · P0 四工具真实验收</a>
+    <a href="#extend">4 · 扩展 P1–P3 工具</a>
+    <a href="#redline">5 · 红线与上线注意</a>
+    <hr>
+    <a href="#tools" class="sub">附录 A · 工具清单</a>
+    <a href="#envvars" class="sub">附录 B · 环境变量</a>
+    <a href="#errors" class="sub">附录 C · 排错速查</a>
+    <a href="#docmap" class="sub">附录 D · 文档地图</a>
+    <a href="#aiopener" class="sub">附录 E · AI 助手开场白</a>
+  </nav>
+
+  <main>
+    <h1>JSY 南厂酿酒车间 · 真实项目实施手册</h1>
+    <p class="lead">Lantern（执灯系统）首个真实项目落地的实施 playbook。从全新机器到真实数据跑通，再到扩展工具。</p>
+    <p class="meta">面向：接手 JSY 的实施同事（含其 AI 编程助手）　·　版本：2026-05-29　·　配套文档见附录 D</p>
+
+    <!-- ============ 定位 ============ -->
+    <section id="intro">
+      <div class="positioning">
+        <div class="bar"></div>
+        <div class="body">
+          <b>⚑ 这是 Lantern 的第一次真实项目实施。</b>
+          <p style="margin:6px 0 0; color:var(--ink-soft)">请先分清两类系统——这决定了你该忽略什么、认真对待什么。</p>
+          <div class="vs">
+            <div class="pill test">
+              <span class="tag">测试环境 · 与你无关</span>
+              <p><b>EAM / EDHR / MES</b> 是 dingjq 本机用于验证 Lantern 平台能力的系统测试接入，<b>不是真实项目实施</b>。你<b>不需要</b>启动这三套后端，也不必读 <code>docs/local-test-systems-startup.md</code>。</p>
+            </div>
+            <div class="pill real">
+              <span class="tag">真实实施 · 你的战场</span>
+              <p><b>JSY（南厂酿酒车间）</b>是 Lantern 首个真实落地项目，对接的是现场<b>真实运行的白酒酿造 MES 系统</b>。数据是生产数据，凭据是真实账号——本手册全程讲这个。</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="callout warn">
+        <span class="h">⚠ 真实环境 ≠ 联调环境，三条心态先立住</span>
+        <ul class="dot" style="margin:6px 0 0">
+          <li><b>上帝口令禁用</b>：联调旁路 <code>JSY_GOD_TOKEN=1</code>（口令 <code>oiiaioiiiai</code>）<b>绝不能</b>用在真实环境，必须用真实工号/密码登录。</li>
+          <li><b>生产数据要敬畏</b>：你查的是车间真实窖池/曲房数据。Lantern 只接查询、永不接写操作（见 <a href="#redline">第 5 节红线</a>）。</li>
+          <li><b>慢就是快</b>：先把一个最简单的工具（<code>jsy.ferment.room.profile</code>）用真实编号跑通，再铺开。链路一通，其余都是复制。</li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- ============ 先让 AI 理解项目 ============ -->
+    <section id="ai-onboard">
+      <div class="callout info">
+        <span class="h">▶ 用 AI 编程？开工前先让它理解这个项目</span>
+        <p>把下面这段<b>整段复制</b>给你的 AI 助手（Claude / Cursor / Copilot），作为<b>第一条提示词</b>。它会先按正确顺序读项目、建立架构认知、记住红线，再开始干活——比让它自己乱翻文件靠谱得多。</p>
+      </div>
+      <div class="card copybox">
+        <button class="copybtn" onclick="copyEl(this,'opener-onboard')">复制</button>
+        <pre id="opener-onboard"><code>我接手了 Lantern（执灯系统）的 JSY 南厂酿酒车间接入。这是 Lantern 的第一次真实项目实施，
+对接现场真实运行的白酒酿造 MES 系统。开工前请先理解项目，严格按下面来：
+
+【先读这些，按顺序】
+1. README.md —— 项目是什么、目录结构、本地启动
+2. AGENTS.md —— 开发约定、架构边界、安全要求；重点读 "JSY 南厂酿酒车间接入约定" 一节
+3. docs/handoff.md —— 当前代码状态与风险
+4. docs/jsy-implementation-guide.html —— 实施全流程（环境搭建 / 连通性验证 / P0 验收 / 扩展 / 红线）
+5. docs/jsy-business-context.md —— JSY 业务速查（制曲链 vs 窖池链）；要完整业务规则看 docs/jsy-findings.md
+
+【一句话架构】
+Next.js Web/API → Brain（意图路由 + ReAct 循环 + 数据摘要 + 结果呈现）
+→ YAML skills(skills/) + MCP client → MCP server handlers(mcp-server/) → JSY 真实后端 API。
+LLM 负责理解与编排，handler 负责确定性取数，不走 Text-to-SQL。
+
+【定位（别搞混）】
+- EAM / EDHR / MES 是项目作者本机的"系统测试"接入，跟我无关，我不启动也不改它们。
+- 我只做 JSY，且 JSY 是首个真实项目实施 —— 数据是生产数据，要敬畏。
+- .env.local 设 ENABLED_SYSTEMS=jsy，只挂 JSY。
+
+【硬约束 / 红线】
+- 只接查询，写操作完全不接（Save/Delete/Create/Add/Update/Edit/Modify/Set/Transition/Remove 前缀一律跳过）
+- 服务端字段 PascalCase 不要"修正"（Newtonsoft.Json 大小写敏感）
+- 响应包装 Code=200 才是成功，不是 0
+- 联调旁路 JSY_GOD_TOKEN / 口令 oiiaioiiiai 不写进 git、不上真实环境
+- 这版 Next.js 有 breaking changes：写 Next 相关代码前先读 node_modules/next/dist/docs/ 对应指南
+
+【运行机制】
+lantern 用 `npx tsx mcp-server/src/index.ts` 直接跑 TS 源码（不从 dist 跑）；
+改完 handler 重启 lantern 即生效，不必 build。改 ENABLED_SYSTEMS 前端与 mcp-server 两边都要重启。
+
+【现在的任务】
+先把环境跑通、P0 四个工具用现场真实编号验收通过；之后再按 docs/jsy-tool-plan.md 的 P1→P2→P3 扩展。
+先别写代码 —— 先读完上面 1-5，然后用你自己的话告诉我：项目是什么、JSY 这部分怎么跑、接下来你打算分几步做。</code></pre>
+      </div>
+      <p class="meta">（等你真正开始写 P1–P3 新工具时，再用<a href="#aiopener">附录 E 的"新增工具"开场白</a>，那份更聚焦动手细节。）</p>
+    </section>
+
+    <!-- ============ 0 你拿到了什么 ============ -->
+    <h2 id="what"><span class="num">0</span>你拿到了什么</h2>
+    <p>JSY 接入已完成 <strong>P0 四个查询工具</strong>，代码与文档都在 <code>feat/p0-platform</code> 分支。交接物分两类：</p>
+    <div class="card">
+      <h3 style="margin-top:0">① 能直接跑的代码（已实现，无需你写）</h3>
+      <ul class="dot">
+        <li><code>mcp-server/src/jsy-api.ts</code> — JWT 登录客户端：token 缓存（4h）+ 自动重登 + 响应解包 + 分页全量拉取</li>
+        <li><code>mcp-server/src/handlers/jsy/*.ts</code> — 4 个工具处理器（窖池履历 / 曲房全景 / 发酵工单 / 曲库存）</li>
+        <li><code>skills/jsy/*.yaml</code> — 4 个声明式 skill，与 handler 一一对应（LLM 靠它做路由）</li>
+        <li><code>lib/systems.ts</code> — <code>SYSTEM_REGISTRY.jsy</code> 领域模型 + 8 条业务术语</li>
+      </ul>
+      <h3>② 你要读的文档（按需查）</h3>
+      <ul class="dot">
+        <li><b>本手册</b> — 实施全流程（你正在看的这份）</li>
+        <li><code>docs/jsy-onboarding.md</code> — 人读接手手册（更偏代码细节）</li>
+        <li><code>docs/jsy-business-context.md</code> — 业务速查（AI 写工具前必读）</li>
+        <li><code>docs/jsy-findings.md</code> — 完整业务调研笔记（表名/字段语义/业务规则，352 行）</li>
+        <li><code>docs/jsy-endpoints.md</code> — JSY 后端 589 个 endpoint 全清单</li>
+        <li><code>docs/jsy-tool-plan.md</code> — P1–P3 共 15 个工具的扩展规划</li>
+      </ul>
+    </div>
+
+    <!-- ============ 1 环境搭建 ============ -->
+    <h2 id="env"><span class="num">1</span>环境搭建（全新机器，约 15 分钟）</h2>
+
+    <div class="step">
+      <div class="n">1</div>
+      <div class="c">
+        <h3>装 Node.js + 拉代码，切到 JSY 分支</h3>
+        <p>需要 Node.js 18+。JSY 全部代码在 <code>feat/p0-platform</code> 分支（不在 <code>main</code>）。</p>
+        <pre><code><span class="k">git</span> clone https://github.com/dingjq00/lantern.git
+<span class="k">cd</span> lantern
+<span class="k">git</span> checkout feat/p0-platform</code></pre>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="n">2</div>
+      <div class="c">
+        <h3>装依赖（根目录 + mcp-server 两处）</h3>
+        <pre><code><span class="k">npm</span> install                      <span class="c"># 根目录（Next.js 前端 + Brain）</span>
+<span class="k">cd</span> mcp-server && <span class="k">npm</span> install     <span class="c"># MCP server（工具执行层）</span>
+<span class="k">cd</span> ..</code></pre>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="n">3</div>
+      <div class="c">
+        <h3>配置环境变量 — 务必先 <code>cp</code>，别手建</h3>
+        <pre><code><span class="k">cp</span> .env.example .env.local</code></pre>
+        <div class="callout danger">
+          <span class="h">✖ 不要手建只含 JSY 块的 .env.local</span>
+          <p>手建会漏掉 <code>LLM_API_KEY</code>（漏了 → AI 大脑直接瘫）和 <code>TOOLS_DIR=./skills</code>（漏了 → 退回默认 <code>./tools</code> 空目录，工具一个都加载不出）。<b>必须从 <code>.env.example</code> 拷一份再改。</b></p>
+        </div>
+        <p>然后编辑 <code>.env.local</code>，改这几项：</p>
+        <pre><code><span class="c"># ① LLM —— 必填，否则 brain 不工作（DeepSeek 官方 key）</span>
+LLM_API_KEY=<span class="s">&lt;你的 DeepSeek key&gt;</span>
+
+<span class="c"># ② 只挂 JSY —— 不挂那三套测试系统，免得 LLM 看到连不上的工具浪费推理轮次</span>
+ENABLED_SYSTEMS=<span class="s">jsy</span>
+
+<span class="c"># ③ JSY 真实后端（IIS 部署，向现场要地址/端口/账号）</span>
+JSY_API_BASE_URL=<span class="s">http://&lt;JSY_HOST&gt;:&lt;PORT&gt;</span>
+JSY_USERNAME=<span class="s">&lt;真实工号&gt;</span>
+JSY_PASSWORD=<span class="s">&lt;真实密码&gt;</span>
+
+<span class="c"># ④ 联调旁路 —— 真实环境保持注释/不要开！</span>
+<span class="c"># JSY_GOD_TOKEN=1</span></code></pre>
+        <div class="callout info">
+          <span class="h">提示</span>
+          <p><code>cp</code> 来的模板已含 <code>TOOLS_DIR=./skills</code>，别删。<code>ENABLED_SYSTEMS</code> 改完后启动才生效——前端和 mcp-server 都从这个变量读。</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="n">4</div>
+      <div class="c">
+        <h3>类型检查（可选但建议）</h3>
+        <pre><code><span class="k">cd</span> mcp-server && <span class="k">npm</span> run build   <span class="c"># 仅类型检查；过了说明 4 个 handler 类型没问题</span>
+<span class="k">cd</span> ..</code></pre>
+        <div class="callout warn">
+          <span class="h">⚠ 运行机制（容易踩的认知坑）</span>
+          <p>Lantern 运行时用 <code>npx tsx mcp-server/src/index.ts</code> <b>直接跑 TS 源码</b>（见 <code>app/api/chat/route.ts</code>），<b>不从 <code>dist/</code> 跑</b>。所以：改完 handler <b>不需要</b> build，只要<b>重启 lantern</b> 就生效；<code>build</code> 只是提前抓类型错 + 让独立 smoke test（<code>node dist/index.js</code>）能用。</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="n">5</div>
+      <div class="c">
+        <h3>启动</h3>
+        <pre><code><span class="k">npm</span> run dev   <span class="c"># 访问 http://localhost:3000</span></code></pre>
+        <p>MCP server 由前端按需以 stdio 自动拉起，<b>无需单独启动</b>。</p>
+      </div>
+    </div>
+
+    <!-- ============ 2 连通性验证 ============ -->
+    <h2 id="verify"><span class="num">2</span>连通性分层验证（出问题时按顺序逐层排）</h2>
+    <p>真实环境第一次连接，<b>从下往上逐层确认</b>，每层独立验证，别一上来就跑前端。</p>
+
+    <div class="step">
+      <div class="n">1</div>
+      <div class="c">
+        <h3>网络层 — 能不能 curl 到 JSY</h3>
+        <p>先打公开接口 <code>/PublicKey</code>（不需要 token），确认地址/端口/网络通：</p>
+        <pre><code><span class="k">curl</span> http://&lt;JSY_HOST&gt;:&lt;PORT&gt;/PublicKey</code></pre>
+      </div>
+    </div>
+    <div class="step">
+      <div class="n">2</div>
+      <div class="c">
+        <h3>登录层 — 真实账号能不能拿到 token</h3>
+        <pre><code><span class="k">curl</span> -X POST http://&lt;JSY_HOST&gt;:&lt;PORT&gt;/Login \
+  -H <span class="s">"Content-Type: application/json"</span> \
+  -d <span class="s">'{"UserName":"&lt;工号&gt;","Password":"&lt;密码&gt;","VerifiCationCode":""}'</span></code></pre>
+        <p>期望返回 <code>{ "Code": 200, "Data": { "Token": "..." } }</code>。</p>
+        <div class="callout warn">
+          <span class="h">⚠ 字段拼写别"修正"</span>
+          <p>服务端字段 <code>VerifiCationCode</code>（C 大写，拼写就是这样）、<code>UserName</code> 都是 PascalCase，<b>大小写敏感</b>，写错后端拿不到值。</p>
+        </div>
+      </div>
+    </div>
+    <div class="step">
+      <div class="n">3</div>
+      <div class="c">
+        <h3>工具层 — 单个 MCP 工具能不能跑通</h3>
+        <p>最简单的 smoke test 是 <code>jsy.ferment.room.profile</code>（单参数、单 endpoint、易核对）：</p>
+        <pre><code><span class="c"># 方式一：用项目脚本（推荐）</span>
+<span class="k">npx</span> tsx scripts/jsy/test-tool.ts jsy.ferment.room.profile <span class="s">'{"roomId":"&lt;现场真实曲房编号&gt;"}'</span>
+
+<span class="c"># 方式二：直接走 MCP stdio</span>
+<span class="k">echo</span> <span class="s">'{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"jsy.ferment.room.profile","arguments":{"roomId":"&lt;编号&gt;"}}}'</span> \
+  | <span class="k">node</span> mcp-server/dist/index.js</code></pre>
+        <p>走通这一个，说明 <b>token 链路 + 解包 + 路由</b> 全对了。</p>
+      </div>
+    </div>
+    <div class="step">
+      <div class="n">4</div>
+      <div class="c">
+        <h3>平台层 — 前端自然语言问一句</h3>
+        <p>打开 <code>http://localhost:3000</code>，问："<b>X 号曲房现在什么状态？</b>" 看是否正确路由到 <code>jsy.ferment.room.profile</code> 并返回真实数据。</p>
+      </div>
+    </div>
+
+    <div class="callout ok">
+      <span class="h">✓ 第一阶段验收清单</span>
+      <ul class="check" style="margin:8px 0 0">
+        <li><code>/PublicKey</code> 能 curl 通（网络/地址对）</li>
+        <li><code>/Login</code> 用真实账号返回 <code>Code:200</code> + Token</li>
+        <li>至少一个 MCP 工具用真实编号跑出 JSON</li>
+        <li>前端自然语言提问能路由到正确工具并返回数据</li>
+      </ul>
+    </div>
+
+    <!-- ============ 3 P0 验收 ============ -->
+    <h2 id="p0"><span class="num">3</span>P0 四工具真实数据验收</h2>
+    <p>逐个用<b>现场真实编号</b>跑通这四个工具，重点核对三件事：<b>数据对不对、字段全不全、返回大不大</b>。</p>
+
+    <table>
+      <thead><tr><th>工具</th><th>典型问法</th><th>关键入参</th></tr></thead>
+      <tbody>
+        <tr><td><code>jsy.ferment.room.profile</code></td><td>"X 号曲房什么状态"</td><td><code>roomId</code>（必填）</td></tr>
+        <tr><td><code>jsy.ferment.order.search</code></td><td>"X 号曲房的发酵工单"</td><td><code>roomId</code> / 日期范围 / 分页</td></tr>
+        <tr><td><code>jsy.pit.lifecycle</code></td><td>"X 号窖池履历 / PITN 工单"</td><td><code>unitCode</code> + 各 <code>include*</code> 开关</td></tr>
+        <tr><td><code>jsy.hut.inventory.search</code></td><td>"曲库存 / 出入仓记录"</td><td><code>mode</code> + 按模式传参</td></tr>
+      </tbody>
+    </table>
+
+    <div class="callout warn">
+      <span class="h">⚠ 联调期两个要现场确认的点</span>
+      <ul class="dot" style="margin:6px 0 0">
+        <li><b>分页字段拼写</b>：<code>jsy-api.ts</code> 已兼容 <code>rows|list|data</code> 与 <code>total|totalCount</code> 几种可能。第一次联调打开网络面板看实际返回字段，在 <code>JsyPageResult</code> 类型里固定下来。</li>
+        <li><b>返回体过大</b>：P0 工具默认透传不裁剪。若某工具返回 &gt;50KB，在 handler 里裁剪——去掉下拉框选项字段（<code>Workshops/UnitOptions</code> 等）和曲线原始点位，保留时间轴 + 数量 + 状态 + 业务标识。</li>
+      </ul>
+    </div>
+    <div class="callout info">
+      <span class="h">响应码与 EAM 不同</span>
+      <p>JSY 响应包装 <code>{ Code, Msg, Data }</code>，<b><code>Code = 200</code> 才是成功</b>（不是 0！），<code>-1</code> 失败、<code>0</code> 未知。<code>jsy-api.ts</code> 已处理，新增工具用 <code>jsyPost()</code> 即可。</p>
+    </div>
+
+    <!-- ============ 4 扩展 ============ -->
+    <h2 id="extend"><span class="num">4</span>扩展 P1–P3 工具</h2>
+    <p>P0 跑稳后，按 <code>docs/jsy-tool-plan.md</code> 的 <b>P1 → P2 → P3</b> 顺序加工具，那里已经把每个工具的 endpoint 映射 / 入参草图 / <code>when_to_use</code> 写好了。新增一个工具三步走：</p>
+    <div class="step">
+      <div class="n">1</div>
+      <div class="c"><h3>写 handler</h3><p>复制 <code>mcp-server/src/handlers/jsy/_TEMPLATE.ts.example</code> 改名 + 改业务参数 + 改 body 字段映射（服务端字段保持 PascalCase）。</p></div>
+    </div>
+    <div class="step">
+      <div class="n">2</div>
+      <div class="c"><h3>写 skill yaml</h3><p>在 <code>skills/jsy/</code> 新建同名 <code>.yaml</code>，参照 <code>pit-lifecycle.yaml</code>。写清 <code>description</code> / <code>when_to_use</code>（越具体越帮 LLM 路由）/ <code>when_not_to_use</code>（跟其他工具的边界）。</p></div>
+    </div>
+    <div class="step">
+      <div class="n">3</div>
+      <div class="c"><h3>注册到 index.ts + 验证</h3>
+        <pre><code><span class="c"># mcp-server/src/index.ts 三处：顶部 import、register 区调用、末尾日志 +1</span>
+<span class="k">npm</span> run build                                  <span class="c"># 类型过</span>
+<span class="k">npx</span> tsx scripts/jsy/test-tool.ts jsy.xxx <span class="s">'{...}'</span>  <span class="c"># 跑通</span></code></pre>
+        <p>最后把新业务术语补进 <code>lib/systems.ts</code> 的 <code>SYSTEM_REGISTRY.jsy.businessGlossary</code>。</p>
+      </div>
+    </div>
+    <div class="callout info">
+      <span class="h">用 AI 编程？</span>
+      <p>把<a href="#aiopener">附录 E 的开场白</a>整段贴给你的 AI 助手（Claude / Cursor / Copilot），比让它"无脑读 CLAUDE.md"快很多——它会直接拿到红线、源码路径、样板和测试命令。</p>
+    </div>
+
+    <!-- ============ 5 红线 ============ -->
+    <h2 id="redline"><span class="num">5</span>红线与上线注意</h2>
+    <div class="callout danger">
+      <span class="h">✖ 四条红线（违反则 review 不过 / 真实环境出事）</span>
+      <ul class="dot" style="margin:6px 0 0">
+        <li><b>写操作完全不接</b>。前缀为 <code>Save/Delete/Create/Add/Update/Edit/Modify/Set/Transition/Remove/Insert/Confirm/Approve/Submit/Lock/Reset/Clear…</code> 的 endpoint 一律跳过。Lantern 是 NL 查询平台，误调写操作（删车间/改班组/insert 错数据）代价远高于查询，且 MCP 直调绕过了前端业务校验。</li>
+        <li><b>上帝口令不上生产</b>。<code>JSY_GOD_TOKEN=1</code> / 口令 <code>oiiaioiiiai</code> 仅本机联调用，真实环境必须真实账号登录，且绝不提交进 git。</li>
+        <li><b>服务端字段 PascalCase 不要"修正"</b>。Newtonsoft.Json 大小写敏感。</li>
+        <li><b>响应 <code>Code=200</code> 才是成功</b>，不是 0。</li>
+      </ul>
+    </div>
+    <div class="callout ok">
+      <span class="h">✓ 真实环境上线前自检</span>
+      <ul class="check" style="margin:8px 0 0">
+        <li><code>.env.local</code> 里 <code>JSY_GOD_TOKEN</code> 已注释/删除，用的是真实账号</li>
+        <li>没有任何真实凭据/token 被写进代码、prompt、文档或提交进 git</li>
+        <li>所有 jsy 工具都是查询类，无写操作</li>
+        <li>大返回体工具已做字段裁剪，分页字段已在 <code>JsyPageResult</code> 固定</li>
+        <li>用现场真实编号验证过路由准确性与数据正确性</li>
+      </ul>
+    </div>
+
+    <hr class="sec">
+
+    <!-- ============ 附录 A 工具 ============ -->
+    <h2 id="tools">附录 A · P0 工具清单</h2>
+    <table>
+      <thead><tr><th>工具名</th><th>handler</th><th>endpoint</th></tr></thead>
+      <tbody>
+        <tr><td><code>jsy.pit.lifecycle</code></td><td><code>handlers/jsy/pit-lifecycle.ts</code></td><td><code>/ncnxPitLifecycle/query</code></td></tr>
+        <tr><td><code>jsy.ferment.room.profile</code></td><td><code>handlers/jsy/ferment-room-profile.ts</code></td><td><code>/fermentRoom/FermentRoomInfo</code></td></tr>
+        <tr><td><code>jsy.ferment.order.search</code></td><td><code>handlers/jsy/ferment-order-search.ts</code></td><td><code>/fermentRoom/FermentOrderList</code></td></tr>
+        <tr><td><code>jsy.hut.inventory.search</code></td><td><code>handlers/jsy/hut-inventory-search.ts</code></td><td><code>/HutInventory/GetDicInventoryRealTimeInfoOld</code> 等</td></tr>
+      </tbody>
+    </table>
+
+    <!-- ============ 附录 B env ============ -->
+    <h2 id="envvars">附录 B · 环境变量</h2>
+    <table>
+      <thead><tr><th>变量</th><th>必填</th><th>说明</th></tr></thead>
+      <tbody>
+        <tr><td><code>LLM_API_KEY</code></td><td>是</td><td>DeepSeek 官方 key（brain 推理用）</td></tr>
+        <tr><td><code>ENABLED_SYSTEMS</code></td><td>建议</td><td>设 <code>jsy</code> 只挂 JSY；空=全开</td></tr>
+        <tr><td><code>TOOLS_DIR</code></td><td>是</td><td>必须 <code>./skills</code>（模板已含，别删）</td></tr>
+        <tr><td><code>JSY_API_BASE_URL</code></td><td>是</td><td>JSY 后端地址，如 <code>http://host:port</code></td></tr>
+        <tr><td><code>JSY_USERNAME</code> / <code>JSY_PASSWORD</code></td><td>是</td><td>真实登录工号 / 密码</td></tr>
+        <tr><td><code>JSY_GOD_TOKEN</code></td><td>否</td><td>=1 走联调旁路，<b>真实环境禁用</b></td></tr>
+      </tbody>
+    </table>
+
+    <!-- ============ 附录 C 排错 ============ -->
+    <h2 id="errors">附录 C · 排错速查</h2>
+    <table>
+      <thead><tr><th>现象</th><th>含义 / 处理</th></tr></thead>
+      <tbody>
+        <tr><td>工具加载不出 / 一个都没有</td><td>多半 <code>TOOLS_DIR</code> 漏了或 <code>.env.local</code> 手建。改用 <code>cp .env.example</code>，确认含 <code>TOOLS_DIR=./skills</code></td></tr>
+        <tr><td>HTTP 401 Unauthorized</td><td>token 缺失/无效（错的 token、被踢）。<code>jsy-api.ts</code> 会自动重登一次</td></tr>
+        <tr><td>HTTP 402 PaymentRequired</td><td>token 超时（JWT exp 过期），服务端用 402 表达，会自动重登</td></tr>
+        <tr><td>HTTP 400</td><td>并发限制（DistributeException）</td></tr>
+        <tr><td>HTTP 200 但 <code>Code:-1</code></td><td>业务异常，看 <code>JsyApiError.serverMsg</code>，对照 <code>docs/jsy-findings.md</code> 业务规则</td></tr>
+        <tr><td>改了 handler 不生效</td><td>lantern 用 tsx 跑源码——<b>重启 lantern</b>（重新 spawn mcp-server）即可，不必 build</td></tr>
+        <tr><td>改了 <code>ENABLED_SYSTEMS</code> 没反应</td><td>前端和 mcp-server 都是启动时读 env，<b>两边都要重启</b></td></tr>
+      </tbody>
+    </table>
+
+    <!-- ============ 附录 D 文档地图 ============ -->
+    <h2 id="docmap">附录 D · 文档地图</h2>
+    <ul class="dot">
+      <li><code>docs/jsy-implementation-guide.html</code> — 本手册（实施全流程）</li>
+      <li><code>docs/jsy-onboarding.md</code> — 接手手册（代码细节、新增工具流程）</li>
+      <li><code>docs/jsy-business-context.md</code> — 业务速查（制曲链 vs 窖池链、6 大业务陷阱）</li>
+      <li><code>docs/jsy-findings.md</code> — 完整业务调研笔记（表名/字段/规则，352 行）</li>
+      <li><code>docs/jsy-endpoints.md</code> — 589 endpoint 全清单（按 controller 分组，可搜）</li>
+      <li><code>docs/jsy-tool-plan.md</code> — P1–P3 共 15 工具扩展规划</li>
+      <li><code>AGENTS.md</code> § JSY 接入约定 — 红线 + 源码结构 + 标准流程</li>
+    </ul>
+
+    <!-- ============ 附录 E AI 开场白 ============ -->
+    <h2 id="aiopener">附录 E · 给你的 AI 助手的开场白</h2>
+    <p>这份是<b>开始写 P1–P3 新工具时</b>的开场白（更聚焦动手）。第一次理解项目请用<a href="#ai-onboard">顶部"让 AI 先理解项目"那份</a>。<b>记得把源码路径换成你本机的实际路径。</b></p>
+    <div class="card copybox">
+      <button class="copybtn" onclick="copyEl(this,'opener')">复制</button>
+      <pre id="opener"><code>我接手了 lantern NL-API 平台的 JSY 南厂酿酒车间系统接入（这是 Lantern 首个真实项目实施）。
+任务：按 docs/jsy-tool-plan.md 的 P1-P3 顺序，新增 jsy.* MCP 工具。开始前必须做：
+
+1. 读 AGENTS.md 的 "JSY 南厂酿酒车间接入约定" 一节 — 红线、源码路径、新增工具流程
+2. 读 docs/jsy-business-context.md — 制曲链 vs 窖池链区分、关键标识符、业务陷阱
+   （需要完整业务规则看 docs/jsy-findings.md）
+3. 读一个现有工具样板：mcp-server/src/handlers/jsy/ferment-room-profile.ts（最简单）
+   或 mcp-server/src/handlers/jsy/pit-lifecycle.ts（含 include* 开关聚合）
+4. 看 docs/jsy-tool-plan.md 里你要做的那个工具的 endpoint / 入参 / when_to_use 预设
+5. 写新工具时复制 mcp-server/src/handlers/jsy/_TEMPLATE.ts.example 改
+
+红线（不要踩）：
+- 写操作完全不接（Save/Delete/Create/Add/Update/Edit/Modify/Set/Transition/Remove 前缀）
+- 服务端字段 PascalCase 别"修正"为 camelCase（Newtonsoft.Json 大小写敏感）
+- 响应包装 Code=200 才是 Success，不是 0
+- 上帝口令 oiiaioiiiai 不写进 git、不上真实环境
+
+JSY 源码（DTO/Controller 在这里看，换成你本机的路径）：
+&lt;你本机的 JSY 源码目录&gt;/Backend/   # 典型 …/JSYSmartFactoryII/南厂酿酒车间/Backend/
+
+测试新工具一行命令：
+npx tsx scripts/jsy/test-tool.ts &lt;tool-name&gt; '&lt;json-args&gt;'
+
+完整 endpoint 清单（589 条）：docs/jsy-endpoints.md（按 controller 分组，搜索可用）
+
+只挂 JSY 不要其他系统干扰：.env.local 设 ENABLED_SYSTEMS=jsy（lantern + mcp-server 都要重启）</code></pre>
+    </div>
+
+    <footer>
+      Lantern 执灯系统 · JSY 南厂酿酒车间真实项目实施手册 · 2026-05-29　|
+      EAM/EDHR/MES 为本机测试环境（非实施），JSY 为首个真实落地项目。
+    </footer>
+  </main>
+</div>
+
+<script>
+  // 复制开场白（通用：传入按钮和目标元素 id）
+  function copyEl(btn, id) {
+    var t = document.getElementById(id).innerText;
+    navigator.clipboard.writeText(t).then(function () {
+      var o = btn.textContent; btn.textContent = '已复制 ✓';
+      setTimeout(function () { btn.textContent = o; }, 1600);
+    });
+  }
+  // 导航高亮
+  var links = document.querySelectorAll('nav.toc a[href^="#"]');
+  var map = {};
+  links.forEach(function (a) { var el = document.getElementById(a.getAttribute('href').slice(1)); if (el) map[a.getAttribute('href')] = el; });
+  function onScroll() {
+    var y = window.scrollY + 120, cur = null;
+    for (var href in map) { if (map[href].offsetTop <= y) cur = href; }
+    links.forEach(function (a) { a.style.background = ''; a.style.color = ''; a.style.borderLeftColor = 'transparent';
+      if (a.getAttribute('href') === cur) { a.style.background = 'var(--accent-soft)'; a.style.color = 'var(--accent)'; a.style.borderLeftColor = 'var(--accent)'; }
+    });
+  }
+  window.addEventListener('scroll', onScroll); onScroll();
+</script>
+</body>
+</html>
