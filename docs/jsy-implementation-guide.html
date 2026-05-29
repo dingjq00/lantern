@@ -386,10 +386,10 @@ JSY_PASSWORD=<span class="s">&lt;真实密码&gt;</span>
       <div class="c">
         <h3>工具层 — 单个 MCP 工具能不能跑通</h3>
         <p>最简单的 smoke test 是 <code>jsy.ferment.room.profile</code>（单参数、单 endpoint、易核对）：</p>
-        <pre><code><span class="c"># 方式一：用项目脚本（推荐）</span>
+        <pre><code><span class="c"># 方式一（推荐）：项目脚本 —— 内部用 tsx 跑 src，无需 build</span>
 <span class="k">npx</span> tsx scripts/jsy/test-tool.ts jsy.ferment.room.profile <span class="s">'{"roomId":"&lt;现场真实曲房编号&gt;"}'</span>
 
-<span class="c"># 方式二：直接走 MCP stdio</span>
+<span class="c"># 方式二：直接走 MCP stdio（这条用 dist，需先 npm run build）</span>
 <span class="k">echo</span> <span class="s">'{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"jsy.ferment.room.profile","arguments":{"roomId":"&lt;编号&gt;"}}}'</span> \
   | <span class="k">node</span> mcp-server/dist/index.js</code></pre>
         <p>走通这一个，说明 <b>token 链路 + 解包 + 路由</b> 全对了。</p>

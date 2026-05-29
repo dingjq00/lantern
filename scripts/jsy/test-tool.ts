@@ -6,7 +6,7 @@
 //     npx tsx scripts/jsy/test-tool.ts jsy.ferment.room.profile '{"roomId":"ZL-A12"}'
 //     npx tsx scripts/jsy/test-tool.ts jsy.pit.lifecycle '{"unitCode":"1187","includeLineage":true}'
 //
-// 工作原理：spawn mcp-server stdio 子进程 → 发 MCP initialize → tools/call → 打印 result
+// 工作原理：用 tsx 直接跑 mcp-server/src（与 lantern 运行时一致，无需 build）→ MCP initialize → tools/call → 打印 result
 // 环境变量同 lantern：JSY_API_BASE_URL / JSY_USERNAME / JSY_PASSWORD（或 JSY_GOD_TOKEN=1）
 
 import { spawn } from 'node:child_process'
@@ -15,7 +15,7 @@ import { dirname, join } from 'node:path'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const REPO_ROOT = join(__dirname, '..', '..')
-const MCP_ENTRY = join(REPO_ROOT, 'mcp-server', 'dist', 'index.js')
+const MCP_ENTRY = join(REPO_ROOT, 'mcp-server', 'src', 'index.ts')
 
 const [, , toolName, argsJson] = process.argv
 
@@ -35,7 +35,7 @@ if (argsJson) {
   }
 }
 
-const proc = spawn('node', [MCP_ENTRY], {
+const proc = spawn('npx', ['tsx', MCP_ENTRY], {
   stdio: ['pipe', 'pipe', 'inherit'],
   env: process.env,
 })
@@ -80,6 +80,12 @@ function send<T>(method: string, params?: unknown): Promise<T> {
   })
 }
 
+// 通知：无 id、不等响应。MCP 要求 initialize 后发 notifications/initialized；
+// 发成带 id 的请求会被服务端回 -32601 Method not found，导致握手在工具调用前就挂掉。
+function notify(method: string, params?: unknown) {
+  proc.stdin.write(JSON.stringify({ jsonrpc: '2.0', method, params }) + '\n')
+}
+
 function cleanup(code = 0) {
   proc.kill()
   process.exit(code)
@@ -92,7 +98,7 @@ function cleanup(code = 0) {
     capabilities: {},
     clientInfo: { name: 'jsy-test-tool', version: '1.0.0' },
   })
-  await send('notifications/initialized', {}).catch(() => {})
+  notify('notifications/initialized', {})
 
   // 2. tools/call
   const start = Date.now()
@@ -126,8 +132,8 @@ function cleanup(code = 0) {
   cleanup(1)
 })
 
-// 安全网：10 秒未返回强制退出
+// 安全网：20 秒未返回强制退出（tsx 冷启动 + 真实网络登录留余量）
 setTimeout(() => {
-  console.error('⏰ 超时（10s）— 子进程没响应，强制退出')
+  console.error('⏰ 超时（20s）— 子进程没响应，强制退出')
   cleanup(124)
-}, 10_000).unref()
+}, 20_000).unref()

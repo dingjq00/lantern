@@ -1,4 +1,4 @@
-// MCP Server 入口 — EAM 12 工具 + EDHR 7 工具
+// MCP Server 入口 — EAM 12 + EDHR 7 + MES 10 + JSY 4 + Cross 1（实际注册数受 ENABLED_SYSTEMS 过滤）
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 
@@ -126,7 +126,7 @@ async function main() {
   ].filter(Boolean) as string[]
   const total = (isOn('eam') ? 12 : 0) + (isOn('edhr') ? 7 : 0) + (isOn('mes') ? 10 : 0) + (isOn('jsy') ? 4 : 0) + 1
   const mode = ENABLED.length === 0 ? '全启用' : `ENABLED_SYSTEMS=${ENABLED.join(',')}`
-  console.error(`Insight68 MCP Server v3 running on stdio (${total} tools: ${parts.join(' + ')} | ${mode})`)
+  console.error(`Lantern 执灯系统 MCP Server v3 running on stdio (${total} tools: ${parts.join(' + ')} | ${mode})`)
 }
 
 main().catch(console.error)
